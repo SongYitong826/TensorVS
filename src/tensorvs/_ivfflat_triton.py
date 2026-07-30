@@ -27,6 +27,10 @@ LIST_GROUPED_QUERY_TILE = 8
 LIST_GROUPED_VECTOR_TILE = 32
 LIST_GROUPED_DIM_TILE = 32
 LIST_GROUPED_MAX_FINAL_WIDTH = 2048
+# Each active list is partitioned into bounded vector-group chunks.  Combined
+# with its active query tiles, this yields exactly the number of Triton
+# programs needed for that list's current search work, regardless of dataset.
+LIST_GROUPED_TASK_VECTOR_GROUPS = 8
 # Target two scan programs per SM.  The direct kernel is register-heavy, so
 # this is deliberately lower than the theoretical maximum occupancy.  On the
 # RTX 4090 used by the benchmark (128 SMs), it yields 256 programs: GRID_X=2
@@ -186,6 +190,7 @@ if triton is not None:
     def _list_grouped_gemm_topk_kernel(
         queries_ptr,
         interleaved_vectors_ptr,
+        interleaved_vector_norms_ptr,
         list_group_prefix_ptr,
         list_count_ptr,
         edge_qid_sorted_ptr,
@@ -202,6 +207,7 @@ if triton is not None:
         VECTOR_TILE: tl.constexpr,
         DIM_TILE: tl.constexpr,
         LOCAL_K: tl.constexpr,
+        USE_PRECOMPUTED_NORMS: tl.constexpr,
         INF_KEY: tl.constexpr,
     ):
         """Compute one list's ``C @ V.T`` blocks and retain per-row local top-k.
@@ -260,8 +266,15 @@ if triton is not None:
             for local_group_idx in tl.range(0, group_count, 1):
                 valid_vectors = local_group_idx * GROUP_SIZE + vector_offsets < vector_count
                 dot_products = tl.zeros((QUERY_TILE, VECTOR_TILE), tl.float32)
-                vector_norms = tl.zeros((VECTOR_TILE,), tl.float32)
                 physical_positions = (group_prefix + local_group_idx.to(tl.int64)) * GROUP_SIZE + vector_offsets
+                if USE_PRECOMPUTED_NORMS:
+                    vector_norms = tl.load(
+                        interleaved_vector_norms_ptr + physical_positions,
+                        mask=valid_vectors,
+                        other=0.0,
+                    ).to(tl.float32)
+                else:
+                    vector_norms = tl.zeros((VECTOR_TILE,), tl.float32)
 
                 for dim_tile_idx in tl.static_range(0, NUM_DIM_TILES):
                     current_dim_offsets = dim_tile_idx * DIM_TILE + dim_offsets
@@ -276,6 +289,148 @@ if triton is not None:
                     # The interleaved layout is [group, dim_chunk, lane,
                     # veclen].  Loading it as [DIM_TILE, VECTOR_TILE] makes
                     # it the right-hand operand of the matrix product.
+                    vector_values = tl.load(
+                        interleaved_vectors_ptr
+                        + (
+                            (
+                                (group_prefix + local_group_idx.to(tl.int64)) * NUM_CHUNKS
+                                + dim_chunk_idx[:, None]
+                            )
+                            * GROUP_SIZE
+                            + vector_offsets[None, :]
+                        )
+                        * VECTOR_WIDTH
+                        + component_offsets[:, None],
+                        mask=valid_dimensions[:, None] & valid_vectors[None, :],
+                        other=0.0,
+                    ).to(tl.float32)
+                    dot_products = tl.dot(
+                        query_values,
+                        vector_values,
+                        dot_products,
+                        input_precision="ieee",
+                    )
+                    if not USE_PRECOMPUTED_NORMS:
+                        vector_norms += tl.sum(vector_values * vector_values, axis=0)
+
+                distances = (
+                    query_norms[:, None] + vector_norms[None, :] - 2.0 * dot_products
+                ).to(tl.float32)
+                distances = tl.maximum(distances, 0.0)
+                distance_bits = distances.to(tl.uint32, bitcast=True).to(tl.int64)
+                candidate_keys = (distance_bits << 32) | physical_positions[None, :]
+                valid_candidates = valid_queries[:, None] & valid_vectors[None, :]
+                candidate_keys = tl.where(valid_candidates, candidate_keys, INF_KEY)
+                tile_best_keys = ~tl.topk(~candidate_keys, LOCAL_K)
+                merged_keys = tl.reshape(
+                    tl.join(best_keys, tile_best_keys),
+                    (QUERY_TILE, 2 * LOCAL_K),
+                )
+                best_keys = ~tl.topk(~merged_keys, LOCAL_K)
+
+            tl.store(
+                partial_keys_ptr
+                + original_edge_positions[:, None] * LOCAL_K
+                + rank_offsets[None, :],
+                best_keys,
+                mask=valid_queries[:, None],
+            )
+
+
+    @triton.jit
+    def _list_grouped_chunked_gemm_topk_kernel(
+        queries_ptr,
+        interleaved_vectors_ptr,
+        list_group_prefix_ptr,
+        list_count_ptr,
+        edge_qid_sorted_ptr,
+        edge_sorted_to_original_ptr,
+        list_query_prefix_ptr,
+        list_query_count_ptr,
+        chunk_partial_keys_ptr,
+        D: tl.constexpr,
+        NUM_DIM_TILES: tl.constexpr,
+        NUM_CHUNKS: tl.constexpr,
+        GROUP_SIZE: tl.constexpr,
+        VECTOR_WIDTH: tl.constexpr,
+        QUERY_TILE: tl.constexpr,
+        VECTOR_TILE: tl.constexpr,
+        DIM_TILE: tl.constexpr,
+        GROUPS_PER_CHUNK: tl.constexpr,
+        MAX_VECTOR_CHUNKS: tl.constexpr,
+        LOCAL_K: tl.constexpr,
+        INF_KEY: tl.constexpr,
+    ):
+        """Evaluate one bounded vector-group run for one IVF list.
+
+        The first program dimension is the IVF list and the second is a
+        chunk of consecutive interleaved 32-vector groups.  Query tiles are
+        retained so a vector tile remains shared by up to ``QUERY_TILE``
+        queries.  Each query/list edge receives a local top-k for this run;
+        a follow-up kernel merges its runs exactly.
+        """
+        list_idx = tl.program_id(0)
+        vector_chunk_idx = tl.program_id(1)
+        query_count = tl.load(list_query_count_ptr + list_idx).to(tl.int32)
+        query_prefix = tl.load(list_query_prefix_ptr + list_idx).to(tl.int64)
+        vector_count = tl.load(list_count_ptr + list_idx).to(tl.int32)
+        group_prefix = tl.load(list_group_prefix_ptr + list_idx).to(tl.int64)
+        group_count = (vector_count + GROUP_SIZE - 1) // GROUP_SIZE
+        group_start = vector_chunk_idx * GROUPS_PER_CHUNK
+        group_end = tl.minimum(group_start + GROUPS_PER_CHUNK, group_count)
+
+        # Keep out-of-range list chunks entirely empty.  This is important
+        # because the launch grid is rectangular while IVF lists are ragged.
+        query_count = tl.where(group_start < group_count, query_count, 0)
+
+        query_tile_offsets = tl.arange(0, QUERY_TILE)
+        vector_offsets = tl.arange(0, VECTOR_TILE)
+        dim_offsets = tl.arange(0, DIM_TILE)
+        rank_offsets = tl.arange(0, LOCAL_K)
+
+        for query_tile_start in tl.range(0, query_count, QUERY_TILE):
+            query_positions = query_tile_start + query_tile_offsets
+            valid_queries = query_positions < query_count
+            sorted_edge_positions = query_prefix + query_positions.to(tl.int64)
+            query_ids = tl.load(
+                edge_qid_sorted_ptr + sorted_edge_positions,
+                mask=valid_queries,
+                other=0,
+            ).to(tl.int64)
+            original_edge_positions = tl.load(
+                edge_sorted_to_original_ptr + sorted_edge_positions,
+                mask=valid_queries,
+                other=0,
+            ).to(tl.int64)
+
+            query_norms = tl.zeros((QUERY_TILE,), tl.float32)
+            for dim_tile_idx in tl.static_range(0, NUM_DIM_TILES):
+                current_dim_offsets = dim_tile_idx * DIM_TILE + dim_offsets
+                valid_dimensions = current_dim_offsets < D
+                query_values = tl.load(
+                    queries_ptr + query_ids[:, None] * D + current_dim_offsets[None, :],
+                    mask=valid_queries[:, None] & valid_dimensions[None, :],
+                    other=0.0,
+                ).to(tl.float32)
+                query_norms += tl.sum(query_values * query_values, axis=1)
+
+            best_keys = tl.full((QUERY_TILE, LOCAL_K), INF_KEY, tl.int64)
+            for local_group_idx in tl.range(group_start, group_end, 1):
+                valid_vectors = local_group_idx * GROUP_SIZE + vector_offsets < vector_count
+                dot_products = tl.zeros((QUERY_TILE, VECTOR_TILE), tl.float32)
+                vector_norms = tl.zeros((VECTOR_TILE,), tl.float32)
+                physical_positions = (group_prefix + local_group_idx.to(tl.int64)) * GROUP_SIZE + vector_offsets
+
+                for dim_tile_idx in tl.static_range(0, NUM_DIM_TILES):
+                    current_dim_offsets = dim_tile_idx * DIM_TILE + dim_offsets
+                    valid_dimensions = current_dim_offsets < D
+                    dim_chunk_idx = current_dim_offsets // VECTOR_WIDTH
+                    component_offsets = current_dim_offsets % VECTOR_WIDTH
+                    query_values = tl.load(
+                        queries_ptr + query_ids[:, None] * D + current_dim_offsets[None, :],
+                        mask=valid_queries[:, None] & valid_dimensions[None, :],
+                        other=0.0,
+                    ).to(tl.float32)
                     vector_values = tl.load(
                         interleaved_vectors_ptr
                         + (
@@ -315,12 +470,190 @@ if triton is not None:
                 best_keys = ~tl.topk(~merged_keys, LOCAL_K)
 
             tl.store(
-                partial_keys_ptr
-                + original_edge_positions[:, None] * LOCAL_K
+                chunk_partial_keys_ptr
+                + (
+                    original_edge_positions[:, None] * MAX_VECTOR_CHUNKS
+                    + vector_chunk_idx
+                )
+                * LOCAL_K
                 + rank_offsets[None, :],
                 best_keys,
                 mask=valid_queries[:, None],
             )
+
+
+    @triton.jit
+    def _list_grouped_tasked_gemm_topk_kernel(
+        queries_ptr,
+        interleaved_vectors_ptr,
+        interleaved_vector_norms_ptr,
+        list_group_prefix_ptr,
+        list_count_ptr,
+        edge_qid_sorted_ptr,
+        edge_sorted_to_original_ptr,
+        list_query_prefix_ptr,
+        list_query_count_ptr,
+        task_list_ids_ptr,
+        task_query_tile_ids_ptr,
+        task_vector_chunk_ids_ptr,
+        chunk_partial_keys_ptr,
+        D: tl.constexpr,
+        NUM_DIM_TILES: tl.constexpr,
+        NUM_CHUNKS: tl.constexpr,
+        GROUP_SIZE: tl.constexpr,
+        VECTOR_WIDTH: tl.constexpr,
+        QUERY_TILE: tl.constexpr,
+        VECTOR_TILE: tl.constexpr,
+        DIM_TILE: tl.constexpr,
+        GROUPS_PER_CHUNK: tl.constexpr,
+        MAX_VECTOR_CHUNKS: tl.constexpr,
+        USE_PRECOMPUTED_NORMS: tl.constexpr,
+        LOCAL_K: tl.constexpr,
+        INF_KEY: tl.constexpr,
+    ):
+        """Run one compact ``(list, query tile, vector-group chunk)`` task."""
+        task_idx = tl.program_id(0)
+        list_idx = tl.load(task_list_ids_ptr + task_idx).to(tl.int64)
+        query_tile_idx = tl.load(task_query_tile_ids_ptr + task_idx).to(tl.int32)
+        vector_chunk_idx = tl.load(task_vector_chunk_ids_ptr + task_idx).to(tl.int32)
+
+        query_count = tl.load(list_query_count_ptr + list_idx).to(tl.int32)
+        query_prefix = tl.load(list_query_prefix_ptr + list_idx).to(tl.int64)
+        vector_count = tl.load(list_count_ptr + list_idx).to(tl.int32)
+        group_prefix = tl.load(list_group_prefix_ptr + list_idx).to(tl.int64)
+        group_count = (vector_count + GROUP_SIZE - 1) // GROUP_SIZE
+        group_start = vector_chunk_idx * GROUPS_PER_CHUNK
+        group_end = tl.minimum(group_start + GROUPS_PER_CHUNK, group_count)
+
+        query_tile_offsets = tl.arange(0, QUERY_TILE)
+        vector_offsets = tl.arange(0, VECTOR_TILE)
+        dim_offsets = tl.arange(0, DIM_TILE)
+        rank_offsets = tl.arange(0, LOCAL_K)
+        query_positions = query_tile_idx * QUERY_TILE + query_tile_offsets
+        valid_queries = query_positions < query_count
+        sorted_edge_positions = query_prefix + query_positions.to(tl.int64)
+        query_ids = tl.load(
+            edge_qid_sorted_ptr + sorted_edge_positions,
+            mask=valid_queries,
+            other=0,
+        ).to(tl.int64)
+        original_edge_positions = tl.load(
+            edge_sorted_to_original_ptr + sorted_edge_positions,
+            mask=valid_queries,
+            other=0,
+        ).to(tl.int64)
+
+        query_norms = tl.zeros((QUERY_TILE,), tl.float32)
+        for dim_tile_idx in tl.static_range(0, NUM_DIM_TILES):
+            current_dim_offsets = dim_tile_idx * DIM_TILE + dim_offsets
+            valid_dimensions = current_dim_offsets < D
+            query_values = tl.load(
+                queries_ptr + query_ids[:, None] * D + current_dim_offsets[None, :],
+                mask=valid_queries[:, None] & valid_dimensions[None, :],
+                other=0.0,
+            ).to(tl.float32)
+            query_norms += tl.sum(query_values * query_values, axis=1)
+
+        best_keys = tl.full((QUERY_TILE, LOCAL_K), INF_KEY, tl.int64)
+        for local_group_idx in tl.range(group_start, group_end, 1):
+            valid_vectors = local_group_idx * GROUP_SIZE + vector_offsets < vector_count
+            dot_products = tl.zeros((QUERY_TILE, VECTOR_TILE), tl.float32)
+            physical_positions = (group_prefix + local_group_idx.to(tl.int64)) * GROUP_SIZE + vector_offsets
+            if USE_PRECOMPUTED_NORMS:
+                vector_norms = tl.load(
+                    interleaved_vector_norms_ptr + physical_positions,
+                    mask=valid_vectors,
+                    other=0.0,
+                ).to(tl.float32)
+            else:
+                vector_norms = tl.zeros((VECTOR_TILE,), tl.float32)
+
+            for dim_tile_idx in tl.static_range(0, NUM_DIM_TILES):
+                current_dim_offsets = dim_tile_idx * DIM_TILE + dim_offsets
+                valid_dimensions = current_dim_offsets < D
+                dim_chunk_idx = current_dim_offsets // VECTOR_WIDTH
+                component_offsets = current_dim_offsets % VECTOR_WIDTH
+                query_values = tl.load(
+                    queries_ptr + query_ids[:, None] * D + current_dim_offsets[None, :],
+                    mask=valid_queries[:, None] & valid_dimensions[None, :],
+                    other=0.0,
+                ).to(tl.float32)
+                vector_values = tl.load(
+                    interleaved_vectors_ptr
+                    + (
+                        (
+                            (group_prefix + local_group_idx.to(tl.int64)) * NUM_CHUNKS
+                            + dim_chunk_idx[:, None]
+                        )
+                        * GROUP_SIZE
+                        + vector_offsets[None, :]
+                    )
+                    * VECTOR_WIDTH
+                    + component_offsets[:, None],
+                    mask=valid_dimensions[:, None] & valid_vectors[None, :],
+                    other=0.0,
+                ).to(tl.float32)
+                dot_products = tl.dot(
+                    query_values,
+                    vector_values,
+                    dot_products,
+                    input_precision="ieee",
+                )
+                if not USE_PRECOMPUTED_NORMS:
+                    vector_norms += tl.sum(vector_values * vector_values, axis=0)
+
+            distances = (
+                query_norms[:, None] + vector_norms[None, :] - 2.0 * dot_products
+            ).to(tl.float32)
+            distances = tl.maximum(distances, 0.0)
+            distance_bits = distances.to(tl.uint32, bitcast=True).to(tl.int64)
+            candidate_keys = (distance_bits << 32) | physical_positions[None, :]
+            valid_candidates = valid_queries[:, None] & valid_vectors[None, :]
+            candidate_keys = tl.where(valid_candidates, candidate_keys, INF_KEY)
+            tile_best_keys = ~tl.topk(~candidate_keys, LOCAL_K)
+            merged_keys = tl.reshape(
+                tl.join(best_keys, tile_best_keys),
+                (QUERY_TILE, 2 * LOCAL_K),
+            )
+            best_keys = ~tl.topk(~merged_keys, LOCAL_K)
+
+        tl.store(
+            chunk_partial_keys_ptr
+            + (
+                original_edge_positions[:, None] * MAX_VECTOR_CHUNKS
+                + vector_chunk_idx
+            )
+            * LOCAL_K
+            + rank_offsets[None, :],
+            best_keys,
+            mask=valid_queries[:, None],
+        )
+
+
+    @triton.jit
+    def _merge_list_chunk_topk_kernel(
+        chunk_partial_keys_ptr,
+        list_partial_keys_ptr,
+        MERGE_WIDTH: tl.constexpr,
+        MAX_VECTOR_CHUNKS: tl.constexpr,
+        LOCAL_K: tl.constexpr,
+        INF_KEY: tl.constexpr,
+    ):
+        """Merge an IVF edge's chunk-local results into its exact local top-k."""
+        edge_idx = tl.program_id(0)
+        offsets = tl.arange(0, MERGE_WIDTH)
+        chunk_key_count = MAX_VECTOR_CHUNKS * LOCAL_K
+        keys = tl.load(
+            chunk_partial_keys_ptr + edge_idx * chunk_key_count + offsets,
+            mask=offsets < chunk_key_count,
+            other=INF_KEY,
+        )
+        best_keys = ~tl.topk(~keys, LOCAL_K)
+        ranks = tl.arange(0, LOCAL_K)
+        tl.store(
+            list_partial_keys_ptr + edge_idx * LOCAL_K + ranks,
+            best_keys,
+        )
 
 
     @triton.jit
@@ -453,6 +786,26 @@ def _list_grouped_gemm_plan(
     return local_k, final_width
 
 
+def _list_grouped_task_plan(
+    *,
+    topk: int,
+    nprobe: int,
+    dim: int,
+    max_list_group_count: int,
+) -> tuple[int, int, int] | None:
+    """Return the exact adaptive list-task plan, or ``None`` when unsuitable."""
+    grouped_plan = _list_grouped_gemm_plan(topk=topk, nprobe=nprobe, dim=dim)
+    if grouped_plan is None or max_list_group_count <= 0:
+        return None
+
+    local_k, _ = grouped_plan
+    max_vector_chunks = math.ceil(max_list_group_count / LIST_GROUPED_TASK_VECTOR_GROUPS)
+    merge_width = _next_power_of_two(max_vector_chunks * local_k)
+    if merge_width > LIST_GROUPED_MAX_FINAL_WIDTH:
+        return None
+    return local_k, max_vector_chunks, merge_width
+
+
 def can_run_topk(
     *,
     device: torch.device,
@@ -541,6 +894,7 @@ def _run_list_grouped_gemm_topk(
     *,
     queries: torch.Tensor,
     list_vectors_interleaved: torch.Tensor,
+    list_vector_norms_interleaved: torch.Tensor | None,
     list_ids_interleaved: torch.Tensor,
     list_group_prefix: torch.Tensor,
     list_count: torch.Tensor,
@@ -555,6 +909,11 @@ def _run_list_grouped_gemm_topk(
     num_chunks = int(list_vectors_interleaved.shape[1])
     vector_width = int(list_vectors_interleaved.shape[3])
     local_k, final_width = plan
+    use_precomputed_norms = list_vector_norms_interleaved is not None
+    norm_cache = list_vector_norms_interleaved
+    if norm_cache is None:
+        # This pointer is compile-time unused by the fallback specialization.
+        norm_cache = list_vectors_interleaved
 
     # All preprocessing stays on the GPU and has fixed-size outputs.  ``perm``
     # maps list-major rows back to their query-major [query, probe] slot, so
@@ -579,6 +938,7 @@ def _run_list_grouped_gemm_topk(
     _list_grouped_gemm_topk_kernel[(num_lists,)](
         queries,
         list_vectors_interleaved,
+        norm_cache,
         list_group_prefix,
         list_count,
         edge_query_ids_sorted,
@@ -595,6 +955,7 @@ def _run_list_grouped_gemm_topk(
         VECTOR_TILE=LIST_GROUPED_VECTOR_TILE,
         DIM_TILE=LIST_GROUPED_DIM_TILE,
         LOCAL_K=local_k,
+        USE_PRECOMPUTED_NORMS=use_precomputed_norms,
         INF_KEY=_INF_KEY,
         num_warps=4,
     )
@@ -603,6 +964,262 @@ def _run_list_grouped_gemm_topk(
     output_ids = torch.empty((num_queries, topk), device=queries.device, dtype=torch.int64)
     _finalize_list_grouped_topk_kernel[(num_queries,)](
         partial_keys,
+        list_ids_interleaved,
+        output_distances,
+        output_ids,
+        nprobe,
+        topk,
+        LOCAL_K=local_k,
+        FINAL_WIDTH=final_width,
+        INF_KEY=_INF_KEY,
+        num_warps=4,
+    )
+    return output_distances, output_ids
+
+
+def _run_list_grouped_chunked_gemm_topk(
+    *,
+    queries: torch.Tensor,
+    list_vectors_interleaved: torch.Tensor,
+    list_ids_interleaved: torch.Tensor,
+    list_group_prefix: torch.Tensor,
+    list_count: torch.Tensor,
+    probe_cids: torch.Tensor,
+    topk: int,
+    plan: tuple[int, int, int],
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Scan long IVF lists in parallel vector-group chunks and merge exactly."""
+    num_queries, nprobe = probe_cids.shape
+    dim = int(queries.shape[1])
+    num_lists = int(list_count.numel())
+    num_chunks = int(list_vectors_interleaved.shape[1])
+    vector_width = int(list_vectors_interleaved.shape[3])
+    local_k, max_vector_chunks, merge_width = plan
+
+    edge_query_ids = torch.arange(
+        num_queries,
+        dtype=torch.int64,
+        device=queries.device,
+    ).repeat_interleave(nprobe)
+    edge_cids = probe_cids.reshape(-1).to(torch.int64)
+    _, edge_sorted_to_original = torch.sort(edge_cids)
+    edge_query_ids_sorted = edge_query_ids[edge_sorted_to_original]
+    list_query_count = torch.bincount(edge_cids, minlength=num_lists).to(torch.int64)
+    list_query_prefix = torch.cumsum(list_query_count, dim=0) - list_query_count
+
+    num_edges = num_queries * nprobe
+    chunk_partial_keys = torch.full(
+        (num_edges, max_vector_chunks, local_k),
+        _INF_KEY,
+        dtype=torch.int64,
+        device=queries.device,
+    )
+    _list_grouped_chunked_gemm_topk_kernel[(num_lists, max_vector_chunks)](
+        queries,
+        list_vectors_interleaved,
+        list_group_prefix,
+        list_count,
+        edge_query_ids_sorted,
+        edge_sorted_to_original,
+        list_query_prefix,
+        list_query_count,
+        chunk_partial_keys,
+        D=dim,
+        NUM_DIM_TILES=(dim + LIST_GROUPED_DIM_TILE - 1) // LIST_GROUPED_DIM_TILE,
+        NUM_CHUNKS=num_chunks,
+        GROUP_SIZE=INTERLEAVED_GROUP_SIZE,
+        VECTOR_WIDTH=vector_width,
+        QUERY_TILE=LIST_GROUPED_QUERY_TILE,
+        VECTOR_TILE=LIST_GROUPED_VECTOR_TILE,
+        DIM_TILE=LIST_GROUPED_DIM_TILE,
+        GROUPS_PER_CHUNK=LIST_GROUPED_TASK_VECTOR_GROUPS,
+        MAX_VECTOR_CHUNKS=max_vector_chunks,
+        LOCAL_K=local_k,
+        INF_KEY=_INF_KEY,
+        num_warps=4,
+    )
+
+    list_partial_keys = torch.empty(
+        (num_edges, local_k),
+        dtype=torch.int64,
+        device=queries.device,
+    )
+    _merge_list_chunk_topk_kernel[(num_edges,)](
+        chunk_partial_keys,
+        list_partial_keys,
+        MERGE_WIDTH=merge_width,
+        MAX_VECTOR_CHUNKS=max_vector_chunks,
+        LOCAL_K=local_k,
+        INF_KEY=_INF_KEY,
+        num_warps=4,
+    )
+
+    output_distances = torch.empty((num_queries, topk), device=queries.device, dtype=torch.float32)
+    output_ids = torch.empty((num_queries, topk), device=queries.device, dtype=torch.int64)
+    grouped_plan = _list_grouped_gemm_plan(topk=topk, nprobe=nprobe, dim=dim)
+    if grouped_plan is None:  # pragma: no cover - guarded by ``triton_topk``
+        raise ValueError("IVFFlat Triton grouped top-k plan is unavailable")
+    _, final_width = grouped_plan
+    _finalize_list_grouped_topk_kernel[(num_queries,)](
+        list_partial_keys,
+        list_ids_interleaved,
+        output_distances,
+        output_ids,
+        nprobe,
+        topk,
+        LOCAL_K=local_k,
+        FINAL_WIDTH=final_width,
+        INF_KEY=_INF_KEY,
+        num_warps=4,
+    )
+    return output_distances, output_ids
+
+
+def _run_list_grouped_tasked_gemm_topk(
+    *,
+    queries: torch.Tensor,
+    list_vectors_interleaved: torch.Tensor,
+    list_vector_norms_interleaved: torch.Tensor | None,
+    list_ids_interleaved: torch.Tensor,
+    list_group_prefix: torch.Tensor,
+    list_count: torch.Tensor,
+    probe_cids: torch.Tensor,
+    topk: int,
+    plan: tuple[int, int, int],
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Use one Triton program per active list/query-tile/group-chunk task."""
+    num_queries, nprobe = probe_cids.shape
+    dim = int(queries.shape[1])
+    num_lists = int(list_count.numel())
+    num_chunks = int(list_vectors_interleaved.shape[1])
+    vector_width = int(list_vectors_interleaved.shape[3])
+    local_k, max_vector_chunks, merge_width = plan
+    use_precomputed_norms = list_vector_norms_interleaved is not None
+    norm_cache = list_vector_norms_interleaved
+    if norm_cache is None:
+        # The pointer is compile-time unused in this specialization.
+        norm_cache = list_vectors_interleaved
+
+    edge_query_ids = torch.arange(
+        num_queries,
+        dtype=torch.int64,
+        device=queries.device,
+    ).repeat_interleave(nprobe)
+    edge_cids = probe_cids.reshape(-1).to(torch.int64)
+    _, edge_sorted_to_original = torch.sort(edge_cids)
+    edge_query_ids_sorted = edge_query_ids[edge_sorted_to_original]
+    list_query_count = torch.bincount(edge_cids, minlength=num_lists).to(torch.int64)
+    list_query_prefix = torch.cumsum(list_query_count, dim=0) - list_query_count
+
+    list_group_count = torch.div(
+        list_count + (INTERLEAVED_GROUP_SIZE - 1),
+        INTERLEAVED_GROUP_SIZE,
+        rounding_mode="floor",
+    )
+    list_query_tile_count = torch.div(
+        list_query_count + (LIST_GROUPED_QUERY_TILE - 1),
+        LIST_GROUPED_QUERY_TILE,
+        rounding_mode="floor",
+    )
+    list_vector_chunk_count = torch.div(
+        list_group_count + (LIST_GROUPED_TASK_VECTOR_GROUPS - 1),
+        LIST_GROUPED_TASK_VECTOR_GROUPS,
+        rounding_mode="floor",
+    )
+    task_count_per_list = list_query_tile_count * list_vector_chunk_count
+    task_prefix = torch.cumsum(task_count_per_list, dim=0) - task_count_per_list
+    num_tasks = int(task_count_per_list.sum().item())
+
+    if num_tasks == 0:  # pragma: no cover - non-empty probes normally have work
+        output_distances = torch.full(
+            (num_queries, topk),
+            float("inf"),
+            dtype=torch.float32,
+            device=queries.device,
+        )
+        output_ids = torch.full(
+            (num_queries, topk),
+            -1,
+            dtype=torch.int64,
+            device=queries.device,
+        )
+        return output_distances, output_ids
+
+    task_list_ids = torch.repeat_interleave(
+        torch.arange(num_lists, device=queries.device, dtype=torch.int64),
+        task_count_per_list,
+        output_size=num_tasks,
+    )
+    task_positions = torch.arange(num_tasks, device=queries.device, dtype=torch.int64)
+    task_local_positions = task_positions - task_prefix[task_list_ids]
+    task_vector_chunk_counts = list_vector_chunk_count[task_list_ids]
+    task_query_tile_ids = torch.div(
+        task_local_positions,
+        task_vector_chunk_counts,
+        rounding_mode="floor",
+    )
+    task_vector_chunk_ids = torch.remainder(task_local_positions, task_vector_chunk_counts)
+
+    num_edges = num_queries * nprobe
+    chunk_partial_keys = torch.full(
+        (num_edges, max_vector_chunks, local_k),
+        _INF_KEY,
+        dtype=torch.int64,
+        device=queries.device,
+    )
+    _list_grouped_tasked_gemm_topk_kernel[(num_tasks,)](
+        queries,
+        list_vectors_interleaved,
+        norm_cache,
+        list_group_prefix,
+        list_count,
+        edge_query_ids_sorted,
+        edge_sorted_to_original,
+        list_query_prefix,
+        list_query_count,
+        task_list_ids,
+        task_query_tile_ids,
+        task_vector_chunk_ids,
+        chunk_partial_keys,
+        D=dim,
+        NUM_DIM_TILES=(dim + LIST_GROUPED_DIM_TILE - 1) // LIST_GROUPED_DIM_TILE,
+        NUM_CHUNKS=num_chunks,
+        GROUP_SIZE=INTERLEAVED_GROUP_SIZE,
+        VECTOR_WIDTH=vector_width,
+        QUERY_TILE=LIST_GROUPED_QUERY_TILE,
+        VECTOR_TILE=LIST_GROUPED_VECTOR_TILE,
+        DIM_TILE=LIST_GROUPED_DIM_TILE,
+        GROUPS_PER_CHUNK=LIST_GROUPED_TASK_VECTOR_GROUPS,
+        MAX_VECTOR_CHUNKS=max_vector_chunks,
+        USE_PRECOMPUTED_NORMS=use_precomputed_norms,
+        LOCAL_K=local_k,
+        INF_KEY=_INF_KEY,
+        num_warps=4,
+    )
+
+    list_partial_keys = torch.empty(
+        (num_edges, local_k),
+        dtype=torch.int64,
+        device=queries.device,
+    )
+    _merge_list_chunk_topk_kernel[(num_edges,)](
+        chunk_partial_keys,
+        list_partial_keys,
+        MERGE_WIDTH=merge_width,
+        MAX_VECTOR_CHUNKS=max_vector_chunks,
+        LOCAL_K=local_k,
+        INF_KEY=_INF_KEY,
+        num_warps=4,
+    )
+
+    output_distances = torch.empty((num_queries, topk), device=queries.device, dtype=torch.float32)
+    output_ids = torch.empty((num_queries, topk), device=queries.device, dtype=torch.int64)
+    grouped_plan = _list_grouped_gemm_plan(topk=topk, nprobe=nprobe, dim=dim)
+    if grouped_plan is None:  # pragma: no cover - guarded by ``triton_topk``
+        raise ValueError("IVFFlat Triton grouped top-k plan is unavailable")
+    _, final_width = grouped_plan
+    _finalize_list_grouped_topk_kernel[(num_queries,)](
+        list_partial_keys,
         list_ids_interleaved,
         output_distances,
         output_ids,
@@ -625,6 +1242,8 @@ def triton_topk(
     list_count: torch.Tensor,
     probe_cids: torch.Tensor,
     topk: int,
+    list_vector_norms_interleaved: torch.Tensor | None = None,
+    max_list_group_count: int | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Run exact IVF-Flat top-k with GPU list-grouped C @ V.T blocks.
 
@@ -680,9 +1299,36 @@ def triton_topk(
 
     grouped_plan = _list_grouped_gemm_plan(topk=topk, nprobe=nprobe, dim=dim)
     if grouped_plan is not None:
+        if max_list_group_count is None:
+            max_list_group_count = int(
+                torch.div(
+                    list_count.max() + (INTERLEAVED_GROUP_SIZE - 1),
+                    INTERLEAVED_GROUP_SIZE,
+                    rounding_mode="floor",
+                ).item()
+            )
+        task_plan = _list_grouped_task_plan(
+            topk=topk,
+            nprobe=nprobe,
+            dim=dim,
+            max_list_group_count=max_list_group_count,
+        )
+        if task_plan is not None:
+            return _run_list_grouped_tasked_gemm_topk(
+                queries=queries,
+                list_vectors_interleaved=list_vectors_interleaved,
+                list_vector_norms_interleaved=list_vector_norms_interleaved,
+                list_ids_interleaved=list_ids_interleaved,
+                list_group_prefix=list_group_prefix,
+                list_count=list_count,
+                probe_cids=probe_cids,
+                topk=topk,
+                plan=task_plan,
+            )
         return _run_list_grouped_gemm_topk(
             queries=queries,
             list_vectors_interleaved=list_vectors_interleaved,
+            list_vector_norms_interleaved=list_vector_norms_interleaved,
             list_ids_interleaved=list_ids_interleaved,
             list_group_prefix=list_group_prefix,
             list_count=list_count,

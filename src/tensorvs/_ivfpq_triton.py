@@ -61,10 +61,13 @@ if triton is not None:
     ):
         """Scan query-owned probe-list partitions without list bucketing.
 
-        ``G[q,m,code]`` is read through the global/L2 cache.  It deliberately
-        is not retained as a program-wide block tensor: on the common
-        M=16/K=256 shape that would consume 16 KiB of compiler-managed on-chip
-        storage and reduce occupancy.
+        ``G[q,m,code]`` remains in global memory, but is allowed to use the
+        per-SM L1 cache as well as L2.  It is query-local and is reused by the
+        scan partitions for that query, whereas ``gamma`` is a one-use stream
+        and deliberately bypasses L1.  We do *not* materialize all of G in a
+        program's registers/shared memory: the common M=16/K=256 table is
+        8 KiB (FP16) or 16 KiB (FP32), which would reduce occupancy and make
+        dynamic code gathers prone to register spilling.
         """
         partition_idx = tl.program_id(0)
         query_idx = tl.program_id(1)
@@ -110,7 +113,10 @@ if triton is not None:
                         + codes,
                         mask=valid_candidates,
                         other=0.0,
-                        cache_modifier=".cg",
+                        # G is the only scanned input with appreciable
+                        # intra-query reuse.  Cache it in L1 first; gamma and
+                        # the one-pass code stream do not pollute L1.
+                        cache_modifier=".ca",
                     )
                     # FP16 LUTs are compact storage only. ADC remains FP32.
                     distances += lut_values.to(tl.float32)

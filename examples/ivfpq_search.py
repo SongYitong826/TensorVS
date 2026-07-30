@@ -17,10 +17,12 @@ from tensorvs import (
     search_ivfpq_index,
 )
 
-DATASET_PATH = Path("/storage/vector_data/sift1m/sift1m_base.fvecs")
-QUERY_PATH = Path("/storage/vector_data/sift1m/sift1m_query.fvecs")
-GROUNDTRUTH_PATH = Path("/storage/vector_data/sift1m/sift1m_groundtruth.ivecs")
-OUTPUT_DIR = Path("/storage/vector_data/sift1m/GPUIndex")
+DIR_PATH = Path("/storage/vector_data/glove1.2m")
+DATASET_NAME = DIR_PATH.name
+DATASET_PATH = DIR_PATH / f"{DATASET_NAME}_base.fvecs"
+QUERY_PATH = DIR_PATH / f"{DATASET_NAME}_query.fvecs"
+GROUNDTRUTH_PATH = DIR_PATH / f"{DATASET_NAME}_groundtruth.ivecs"
+OUTPUT_DIR = DIR_PATH / "GPUIndex"
 NLIST = 1024
 NITER = 25
 USE_TRITON = True
@@ -29,18 +31,17 @@ M = 16
 NBITS = 8
 TOPK = 10
 NPROBE = 50
-SELECTION_MODE = "triton_topk"  # triton_topk / tensor_topk
+SELECTION_MODE = "tensor_nopadding_topk"  # triton_topk / tensor_topk / tensor_list_topk / tensor_nopadding_topk
 # Enable only when inspecting per-stage timing. For ``tensor_topk`` this also
 # splits its normal fused graph, so leave it False for QPS measurements.
 ENABLE_DETAILED_TIMING = False
 # LUT precision switch: ``"fp32"`` uses TF32 Tensor Core BMM while retaining
 # FP32 LUT storage/ADC accumulation; ``"fp16"`` uses fused residual/LUT
 # construction with FP16 Tensor Core dot operands.
-LUT_DTYPE = "fp32"
-# The sole Triton IVF-PQ path: query-major static-vector correction. Both
-# FP32 and FP16 use this scheme; FP16 stores G compactly but accumulates ADC
-# values together with gamma in FP32.
-LUT_STRATEGY = "decomposed_vector_correction"
+LUT_DTYPE = "fp32"  # fp32 / fp16
+# The sole Triton IVF-PQ path is query-major static-vector correction. Both
+# FP32 and FP16 use it; FP16 stores G compactly but accumulates ADC values
+# together with gamma in FP32.
 REFINE_FACTOR = 1
 NQ = 1000
 Q_BATCH = 64
@@ -200,7 +201,6 @@ def main() -> None:
                 profile=warmup_profile,
                 detailed_tensor_topk_profile=ENABLE_DETAILED_TIMING,
                 lut_dtype=LUT_DTYPE,
-                lut_strategy=LUT_STRATEGY,
             )
             if DEVICE.type == "cuda":
                 torch.cuda.synchronize(DEVICE)
@@ -222,7 +222,6 @@ def main() -> None:
             profile=batch_profile,
             detailed_tensor_topk_profile=ENABLE_DETAILED_TIMING,
             lut_dtype=LUT_DTYPE,
-            lut_strategy=LUT_STRATEGY,
         )
         batch_search_elapsed = time.perf_counter() - batch_search_start_time
         batch_timings["search_core"] += batch_search_elapsed

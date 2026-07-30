@@ -101,7 +101,10 @@ distances, ids = search_ivfpq_index(
 为减少磁盘占用，不会额外落盘一份 `vectors.pt`；向量只在按 cluster 排序后的
 `list_vectors.pt` 中保存一次。IVF-PQ 索引只保存 PQ codes，不保存原始向量；它会同时
 落盘两种 list 布局：`list_codes.pt`、`list_ids_flat.pt`、`list_prefix.pt`、
-`list_count.pt` 供 `tensor_topk` 使用，以及
+`list_count.pt` 以及行主序的 `list_pq_static_corrections.pt` 供
+`tensor_topk` 使用；后者让 Tensor 路线以 query-global LUT 在查表时重建
+残差 ADC 值，而无需物化每个 probe 的完整 LUT。另有
 `list_codes_interleaved_by_subspace.pt`、`list_ids_interleaved.pt`、
-`list_group_prefix.pt` 供 `triton_topk` 使用。调用
+`list_group_prefix.pt`、`list_pq_static_corrections_interleaved.pt` 供
+`triton_topk` 使用。调用
 `index.reside_on_device("cuda:0")` 时，两种布局都会常驻到该 GPU。
