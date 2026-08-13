@@ -13,10 +13,13 @@ from ._kmeans import fit_best_kmeans
 from ._ivf_interleaved import (
     INTERLEAVED_GROUP_SIZE,
     build_interleaved_pq_lists,
+    build_interleaved_pq_code_chunks,
     build_interleaved_pq_scalar_cache,
 )
-from ._ivfpq_triton import can_run as can_run_ivfpq_triton_topk
+from ._ivfpq_triton import can_run_topk as can_run_ivfpq_triton_topk
 from ._ivfpq_triton import triton_topk as triton_ivfpq_topk
+from ._ivfpq_list_major_triton import can_run_topk as can_run_ivfpq_list_major_topk
+from ._ivfpq_list_major_triton import triton_list_major_topk as triton_ivfpq_list_major_topk
 from .distance import squared_l2_distance
 from .refine import refine_search_results
 
@@ -43,6 +46,108 @@ def _pq_code_dtype(nbits: int) -> torch.dtype:
     if nbits <= 16:
         return torch.int16
     return torch.int32
+
+
+def _pq_working_dim(dim: int, m: int) -> int:
+    """Return the cuVS-style PQ working dimension for ``m`` subspaces."""
+    if dim <= 0 or m <= 0:
+        raise ValueError(f"dim and m must be positive, got dim={dim}, m={m}")
+    return ((dim + m - 1) // m) * m
+
+
+def _make_pq_rotation_matrix(
+    dim: int,
+    working_dim: int,
+    *,
+    device: torch.device,
+    seed: int,
+) -> torch.Tensor | None:
+    """Make the tall orthogonal PQ transform used when ``dim % m != 0``.
+
+    cuVS maps a non-divisible input dimension into the next dimension that is
+    divisible by ``pq_dim`` with a random orthogonal transform.  A tall matrix
+    with orthonormal columns preserves all L2 distances while making the
+    padded working space suitable for equal-width PQ subspaces.  A divisible
+    shape needs no transform and returns ``None`` to preserve the existing
+    fast path and on-disk format.
+    """
+    if working_dim < dim:
+        raise ValueError(
+            f"PQ working dimension must be >= input dimension, got {working_dim} < {dim}"
+        )
+    if working_dim == dim:
+        return None
+
+    generator = torch.Generator(device=device)
+    generator.manual_seed(int(seed))
+    matrix = torch.randn(
+        (working_dim, dim),
+        dtype=torch.float32,
+        device=device,
+        generator=generator,
+    )
+    q, r = torch.linalg.qr(matrix, mode="reduced")
+    # Canonicalize QR column signs so a fixed seed produces a stable transform.
+    signs = torch.where(torch.diagonal(r) < 0.0, -1.0, 1.0).to(q.dtype)
+    return (q * signs.unsqueeze(0)).contiguous()
+
+
+def _apply_pq_rotation(
+    vectors: torch.Tensor,
+    rotation_matrix: torch.Tensor | None,
+) -> torch.Tensor:
+    """Map original-space vectors into the PQ working space when required."""
+    if rotation_matrix is None:
+        return vectors
+    if vectors.shape[1] != rotation_matrix.shape[1]:
+        raise ValueError(
+            "PQ rotation/input dimensions do not match: "
+            f"{vectors.shape[1]} != {rotation_matrix.shape[1]}"
+        )
+    return (vectors @ rotation_matrix.transpose(0, 1)).contiguous()
+
+
+def _restore_pq_transform(
+    metadata: dict[str, Any],
+    centroids: torch.Tensor,
+    pq_codebooks: torch.Tensor,
+    rotation_matrix: torch.Tensor | None,
+    pq_centroids: torch.Tensor | None,
+) -> tuple[torch.Tensor | None, torch.Tensor | None]:
+    """Validate and restore optional PQ-space transform tensors from an index."""
+    working_dim = int(pq_codebooks.shape[0] * pq_codebooks.shape[2])
+    recorded_working_dim = int(metadata.get("pq_working_dim", working_dim))
+    if recorded_working_dim != working_dim:
+        raise ValueError(
+            "IVF-PQ metadata/codebook working dimensions disagree: "
+            f"{recorded_working_dim} != {working_dim}"
+        )
+    if rotation_matrix is None:
+        if working_dim != centroids.shape[1]:
+            raise ValueError(
+                "This IVF-PQ index has a padded PQ working space but is missing "
+                "pq_rotation_matrix. Rebuild the index."
+            )
+        return None, None
+
+    rotation_matrix = rotation_matrix.to(torch.float32)
+    expected_rotation_shape = (working_dim, centroids.shape[1])
+    if tuple(rotation_matrix.shape) != expected_rotation_shape:
+        raise ValueError(
+            "Invalid IVF-PQ rotation shape: "
+            f"expected {expected_rotation_shape}, got {tuple(rotation_matrix.shape)}"
+        )
+    if pq_centroids is None:
+        pq_centroids = centroids @ rotation_matrix.transpose(0, 1)
+    else:
+        pq_centroids = pq_centroids.to(torch.float32)
+    expected_centroid_shape = (centroids.shape[0], working_dim)
+    if tuple(pq_centroids.shape) != expected_centroid_shape:
+        raise ValueError(
+            "Invalid IVF-PQ transformed-centroid shape: "
+            f"expected {expected_centroid_shape}, got {tuple(pq_centroids.shape)}"
+        )
+    return rotation_matrix, pq_centroids.contiguous()
 
 
 def _tensor_topk_pq_distance_impl(
@@ -171,301 +276,6 @@ def _tensor_topk_pq_id_lookup_impl(
     topk_ids = list_ids_flat[topk_vector_positions]
     topk_valid = torch.gather(valid_mask, 1, topk_positions)
     return topk_ids.masked_fill(~topk_valid, -1)
-
-
-def _tensor_list_topk_pq_distance_impl(
-    global_query_luts: torch.Tensor,
-    list_codes: torch.Tensor,
-    list_ids_flat: torch.Tensor,
-    list_pq_static_corrections: torch.Tensor,
-    probe_cids: torch.Tensor,
-    probe_distance_bias: torch.Tensor,
-    list_prefix: torch.Tensor,
-    list_count: torch.Tensor,
-    topk: int,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Run the IVFFlat-style packed list scan using query-global PQ LUTs.
-
-    Probe edges are ordered by list and expanded into one flat tensor of
-    actual ``(query, list-vector)`` pairs.  Each pair gathers its compact PQ
-    codes from storage and looks them up in that query's global ``G[q,m,k]``
-    table, then adds the persisted per-vector gamma and the probe distance.
-    Finally, packed ``(query_id, ordered-distance)`` keys receive one global
-    sort exactly like the IVFFlat Tensor route.  There is no list-size
-    bucket, padded candidate width, or per-list local top-k.
-    """
-    num_queries, nprobe = probe_cids.shape
-    device = global_query_luts.device
-    result_distances = torch.full(
-        (num_queries, topk),
-        float("inf"),
-        dtype=torch.float32,
-        device=device,
-    )
-    result_ids = torch.full(
-        (num_queries, topk),
-        -1,
-        dtype=torch.int64,
-        device=device,
-    )
-
-    edge_qids = torch.arange(num_queries, device=device, dtype=torch.int64).repeat_interleave(nprobe)
-    edge_cids = probe_cids.reshape(-1).to(torch.int64)
-    edge_bias = probe_distance_bias.reshape(-1).to(torch.float32)
-    edge_cids_sorted, edge_order = torch.sort(edge_cids)
-    edge_qids_sorted = edge_qids[edge_order]
-    edge_bias_sorted = edge_bias[edge_order]
-    unique_lists, edge_counts = torch.unique_consecutive(edge_cids_sorted, return_counts=True)
-    edge_prefix = torch.cumsum(edge_counts, dim=0) - edge_counts
-
-    list_starts = list_prefix[unique_lists]
-    list_sizes = list_count[unique_lists]
-    active_lists = list_sizes > 0
-    if not active_lists.any():
-        return result_distances, result_ids
-    edge_counts = edge_counts[active_lists]
-    edge_prefix = edge_prefix[active_lists]
-    list_starts = list_starts[active_lists]
-    list_sizes = list_sizes[active_lists]
-
-    pair_counts = edge_counts * list_sizes
-    num_pairs = int(pair_counts.sum().item())
-    if num_pairs == 0:
-        return result_distances, result_ids
-    pair_prefix = torch.cumsum(pair_counts, dim=0) - pair_counts
-    pair_positions = torch.arange(num_pairs, dtype=torch.int64, device=device)
-    pair_list_indices = torch.bucketize(pair_positions, pair_prefix[1:], right=True)
-    pair_keys, pair_ids, pair_distances = _get_tensor_list_pq_pair_lut_lookup_fn()(
-        global_query_luts,
-        list_codes,
-        list_ids_flat,
-        list_pq_static_corrections,
-        edge_qids_sorted,
-        edge_bias_sorted,
-        edge_prefix,
-        list_starts,
-        list_sizes,
-        pair_prefix,
-        pair_list_indices,
-        pair_positions,
-    )
-
-    sorted_keys, sorted_positions = torch.sort(pair_keys)
-    sorted_qids = sorted_keys >> 32
-    sorted_distances = pair_distances[sorted_positions]
-    sorted_ids = pair_ids[sorted_positions]
-    _, sorted_query_counts = torch.unique_consecutive(sorted_qids, return_counts=True)
-    sorted_query_prefix = torch.cumsum(sorted_query_counts, dim=0) - sorted_query_counts
-    sorted_positions_in_query = torch.arange(num_pairs, device=device, dtype=torch.int64)
-    sorted_query_indices = torch.bucketize(
-        sorted_positions_in_query,
-        sorted_query_prefix[1:],
-        right=True,
-    )
-    sorted_rank = sorted_positions_in_query - sorted_query_prefix[sorted_query_indices]
-    keep = sorted_rank < topk
-    if keep.any():
-        result_distances[sorted_qids[keep], sorted_rank[keep]] = sorted_distances[keep]
-        result_ids[sorted_qids[keep], sorted_rank[keep]] = sorted_ids[keep]
-    return result_distances, result_ids
-
-
-def _tensor_list_pq_pair_lut_lookup_impl(
-    global_query_luts: torch.Tensor,
-    list_codes: torch.Tensor,
-    list_ids_flat: torch.Tensor,
-    list_pq_static_corrections: torch.Tensor,
-    edge_qids_sorted: torch.Tensor,
-    edge_bias_sorted: torch.Tensor,
-    edge_prefix: torch.Tensor,
-    list_starts: torch.Tensor,
-    list_sizes: torch.Tensor,
-    pair_prefix: torch.Tensor,
-    pair_list_indices: torch.Tensor,
-    pair_positions: torch.Tensor,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Materialize flat pair distances through one query-global LUT lookup."""
-    local_pair_positions = pair_positions - pair_prefix[pair_list_indices]
-    current_list_sizes = list_sizes[pair_list_indices]
-    edge_local_indices = torch.div(
-        local_pair_positions,
-        current_list_sizes,
-        rounding_mode="floor",
-    )
-    candidate_local_indices = local_pair_positions % current_list_sizes
-    edge_indices = edge_prefix[pair_list_indices] + edge_local_indices
-    pair_qids = edge_qids_sorted[edge_indices]
-    pair_vector_positions = list_starts[pair_list_indices] + candidate_local_indices
-    pair_codes = list_codes[pair_vector_positions]
-
-    m = pair_codes.shape[1]
-    ksub = global_query_luts.shape[2]
-    code_offsets = pair_codes.to(torch.int64)
-    code_offsets = code_offsets + torch.arange(
-        m,
-        device=global_query_luts.device,
-        dtype=torch.int64,
-    ) * ksub
-    query_lut_width = m * ksub
-    global_lut_offsets = pair_qids.unsqueeze(1) * query_lut_width + code_offsets
-    global_adc = torch.take(
-        global_query_luts.reshape(-1),
-        global_lut_offsets,
-    ).sum(dim=1, dtype=torch.float32)
-    pair_distances = global_adc + list_pq_static_corrections[pair_vector_positions]
-    pair_distances = pair_distances + edge_bias_sorted[edge_indices]
-    # Map the full FP32 numeric order (including negative test values) to an
-    # unsigned 32-bit order: negative bit patterns are inverted, non-negative
-    # patterns have their sign bit flipped. Real ADC values are non-negative,
-    # but this keeps the primitive correct for arbitrary LUT inputs as well.
-    distance_bits = pair_distances.view(torch.int32).to(torch.int64)
-    lower_mask = (1 << 32) - 1
-    sign_bit = 1 << 31
-    ordered_distance_bits = torch.where(
-        distance_bits < 0,
-        (~distance_bits) & lower_mask,
-        distance_bits ^ sign_bit,
-    )
-    pair_keys = (pair_qids << 32) | ordered_distance_bits
-    return pair_keys, list_ids_flat[pair_vector_positions], pair_distances
-
-
-@lru_cache(maxsize=1)
-def _get_tensor_list_pq_pair_lut_lookup_fn():
-    try:
-        return torch.compile(_tensor_list_pq_pair_lut_lookup_impl, fullgraph=False, dynamic=True)
-    except Exception:
-        return _tensor_list_pq_pair_lut_lookup_impl
-
-
-def _tensor_nopadding_topk_pq_distance_impl(
-    global_query_luts: torch.Tensor,
-    list_codes: torch.Tensor,
-    list_ids_flat: torch.Tensor,
-    list_pq_static_corrections: torch.Tensor,
-    probe_cids: torch.Tensor,
-    probe_distance_bias: torch.Tensor,
-    list_prefix: torch.Tensor,
-    list_count: torch.Tensor,
-    topk: int,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Scan a query-major packed candidate tensor without Cmax padding.
-
-    The selected list ranges remain in each query's probe order.  Their true
-    lengths are concatenated into a flat pair tensor and ``edge_prefix``
-    records the starting pair of every ``(query, probe)`` edge.  LUT lookup is
-    performed only for those real candidates, then an IVFFlat-style global
-    packed-key sort selects the top-k for each query.
-    """
-    num_queries, nprobe = probe_cids.shape
-    device = global_query_luts.device
-    result_distances = torch.full(
-        (num_queries, topk),
-        float("inf"),
-        dtype=torch.float32,
-        device=device,
-    )
-    result_ids = torch.full(
-        (num_queries, topk),
-        -1,
-        dtype=torch.int64,
-        device=device,
-    )
-    edge_qids = torch.arange(num_queries, dtype=torch.int64, device=device).repeat_interleave(nprobe)
-    edge_cids = probe_cids.reshape(-1).to(torch.int64)
-    edge_sizes = list_count[edge_cids]
-    num_pairs = int(edge_sizes.sum().item())
-    if num_pairs == 0:
-        return result_distances, result_ids
-
-    edge_prefix = torch.cumsum(edge_sizes, dim=0) - edge_sizes
-    pair_positions = torch.arange(num_pairs, dtype=torch.int64, device=device)
-    pair_edge_indices = torch.bucketize(pair_positions, edge_prefix[1:], right=True)
-    edge_vector_starts = list_prefix[edge_cids]
-    pair_keys, pair_ids, pair_distances = _get_tensor_nopadding_pq_pair_lut_lookup_fn()(
-        global_query_luts,
-        list_codes,
-        list_ids_flat,
-        list_pq_static_corrections,
-        edge_qids,
-        probe_distance_bias.reshape(-1).to(torch.float32),
-        edge_prefix,
-        edge_vector_starts,
-        pair_edge_indices,
-        pair_positions,
-    )
-
-    sorted_keys, sorted_positions = torch.sort(pair_keys)
-    sorted_qids = sorted_keys >> 32
-    sorted_distances = pair_distances[sorted_positions]
-    sorted_ids = pair_ids[sorted_positions]
-    _, sorted_query_counts = torch.unique_consecutive(sorted_qids, return_counts=True)
-    sorted_query_prefix = torch.cumsum(sorted_query_counts, dim=0) - sorted_query_counts
-    sorted_positions_in_query = torch.arange(num_pairs, device=device, dtype=torch.int64)
-    sorted_query_indices = torch.bucketize(
-        sorted_positions_in_query,
-        sorted_query_prefix[1:],
-        right=True,
-    )
-    sorted_rank = sorted_positions_in_query - sorted_query_prefix[sorted_query_indices]
-    keep = sorted_rank < topk
-    if keep.any():
-        result_distances[sorted_qids[keep], sorted_rank[keep]] = sorted_distances[keep]
-        result_ids[sorted_qids[keep], sorted_rank[keep]] = sorted_ids[keep]
-    return result_distances, result_ids
-
-
-def _tensor_nopadding_pq_pair_lut_lookup_impl(
-    global_query_luts: torch.Tensor,
-    list_codes: torch.Tensor,
-    list_ids_flat: torch.Tensor,
-    list_pq_static_corrections: torch.Tensor,
-    edge_qids: torch.Tensor,
-    edge_bias: torch.Tensor,
-    edge_prefix: torch.Tensor,
-    edge_vector_starts: torch.Tensor,
-    pair_edge_indices: torch.Tensor,
-    pair_positions: torch.Tensor,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Map packed query-major pair positions to LUT-reconstructed ADC."""
-    candidate_local_indices = pair_positions - edge_prefix[pair_edge_indices]
-    pair_qids = edge_qids[pair_edge_indices]
-    pair_vector_positions = edge_vector_starts[pair_edge_indices] + candidate_local_indices
-    pair_codes = list_codes[pair_vector_positions]
-
-    m = pair_codes.shape[1]
-    ksub = global_query_luts.shape[2]
-    code_offsets = pair_codes.to(torch.int64)
-    code_offsets = code_offsets + torch.arange(
-        m,
-        device=global_query_luts.device,
-        dtype=torch.int64,
-    ) * ksub
-    global_lut_offsets = pair_qids.unsqueeze(1) * (m * ksub) + code_offsets
-    global_adc = torch.take(
-        global_query_luts.reshape(-1),
-        global_lut_offsets,
-    ).sum(dim=1, dtype=torch.float32)
-    pair_distances = global_adc + list_pq_static_corrections[pair_vector_positions]
-    pair_distances = pair_distances + edge_bias[pair_edge_indices]
-    distance_bits = pair_distances.view(torch.int32).to(torch.int64)
-    lower_mask = (1 << 32) - 1
-    sign_bit = 1 << 31
-    ordered_distance_bits = torch.where(
-        distance_bits < 0,
-        (~distance_bits) & lower_mask,
-        distance_bits ^ sign_bit,
-    )
-    pair_keys = (pair_qids << 32) | ordered_distance_bits
-    return pair_keys, list_ids_flat[pair_vector_positions], pair_distances
-
-
-@lru_cache(maxsize=1)
-def _get_tensor_nopadding_pq_pair_lut_lookup_fn():
-    try:
-        return torch.compile(_tensor_nopadding_pq_pair_lut_lookup_impl, fullgraph=False, dynamic=True)
-    except Exception:
-        return _tensor_nopadding_pq_pair_lut_lookup_impl
 
 
 @lru_cache(maxsize=1)
@@ -603,7 +413,7 @@ def _get_row_major_pq_static_corrections(
                     list_codes,
                     list_prefix,
                     list_count,
-                    index.centroids,
+                    index.pq_centroids if index.pq_centroids is not None else index.centroids,
                     index.pq_codebooks,
                 )
         return index.list_pq_static_corrections
@@ -618,7 +428,7 @@ def _get_row_major_pq_static_corrections(
         list_codes,
         list_prefix,
         list_count,
-        index.centroids,
+        index.pq_centroids if index.pq_centroids is not None else index.centroids,
         index.pq_codebooks,
     )
 
@@ -673,6 +483,84 @@ def _get_interleaved_pq_static_corrections(
         row_major_corrections,
         list_prefix,
         list_count,
+    )
+
+
+def _get_interleaved_pq_code_chunks(
+    index: IVFPQIndex,
+    list_codes: torch.Tensor,
+    list_prefix: torch.Tensor,
+    list_count: torch.Tensor,
+    search_device: torch.device,
+    interleaved_codes: torch.Tensor | None = None,
+) -> torch.Tensor | None:
+    """Return the transient cuVS-style 16-byte PQ chunk cache for M>16.
+
+    When the subspace-major resident cache is already available, pack it with
+    one contiguous reshape/copy. Rebuilding physical positions with a
+    row-major ``searchsorted`` plus one scatter per chunk made the first
+    List-Major search pay an avoidable preload cost.
+    """
+    if int(list_codes.shape[1]) <= 16 or list_codes.dtype != torch.uint8:
+        return None
+    if index.resident_device == search_device:
+        cache = index.list_codes_interleaved_packed_16b
+        if cache is None or cache.device != search_device:
+            if interleaved_codes is None:
+                cache = build_interleaved_pq_code_chunks(list_codes, list_prefix, list_count)
+            else:
+                num_groups = interleaved_codes.shape[1] // INTERLEAVED_GROUP_SIZE
+                num_chunks = (int(list_codes.shape[1]) + 15) // 16
+                padded_m = num_chunks * 16
+                codes = interleaved_codes.reshape(
+                    int(list_codes.shape[1]),
+                    num_groups,
+                    INTERLEAVED_GROUP_SIZE,
+                ).permute(1, 2, 0)
+                if padded_m != int(list_codes.shape[1]):
+                    padded_codes = torch.zeros(
+                        (num_groups, INTERLEAVED_GROUP_SIZE, padded_m),
+                        dtype=interleaved_codes.dtype,
+                        device=interleaved_codes.device,
+                    )
+                    padded_codes[..., : int(list_codes.shape[1])] = codes
+                    codes = padded_codes
+                cache = (
+                    codes.reshape(
+                        num_groups,
+                        INTERLEAVED_GROUP_SIZE,
+                        num_chunks,
+                        16,
+                    )
+                    .permute(0, 2, 1, 3)
+                    .contiguous()
+                    .view(torch.uint64)
+                )
+            index.list_codes_interleaved_packed_16b = cache
+        return cache
+    if interleaved_codes is None:
+        return build_interleaved_pq_code_chunks(list_codes, list_prefix, list_count)
+    num_groups = interleaved_codes.shape[1] // INTERLEAVED_GROUP_SIZE
+    num_chunks = (int(list_codes.shape[1]) + 15) // 16
+    padded_m = num_chunks * 16
+    codes = interleaved_codes.reshape(
+        int(list_codes.shape[1]),
+        num_groups,
+        INTERLEAVED_GROUP_SIZE,
+    ).permute(1, 2, 0)
+    if padded_m != int(list_codes.shape[1]):
+        padded_codes = torch.zeros(
+            (num_groups, INTERLEAVED_GROUP_SIZE, padded_m),
+            dtype=interleaved_codes.dtype,
+            device=interleaved_codes.device,
+        )
+        padded_codes[..., : int(list_codes.shape[1])] = codes
+        codes = padded_codes
+    return (
+        codes.reshape(num_groups, INTERLEAVED_GROUP_SIZE, num_chunks, 16)
+        .permute(0, 2, 1, 3)
+        .contiguous()
+        .view(torch.uint64)
     )
 
 
@@ -755,7 +643,6 @@ def _build_pq_static_corrections(
         raise ValueError("Centroids/codebooks do not match the IVF lists or PQ subspaces")
     if int(list_count.sum().item()) != num_vectors:
         raise ValueError("List counts do not cover all PQ code rows")
-
     values = torch.zeros(
         (num_vectors,),
         dtype=torch.float32,
@@ -789,7 +676,7 @@ def _build_interleaved_pq_static_corrections(
     centroids: torch.Tensor,
     pq_codebooks: torch.Tensor,
 ) -> torch.Tensor:
-    """Place row-major static corrections in the Triton physical layout."""
+    """Place full row-major static corrections in the Triton physical layout."""
     values = _build_pq_static_corrections(
         list_codes,
         list_prefix,
@@ -812,8 +699,13 @@ def _build_global_query_luts_bmm(
     m: int,
     subdim: int,
     use_tf32: bool,
+    layout: str = "query_major",
 ) -> torch.Tensor:
-    """Build ``||p_mk||^2 - 2 q_m^T p_mk`` as a ``[m, q, k]`` table.
+    """Build ``||p_mk||^2 - 2 q_m^T p_mk`` as a global LUT.
+
+    The returned Global LUT always uses ``[m, q, k]`` storage.  List-Major
+    temporarily reorders the current Query tile inside its kernel into a
+    ``[k, query_tile]`` Vector LUT.
 
     The omitted ``||q||^2`` is intentionally carried by neither this table
     nor the probe bias.  For a candidate in list ``l`` the direct scanner
@@ -824,20 +716,25 @@ def _build_global_query_luts_bmm(
     Individual entries of this table may be negative, so unlike a squared-L2
     LUT it must not be clamped before ADC accumulation.
     """
+    layout = str(layout).lower()
+    if layout not in {"query_major", "list_major"}:
+        raise ValueError(f"Unsupported global LUT layout: {layout}")
     num_queries = queries.shape[0]
     q_sub_by_m = (
         queries.view(num_queries, m, subdim)
         .permute(1, 0, 2)
         .contiguous()
     )
-    # baddbmm broadcasts the [m, 1, k] static norm table across queries, so
-    # no [m, q, 1] query-norm tensor is materialized.
+    codebooks = pq_codebooks.transpose(1, 2)
     norm_base = pq_codebook_norms.unsqueeze(1)
+
+    # baddbmm broadcasts the static codeword-norm table across the Query
+    # dimension, without materializing a separate query-norm tensor.
     if not use_tf32 or not queries.is_cuda:
         return torch.baddbmm(
             norm_base,
             q_sub_by_m,
-            pq_codebooks.transpose(1, 2),
+            codebooks,
             beta=1.0,
             alpha=-2.0,
         )
@@ -848,7 +745,7 @@ def _build_global_query_luts_bmm(
         return torch.baddbmm(
             norm_base,
             q_sub_by_m,
-            pq_codebooks.transpose(1, 2),
+            codebooks,
             beta=1.0,
             alpha=-2.0,
         )
@@ -912,9 +809,15 @@ class IVFPQIndex:
     list_ids_flat: torch.Tensor | None
     list_prefix: torch.Tensor | None
     list_count: torch.Tensor | None
+    # cuVS-style tall orthogonal transform and coarse centers in its PQ
+    # working space. They are populated only when ``dim % m != 0``.
+    pq_rotation_matrix: torch.Tensor | None = None
+    pq_centroids: torch.Tensor | None = None
     # Device-resident padded 32-vector code cache for the CUDA direct scanner.
     # Each subspace stream is contiguous across a warp group.
     list_codes_interleaved_by_subspace: torch.Tensor | None = None
+    # Transient [group, 16-byte-chunk, lane, two uint64 words] packed PQ cache.
+    list_codes_interleaved_packed_16b: torch.Tensor | None = None
     list_ids_interleaved: torch.Tensor | None = None
     list_group_prefix: torch.Tensor | None = None
     # Row-major gamma aligns with ``list_codes`` and is used by tensor_topk.
@@ -929,8 +832,11 @@ class IVFPQIndex:
     persisted_list_group_prefix: torch.Tensor | None = None
     persisted_list_pq_static_corrections: torch.Tensor | None = None
     persisted_list_pq_static_corrections_interleaved: torch.Tensor | None = None
-    # Reused by stable-batch Triton searches to avoid allocator traffic.
+    # Reused by the one-CTA-per-(query, probe-group) Triton route.
     triton_partial_keys: torch.Tensor | None = None
+    # Computed once, then used to address the persistent Triton autotune cache
+    # without synchronizing a GPU-resident ``list_count`` on every search.
+    triton_list_count_stats: tuple[int, int, int] | None = None
     resident_device: torch.device | None = None
 
     def reside_on_device(self, device: torch.device | str) -> IVFPQIndex:
@@ -951,6 +857,18 @@ class IVFPQIndex:
             device=target_device,
             copy=False,
         )
+        if self.pq_rotation_matrix is not None:
+            self.pq_rotation_matrix = self.pq_rotation_matrix.to(
+                dtype=torch.float32,
+                device=target_device,
+                copy=False,
+            )
+        if self.pq_centroids is not None:
+            self.pq_centroids = self.pq_centroids.to(
+                dtype=torch.float32,
+                device=target_device,
+                copy=False,
+            )
         self.list_codes = self.list_codes.to(device=target_device, copy=False)
         self.list_ids_flat = self.list_ids_flat.to(dtype=torch.int64, device=target_device, copy=False)
         self.list_prefix = self.list_prefix.to(dtype=torch.int64, device=target_device, copy=False)
@@ -966,7 +884,7 @@ class IVFPQIndex:
                 self.list_codes,
                 self.list_prefix,
                 self.list_count,
-                self.centroids,
+                self.pq_centroids if self.pq_centroids is not None else self.centroids,
                 self.pq_codebooks,
             )
         if (
@@ -1029,11 +947,24 @@ class IVFPQIndex:
             self.centroid_norms = self.centroid_norms.to(dtype=torch.float32, device="cpu", copy=False)
             self.pq_codebooks = self.pq_codebooks.to(dtype=torch.float32, device="cpu", copy=False)
             self.pq_codebook_norms = self.pq_codebook_norms.to(dtype=torch.float32, device="cpu", copy=False)
+            if self.pq_rotation_matrix is not None:
+                self.pq_rotation_matrix = self.pq_rotation_matrix.to(
+                    dtype=torch.float32,
+                    device="cpu",
+                    copy=False,
+                )
+            if self.pq_centroids is not None:
+                self.pq_centroids = self.pq_centroids.to(
+                    dtype=torch.float32,
+                    device="cpu",
+                    copy=False,
+                )
             self.list_codes = self.list_codes.to(device="cpu", copy=False)
             self.list_ids_flat = self.list_ids_flat.to(dtype=torch.int64, device="cpu", copy=False)
             self.list_prefix = self.list_prefix.to(dtype=torch.int64, device="cpu", copy=False)
             self.list_count = self.list_count.to(dtype=torch.int64, device="cpu", copy=False)
         self.list_codes_interleaved_by_subspace = None
+        self.list_codes_interleaved_packed_16b = None
         self.list_ids_interleaved = None
         self.list_group_prefix = None
         self.list_pq_static_corrections = None
@@ -1055,6 +986,8 @@ class IVFPQBuildResult:
     device: torch.device
     m: int
     nbits: int
+    pq_rotation_matrix: torch.Tensor | None = None
+    pq_centroids: torch.Tensor | None = None
     seed: int = 0
     n_init: int = 1
     coarse_inertia: float | None = None
@@ -1099,6 +1032,22 @@ def save_ivfpq_index(
     centroid_norms_cpu = (centroids_cpu * centroids_cpu).sum(dim=-1)
     pq_codebooks_cpu = build_result.pq_codebooks.cpu().to(torch.float32)
     pq_codebook_norms_cpu = (pq_codebooks_cpu * pq_codebooks_cpu).sum(dim=-1)
+    pq_working_dim = int(pq_codebooks_cpu.shape[0] * pq_codebooks_cpu.shape[2])
+    pq_rotation_matrix_cpu = (
+        build_result.pq_rotation_matrix.cpu().to(torch.float32)
+        if build_result.pq_rotation_matrix is not None
+        else None
+    )
+    if pq_rotation_matrix_cpu is None:
+        if pq_working_dim != centroids_cpu.shape[1]:
+            raise ValueError(
+                "A non-divisible IVF-PQ build result must include its PQ rotation matrix"
+            )
+        pq_centroids_cpu = centroids_cpu
+    elif build_result.pq_centroids is None:
+        pq_centroids_cpu = (centroids_cpu @ pq_rotation_matrix_cpu.transpose(0, 1)).contiguous()
+    else:
+        pq_centroids_cpu = build_result.pq_centroids.cpu().to(torch.float32)
     pq_codes_cpu = build_result.pq_codes.cpu()
     ids = torch.arange(vectors_cpu.shape[0], dtype=torch.int64)
 
@@ -1125,7 +1074,7 @@ def save_ivfpq_index(
         list_codes,
         list_prefix,
         list_count,
-        centroids_cpu,
+        pq_centroids_cpu,
         pq_codebooks_cpu,
     )
     interleaved_static_corrections = build_interleaved_pq_scalar_cache(
@@ -1150,7 +1099,9 @@ def save_ivfpq_index(
         "m": int(build_result.m),
         "nbits": int(build_result.nbits),
         "ksub": int(1 << build_result.nbits),
-        "subdim": int(vectors_cpu.shape[1] // build_result.m),
+        "subdim": int(pq_codebooks_cpu.shape[2]),
+        "pq_working_dim": pq_working_dim,
+        "pq_rotation": "random_orthogonal" if pq_rotation_matrix_cpu is not None else "identity",
         "device": str(build_result.device),
         "seed": int(build_result.seed),
         "n_init": int(build_result.n_init),
@@ -1193,6 +1144,9 @@ def save_ivfpq_index(
             "list_group_prefix": interleaved_layout.group_prefix,
             "list_pq_static_corrections_interleaved": interleaved_static_corrections,
         }
+        if pq_rotation_matrix_cpu is not None:
+            payload["pq_rotation_matrix"] = pq_rotation_matrix_cpu
+            payload["pq_centroids"] = pq_centroids_cpu
         torch.save(payload, output_path)
         index_size_bytes = output_path.stat().st_size
         metadata["index_size_bytes"] = index_size_bytes
@@ -1214,6 +1168,13 @@ def save_ivfpq_index(
     torch.save(centroid_norms_cpu, out_dir / "centroid_norms.pt")
     torch.save(pq_codebooks_cpu, out_dir / "pq_codebooks.pt")
     torch.save(pq_codebook_norms_cpu, out_dir / "pq_codebook_norms.pt")
+    if pq_rotation_matrix_cpu is not None:
+        torch.save(pq_rotation_matrix_cpu, out_dir / "pq_rotation_matrix.pt")
+        torch.save(pq_centroids_cpu, out_dir / "pq_centroids.pt")
+    else:
+        for stale_path in (out_dir / "pq_rotation_matrix.pt", out_dir / "pq_centroids.pt"):
+            if stale_path.is_file():
+                stale_path.unlink()
     torch.save(pq_codes_cpu, out_dir / "pq_codes.pt")
     torch.save(ids, out_dir / "ids.pt")
     torch.save(list_codes, out_dir / "list_codes.pt")
@@ -1264,6 +1225,13 @@ def load_ivfpq_index(index_dir: str | Path, load_lists: bool = True) -> IVFPQInd
             pq_codebook_norms = (pq_codebooks * pq_codebooks).sum(dim=-1)
         else:
             pq_codebook_norms = pq_codebook_norms.to(torch.float32)
+        pq_rotation_matrix, pq_centroids = _restore_pq_transform(
+            metadata,
+            centroids,
+            pq_codebooks,
+            payload.get("pq_rotation_matrix"),
+            payload.get("pq_centroids"),
+        )
         ids = payload["ids"]
         if load_lists:
             list_codes = payload["list_codes"]
@@ -1276,7 +1244,7 @@ def load_ivfpq_index(index_dir: str | Path, load_lists: bool = True) -> IVFPQInd
                     list_codes,
                     list_prefix,
                     list_count,
-                    centroids,
+                    pq_centroids if pq_centroids is not None else centroids,
                     pq_codebooks,
                 )
             else:
@@ -1337,6 +1305,8 @@ def load_ivfpq_index(index_dir: str | Path, load_lists: bool = True) -> IVFPQInd
             list_ids_flat=list_ids_flat,
             list_prefix=list_prefix,
             list_count=list_count,
+            pq_rotation_matrix=pq_rotation_matrix,
+            pq_centroids=pq_centroids,
             persisted_list_pq_static_corrections=persisted_list_pq_static_corrections,
             persisted_list_codes_interleaved_by_subspace=persisted_list_codes_interleaved_by_subspace,
             persisted_list_ids_interleaved=persisted_list_ids_interleaved,
@@ -1352,6 +1322,8 @@ def load_ivfpq_index(index_dir: str | Path, load_lists: bool = True) -> IVFPQInd
     centroid_norms_path = index_path / "centroid_norms.pt"
     pq_codebooks_path = index_path / "pq_codebooks.pt"
     pq_codebook_norms_path = index_path / "pq_codebook_norms.pt"
+    pq_rotation_matrix_path = index_path / "pq_rotation_matrix.pt"
+    pq_centroids_path = index_path / "pq_centroids.pt"
     ids_path = index_path / "ids.pt"
     list_codes_path = index_path / "list_codes.pt"
     list_ids_flat_path = index_path / "list_ids_flat.pt"
@@ -1390,6 +1362,23 @@ def load_ivfpq_index(index_dir: str | Path, load_lists: bool = True) -> IVFPQInd
     else:
         # Indexes created before codebook norms were persisted remain usable.
         pq_codebook_norms = (pq_codebooks * pq_codebooks).sum(dim=-1)
+    pq_rotation_matrix = (
+        torch.load(pq_rotation_matrix_path, map_location="cpu").to(torch.float32)
+        if pq_rotation_matrix_path.exists()
+        else None
+    )
+    pq_centroids = (
+        torch.load(pq_centroids_path, map_location="cpu").to(torch.float32)
+        if pq_centroids_path.exists()
+        else None
+    )
+    pq_rotation_matrix, pq_centroids = _restore_pq_transform(
+        metadata,
+        centroids,
+        pq_codebooks,
+        pq_rotation_matrix,
+        pq_centroids,
+    )
     ids = torch.load(ids_path, map_location="cpu")
 
     if load_lists:
@@ -1416,7 +1405,7 @@ def load_ivfpq_index(index_dir: str | Path, load_lists: bool = True) -> IVFPQInd
                 list_codes,
                 list_prefix,
                 list_count,
-                centroids,
+                pq_centroids if pq_centroids is not None else centroids,
                 pq_codebooks,
             )
         interleaved_layout_paths = [
@@ -1477,6 +1466,8 @@ def load_ivfpq_index(index_dir: str | Path, load_lists: bool = True) -> IVFPQInd
         list_ids_flat=list_ids_flat,
         list_prefix=list_prefix,
         list_count=list_count,
+        pq_rotation_matrix=pq_rotation_matrix,
+        pq_centroids=pq_centroids,
         persisted_list_pq_static_corrections=persisted_list_pq_static_corrections,
         persisted_list_codes_interleaved_by_subspace=persisted_list_codes_interleaved_by_subspace,
         persisted_list_ids_interleaved=persisted_list_ids_interleaved,
@@ -1495,6 +1486,8 @@ def search_ivfpq_index(
     device: torch.device | str | None = None,
     selection_mode: str = "tensor_topk",
     profile: dict[str, float] | None = None,
+    use_packed_16b_codes: bool = True,
+    triton_autotune: bool = False,
     refine_vectors: torch.Tensor | None = None,
     refine_factor: int = 1,
     detailed_tensor_topk_profile: bool = False,
@@ -1503,13 +1496,30 @@ def search_ivfpq_index(
     """Search IVF-PQ, optionally reranking an expanded candidate set exactly.
 
     ``tensor_topk`` is the portable query-major Tensor-native path.
-    ``tensor_list_topk`` is the experimental pure-Tensor list-major path: it
-    expands list-major query/vector pairs, performs global-LUT lookups, and
-    globally sorts packed per-query distances like the IVFFlat Tensor route.
-    ``tensor_nopadding_topk`` keeps query-major probe order but concatenates
-    only real candidates before the same global packed-key selection.
-    ``triton_topk`` uses a CUDA list-tiled, 32-way-interleaved ADC/top-k
-    kernel when supported and otherwise falls back to ``tensor_topk``.
+    ``triton_topk`` assigns one CTA to each ``(query, probed-list group)``
+    edge, keeps an exact group-local top-k in that CTA, then runs only the
+    query-level final merge. Unsupported Triton shapes fall back to
+    ``tensor_topk``.
+    ``list_major`` (also accepted as ``triton_list_major``) sorts probe edges
+    by IVF list and scans the visiting queries in a register-bounded tile
+    when the expected Query reuse is high. For sparse Query-list overlap it
+    automatically uses the existing query-major Triton scanner instead.
+    Its construction-friendly ``[M, Q, Ksub]`` Global LUT is temporarily
+    rearranged to a ``[Ksub, QueryTile]`` Vector LUT inside each task, so a
+    candidate code and correction are shared across the visiting queries.
+    Unsupported shapes fall back to ``tensor_topk``.
+
+    ``use_packed_16b_codes`` selects cuVS-style 16-byte code storage.  M=17-32
+    and M=33-128 both use a rolled chunk-loop ADC
+    whose compiled body and register lifetime do not grow linearly with M.
+    Set it to ``False`` to retain the subspace-major path where supported.
+
+    Set ``triton_autotune=True`` to measure a small local sweep of CTA tile,
+    warp, and probe-list grouping choices on the first matching workload. The
+    winner is persisted under ``~/.cache/tensorvs`` and reused automatically
+    by later searches, including when ``triton_autotune`` is False. Set
+    ``TENSORVS_TRITON_AUTOTUNE_CACHE`` to choose a different path or to an
+    empty string to disable persistence.
 
     Set ``detailed_tensor_topk_profile=True`` together with ``profile`` to
     time the Tensor path's candidate map, compact code gather, global-LUT
@@ -1572,9 +1582,9 @@ def search_ivfpq_index(
         raise ValueError("Index PQ lists are not loaded. Call load_ivfpq_index(..., load_lists=True).")
     if selection_mode not in {
         "triton_topk",
+        "list_major",
+        "triton_list_major",
         "tensor_topk",
-        "tensor_list_topk",
-        "tensor_nopadding_topk",
     }:
         raise ValueError(f"Unsupported IVFPQ selection_mode: {selection_mode}")
     lut_dtype = _normalize_lut_dtype(lut_dtype)
@@ -1596,6 +1606,8 @@ def search_ivfpq_index(
         centroid_norms = index.centroid_norms
         pq_codebooks = index.pq_codebooks
         pq_codebook_norms = index.pq_codebook_norms
+        pq_rotation_matrix = index.pq_rotation_matrix
+        pq_centroids = index.pq_centroids if index.pq_centroids is not None else centroids
         list_codes = index.list_codes
         list_ids_flat = index.list_ids_flat
         list_prefix = index.list_prefix
@@ -1613,6 +1625,16 @@ def search_ivfpq_index(
             device=search_device,
             copy=False,
         )
+        pq_rotation_matrix = (
+            index.pq_rotation_matrix.to(
+                dtype=torch.float32,
+                device=search_device,
+                copy=False,
+            )
+            if index.pq_rotation_matrix is not None
+            else None
+        )
+        pq_centroids = index.pq_centroids.to(dtype=torch.float32, device=search_device, copy=False) if index.pq_centroids is not None else centroids
         list_codes = index.list_codes.to(device=search_device, copy=False)
         list_ids_flat = index.list_ids_flat.to(dtype=torch.int64, device=search_device, copy=False)
         list_prefix = index.list_prefix.to(dtype=torch.int64, device=search_device, copy=False)
@@ -1662,29 +1684,68 @@ def search_ivfpq_index(
 
     m = int(index.metadata["m"])
     subdim = int(index.metadata["subdim"])
-    triton_topk_supported = selection_mode == "triton_topk" and can_run_ivfpq_triton_topk(
+    list_major_selection = selection_mode in {"list_major", "triton_list_major"}
+    triton_topk_capable = can_run_ivfpq_triton_topk(
         device=search_device,
         topk=search_topk,
-        num_queries=num_queries,
         m=m,
         ksub=int(index.metadata["ksub"]),
         nprobe=nprobe,
         num_code_vectors=list_ids_flat.numel(),
         code_dtype=list_codes.dtype,
+        use_packed_16b_codes=use_packed_16b_codes,
+    )
+    # A List-Major task pays for pair sorting and tile setup.  Below two
+    # expected visiting queries per list, code/correction reuse is usually
+    # insufficient to amortize that setup, so let list_major use the mature
+    # query-major Triton path instead.  This is a cheap density estimate and
+    # avoids a synchronizing bincount on every search.
+    expected_queries_per_list = (
+        float(num_queries * nprobe) / max(1, int(centroids.shape[0]))
+    )
+    if profile is not None and list_major_selection:
+        profile["list_major_expected_queries_per_list"] = expected_queries_per_list
+    triton_list_major_supported = (
+        list_major_selection
+        and expected_queries_per_list >= 2.0
+        and can_run_ivfpq_list_major_topk(
+            device=search_device,
+            topk=search_topk,
+            m=m,
+            ksub=int(index.metadata["ksub"]),
+            nprobe=nprobe,
+            num_code_vectors=list_ids_flat.numel(),
+            code_dtype=list_codes.dtype,
+            use_packed_16b_codes=use_packed_16b_codes and m > 16,
+        )
+    )
+    # Prepare the same packed representation used by triton_topk whenever the
+    # selected Triton route supports it.  For M>16 this keeps List-Major's code
+    # load path aligned with IVFPQ query-major ADC instead of silently falling
+    # back to one uint8 global load per subspace.
+    triton_topk_supported = triton_topk_capable and (
+        selection_mode == "triton_topk"
+        or (list_major_selection and not triton_list_major_supported)
     )
     global_query_luts: torch.Tensor | None = None
     probe_distance_bias: torch.Tensor | None = None
     step_start = start_timing()
-    # Every search route builds one global query LUT. The list-major route
-    # uses it directly for each packed candidate-code lookup rather than
-    # converting PQ codes back to decoded residual vectors.
+    # Every route builds one Global LUT in the construction-friendly
+    # [M, Q, Ksub] layout. List-Major reorders only the active Query tile.
+    pq_queries = _apply_pq_rotation(q, pq_rotation_matrix)
+    if pq_queries.shape[1] != m * subdim:
+        raise ValueError(
+            "PQ query working dimension does not match the codebooks: "
+            f"{pq_queries.shape[1]} != {m * subdim}"
+        )
     global_query_luts = _build_global_query_luts_bmm(
-        q,
+        pq_queries,
         pq_codebooks,
         pq_codebook_norms,
         m=m,
         subdim=subdim,
         use_tf32=True,
+        layout="query_major",
     )
     if lut_dtype == "fp16":
         global_query_luts = global_query_luts.to(torch.float16)
@@ -1692,7 +1753,7 @@ def search_ivfpq_index(
     record_timing("LUT_prepare", step_start)
 
     active_selection_mode = selection_mode
-    if triton_topk_supported:
+    if triton_topk_supported or triton_list_major_supported:
         step_start = start_timing()
         interleaved_codes, interleaved_ids, list_group_prefix = _get_interleaved_pq_lists(
             index,
@@ -1711,41 +1772,126 @@ def search_ivfpq_index(
         )
         record_timing("triton_prepare_layout", step_start)
 
-        step_start = start_timing()
-        probe_group_prefix = list_group_prefix[probe_cids]
-        probe_list_count = list_count[probe_cids]
-        record_timing("lookup_probe_lists", step_start)
+        probe_group_prefix: torch.Tensor | None = None
+        probe_list_count: torch.Tensor | None = None
+        if triton_topk_supported:
+            step_start = start_timing()
+            probe_group_prefix = list_group_prefix[probe_cids]
+            probe_list_count = list_count[probe_cids]
+            record_timing("triton_lookup_probe_lists", step_start)
 
-        direct_scan_start = start_timing()
+        packed_code_chunks: torch.Tensor | None = None
+        if (
+            (triton_topk_supported or triton_list_major_supported)
+            and use_packed_16b_codes
+            and m > 16
+        ):
+            step_start = start_timing()
+            packed_code_chunks = _get_interleaved_pq_code_chunks(
+                index,
+                list_codes,
+                list_prefix,
+                list_count,
+                search_device,
+                interleaved_codes=interleaved_codes,
+            )
+            record_timing("triton_packed_prepare", step_start)
+
+        if index.triton_list_count_stats is None:
+            count_cpu = list_count.detach().to(device="cpu", dtype=torch.float32)
+            index.triton_list_count_stats = (
+                int(count_cpu.mean().item()),
+                int(torch.quantile(count_cpu, 0.95).item()),
+                int(count_cpu.max().item()),
+            )
+        gpu_name = torch.cuda.get_device_name(search_device)
+        compute_capability = torch.cuda.get_device_capability(search_device)
+        autotune_key: tuple[object, ...] = (
+            "query_major",
+            gpu_name,
+            compute_capability,
+            torch.__version__,
+            torch.version.cuda,
+            m,
+            int(index.metadata["ksub"]),
+            nprobe,
+            search_topk,
+            num_queries,
+            bool(packed_code_chunks is not None),
+            *index.triton_list_count_stats,
+        )
+
+        list_major_autotune_key: tuple[object, ...] = (
+            "list_major_pq_task_v4",
+            gpu_name,
+            compute_capability,
+            torch.__version__,
+            torch.version.cuda,
+            m,
+            int(index.metadata["ksub"]),
+            nprobe,
+            search_topk,
+            num_queries,
+            str(global_query_luts.dtype),
+            bool(packed_code_chunks is not None),
+            *index.triton_list_count_stats,
+        )
+
+        list_scan_start = start_timing()
         final_merge_start: float | torch.cuda.Event | None = None
 
-        def record_direct_scan_complete() -> None:
+        def record_triton_scan_complete() -> None:
             nonlocal final_merge_start
-            record_timing("triton_direct_scan", direct_scan_start)
+            record_timing("triton_scan", list_scan_start)
             final_merge_start = start_timing()
 
         assert global_query_luts is not None
         assert probe_distance_bias is not None
-        partial_keys = triton_ivfpq_topk(
-            global_query_luts=global_query_luts,
-            static_vector_corrections=interleaved_static_corrections,
-            probe_distance_bias=probe_distance_bias,
-            list_codes_interleaved=interleaved_codes,
-            list_ids_interleaved=interleaved_ids,
-            probe_group_prefix=probe_group_prefix,
-            probe_list_count=probe_list_count,
-            topk=search_topk,
-            output_distances=result_distances,
-            output_ids=result_ids,
-            partial_keys=index.triton_partial_keys,
-            on_direct_scan_complete=record_direct_scan_complete,
-        )
+        if triton_list_major_supported:
+            partial_keys = triton_ivfpq_list_major_topk(
+                global_query_luts=global_query_luts,
+                static_vector_corrections=interleaved_static_corrections,
+                probe_distance_bias=probe_distance_bias,
+                list_codes_interleaved=interleaved_codes,
+                list_ids_interleaved=interleaved_ids,
+                list_group_prefix=list_group_prefix,
+                list_count=list_count,
+                probe_cids=probe_cids,
+                topk=search_topk,
+                output_distances=result_distances,
+                output_ids=result_ids,
+                list_partial_keys=index.triton_partial_keys,
+                list_codes_packed_16b=packed_code_chunks,
+                autotune=triton_autotune,
+                autotune_key=list_major_autotune_key,
+                on_list_scan_complete=record_triton_scan_complete,
+            )
+        else:
+            assert probe_group_prefix is not None
+            assert probe_list_count is not None
+            partial_keys = triton_ivfpq_topk(
+                global_query_luts=global_query_luts,
+                static_vector_corrections=interleaved_static_corrections,
+                probe_distance_bias=probe_distance_bias,
+                list_codes_interleaved=interleaved_codes,
+                list_ids_interleaved=interleaved_ids,
+                probe_group_prefix=probe_group_prefix,
+                probe_list_count=probe_list_count,
+                topk=search_topk,
+                output_distances=result_distances,
+                output_ids=result_ids,
+                list_partial_keys=index.triton_partial_keys,
+                list_codes_packed_16b=packed_code_chunks,
+                autotune=triton_autotune,
+                autotune_key=autotune_key,
+                on_list_scan_complete=record_triton_scan_complete,
+            )
         if index.resident_device is not None and index.resident_device == search_device:
             index.triton_partial_keys = partial_keys
         assert final_merge_start is not None
         record_timing("triton_final_merge", final_merge_start)
         active_selection_mode = "done"
-    elif selection_mode == "triton_topk":
+    elif selection_mode in {"triton_topk", "list_major", "triton_list_major"}:
         # Preserve the requested search semantics on CPU, for non-uint8
         # codes, and for kernel shapes outside the fixed Triton limits.
         active_selection_mode = "tensor_topk"
@@ -1855,86 +2001,6 @@ def search_ivfpq_index(
             record_timing("tensor_topk_writeback", stage_start)
             record_timing("tensor_topk_select", step_start)
 
-    if active_selection_mode == "tensor_list_topk":
-        # List-major pure Tensor route. Expand only actual candidates into one
-        # flat pair tensor, look up their codes from query-global LUTs, then
-        # globally sort packed (query, distance) keys as IVFFlat does.
-        assert global_query_luts is not None
-        assert probe_distance_bias is not None
-
-        step_start = start_timing()
-        tensor_global_query_luts = global_query_luts.permute(1, 0, 2).contiguous()
-        record_timing("tensor_list_global_lut_layout", step_start)
-
-        step_start = start_timing()
-        row_major_static_corrections = _get_row_major_pq_static_corrections(
-            index,
-            list_codes,
-            list_prefix,
-            list_count,
-            search_device,
-        )
-        record_timing("tensor_static_corrections", step_start)
-
-        step_start = start_timing()
-        topk_distances, topk_ids = _tensor_list_topk_pq_distance_impl(
-            tensor_global_query_luts,
-            list_codes,
-            list_ids_flat,
-            row_major_static_corrections,
-            probe_cids,
-            probe_distance_bias,
-            list_prefix,
-            list_count,
-            search_topk,
-        )
-        record_timing("tensor_list_topk_select", step_start)
-
-        step_start = start_timing()
-        result_distances.copy_(topk_distances)
-        result_ids.copy_(topk_ids)
-        record_timing("tensor_list_topk_writeback", step_start)
-
-    if active_selection_mode == "tensor_nopadding_topk":
-        # Query-major packed Tensor route. Each probe edge contributes exactly
-        # its list length to the flat candidate tensor; no query is padded to
-        # another query's Cmax.
-        assert global_query_luts is not None
-        assert probe_distance_bias is not None
-
-        step_start = start_timing()
-        tensor_global_query_luts = global_query_luts.permute(1, 0, 2).contiguous()
-        record_timing("tensor_nopadding_global_lut_layout", step_start)
-
-        step_start = start_timing()
-        row_major_static_corrections = _get_row_major_pq_static_corrections(
-            index,
-            list_codes,
-            list_prefix,
-            list_count,
-            search_device,
-        )
-        record_timing("tensor_static_corrections", step_start)
-
-        step_start = start_timing()
-        topk_distances, topk_ids = _tensor_nopadding_topk_pq_distance_impl(
-            tensor_global_query_luts,
-            list_codes,
-            list_ids_flat,
-            row_major_static_corrections,
-            probe_cids,
-            probe_distance_bias,
-            list_prefix,
-            list_count,
-            search_topk,
-        )
-        record_timing("tensor_nopadding_topk_select", step_start)
-
-        step_start = start_timing()
-        result_distances.copy_(topk_distances)
-        result_ids.copy_(topk_ids)
-        record_timing("tensor_nopadding_topk_writeback", step_start)
-
     if refine_vectors is not None:
         step_start = start_timing()
         refined = refine_search_results(
@@ -1972,8 +2038,8 @@ def build_ivfpq_index(
 
     vectors = vectors.to(dtype=torch.float32, copy=False).contiguous()
     num_vectors, dim = vectors.shape
-    if dim % m != 0:
-        raise ValueError(f"Vector dimension {dim} must be divisible by m={m}")
+    working_dim = _pq_working_dim(dim, m)
+    subdim = working_dim // m
 
     ksub = 1 << int(nbits)
     if num_vectors < ksub:
@@ -1996,8 +2062,20 @@ def build_ivfpq_index(
 
     vectors_device = vectors.to(dtype=torch.float32, device=target_device, copy=False)
     labels_device = labels.to(dtype=torch.int64, device=target_device, copy=False)
-    residual_vectors = (vectors_device - centroids[labels_device]).contiguous()
-    subdim = dim // m
+    # cuVS applies a random orthogonal transform whenever ``dim`` is not a
+    # multiple of ``pq_dim``.  Its tall matrix preserves original-space L2
+    # distances while exposing equal-width subspaces in ``working_dim``.
+    pq_rotation_matrix = _make_pq_rotation_matrix(
+        dim,
+        working_dim,
+        device=target_device,
+        seed=int(seed) + 104729,
+    )
+    pq_centroids = _apply_pq_rotation(centroids, pq_rotation_matrix)
+    residual_vectors = _apply_pq_rotation(
+        (vectors_device - centroids[labels_device]).contiguous(),
+        pq_rotation_matrix,
+    )
 
     pq_code_dtype = _pq_code_dtype(nbits)
     pq_codebooks = torch.empty((m, ksub, subdim), dtype=torch.float32, device=target_device)
@@ -2031,6 +2109,8 @@ def build_ivfpq_index(
         device=target_device,
         m=m,
         nbits=nbits,
+        pq_rotation_matrix=pq_rotation_matrix,
+        pq_centroids=pq_centroids if pq_rotation_matrix is not None else None,
         seed=int(seed),
         n_init=int(n_init),
         coarse_inertia=coarse.inertia,

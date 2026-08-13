@@ -3,26 +3,46 @@ import json
 import pytest
 import torch
 
+import tensorvs._ivfpq_triton as _ivfpq_triton
+import tensorvs._ivfsq_triton as _ivfsq_triton
+from tensorvs._kmeans import _assigned_inertia, _kmeans_cpu_chunk_rows
 from tensorvs import (
     build_ivfflat_index,
     build_ivfpq_index,
+    build_ivfsq_index,
     compute_recall_at_k,
     load_ivfflat_index,
     load_ivfpq_index,
+    load_ivfsq_index,
     save_ivfflat_index,
     save_ivfpq_index,
+    save_ivfsq_index,
     search_ivfflat_index,
     search_ivfpq_index,
+    search_ivfsq_index,
 )
+from tensorvs.index_ivfsq import _pack_sq_codes, _unpack_sq_codes
 from tensorvs.distance import squared_l2_distance
 from tensorvs._ivf_interleaved import (
     INTERLEAVED_GROUP_SIZE,
     build_interleaved_flat_lists,
+    build_interleaved_pq_code_chunks,
     build_interleaved_pq_lists,
     interleaved_vector_width,
 )
 from tensorvs._ivfflat_triton import _direct_scan_plan, _list_grouped_gemm_plan
-from tensorvs._ivfpq_triton import _direct_scan_plan as _ivfpq_direct_scan_plan
+from tensorvs._ivfpq_triton import (
+    _default_launch_config as _ivfpq_default_launch_config,
+    _list_cta_launch_plan as _ivfpq_list_cta_launch_plan,
+    _list_cta_plan as _ivfpq_list_cta_plan,
+)
+from tensorvs._ivfpq_list_major_triton import (
+    _ListMajorLaunchConfig,
+    _build_list_major_task_plan,
+    _estimated_query_tile as _ivfpq_list_major_estimated_query_tile,
+    _layout_list_major_global_lut,
+    _list_major_plan as _ivfpq_list_major_plan,
+)
 from tensorvs.index_ivfflat import (
     IVFFlatIndex,
     _coarse_squared_l2_distance_addmm as _ivfflat_coarse_squared_l2_distance_addmm,
@@ -33,11 +53,32 @@ from tensorvs.index_ivfpq import (
     _build_interleaved_pq_static_corrections,
     _build_pq_static_corrections,
     _get_interleaved_pq_lists,
-    _tensor_list_topk_pq_distance_impl,
-    _tensor_nopadding_topk_pq_distance_impl,
     _tensor_topk_pq_distance_impl,
     _tensor_topk_pq_lut_reduce_impl,
 )
+
+
+def test_kmeans_memory_chunks_scale_with_vector_width():
+    assert _kmeans_cpu_chunk_rows(960) < 1_000_000
+    assert _kmeans_cpu_chunk_rows(960) * 960 * torch.float32.itemsize <= 256 << 20
+
+
+def test_assigned_inertia_chunking_matches_direct_sum():
+    generator = torch.Generator().manual_seed(619)
+    data = torch.randn(11, 7, generator=generator)
+    centroids = torch.randn(3, 7, generator=generator)
+    labels = torch.randint(0, 3, (11,), generator=generator)
+    expected = ((data - centroids[labels]) ** 2).sum(dtype=torch.float64).item()
+
+    actual = _assigned_inertia(
+        data,
+        labels,
+        centroids,
+        device=torch.device("cpu"),
+        chunk_size=3,
+    )
+
+    assert actual == pytest.approx(expected, rel=1e-12, abs=1e-12)
 
 
 def test_ivfflat_triton_plan_uses_compact_local_topk():
@@ -61,10 +102,122 @@ def test_ivfflat_list_grouped_gemm_plan_uses_one_local_topk_per_list():
     assert _list_grouped_gemm_plan(topk=33, nprobe=50, dim=128) is None
 
 
-def test_ivfpq_triton_plan_uses_direct_query_partitions():
-    assert _ivfpq_direct_scan_plan(topk=10, num_queries=64, nprobe=50) == (16, 4, 64)
-    assert _ivfpq_direct_scan_plan(topk=10, num_queries=128, nprobe=50) == (16, 2, 32)
-    assert _ivfpq_direct_scan_plan(topk=129, num_queries=64, nprobe=50) is None
+def test_ivfpq_triton_plan_emits_one_list_row_per_probe():
+    assert _ivfpq_list_cta_plan(topk=10, nprobe=50) == (16, 1024)
+    assert _ivfpq_list_cta_plan(topk=32, nprobe=50) == (32, 2048)
+    assert _ivfpq_list_cta_plan(topk=10, nprobe=129) is None
+
+
+def test_ivfpq_triton_uses_generic_fallback_scan_plan():
+    fallback = _ivfpq_default_launch_config()
+    assert fallback.scan_block_candidates == 256
+    assert fallback.num_warps == 4
+    assert fallback.probe_lists_per_cta == 1
+
+    # Without a persistent measured result the fallback keeps one local row
+    # per probe, preserving list-level load balance for any M.
+    assert _ivfpq_list_cta_launch_plan(topk=10, nprobe=50, m=25) == (
+        16,
+        50,
+        fallback,
+        1024,
+    )
+    assert _ivfpq_list_cta_launch_plan(topk=10, nprobe=51, m=25) == (
+        16,
+        51,
+        fallback,
+        1024,
+    )
+
+
+def test_ivfpq_list_major_plan_adapts_query_tile_to_local_key_footprint():
+    assert _ivfpq_list_major_plan(topk=10, nprobe=50) == (16, 1024)
+    assert _ivfpq_list_major_plan(topk=33, nprobe=50) is None
+
+    # The default resource estimate uses a wider tile for the small local
+    # reduction and shrinks it once the key matrix itself becomes wider.
+    assert _ivfpq_list_major_estimated_query_tile(
+        m=32,
+        local_k=16,
+        lut_dtype=torch.float32,
+    ) == 8
+    assert _ivfpq_list_major_estimated_query_tile(
+        m=32,
+        local_k=32,
+        lut_dtype=torch.float32,
+    ) == 4
+    assert _ListMajorLaunchConfig(query_tile=8, num_warps=4).query_tile == 8
+
+
+def test_ivfpq_list_major_task_plan_uses_candidate_tiles():
+    probe_cids = torch.tensor(
+        [[0, 1], [0, 1], [0, 1], [0, 1]],
+        dtype=torch.int64,
+    )
+    list_count = torch.tensor([129, 0], dtype=torch.int64)
+    plan = _build_list_major_task_plan(
+        probe_cids=probe_cids,
+        list_count=list_count,
+        query_tile=4,
+        candidate_groups=4,
+    )
+
+    # Five 32-vector groups are now consumed by one list/query task, which
+    # loops over two candidate tiles while retaining the local top-k.
+    assert plan["max_vector_chunks"] == 1
+    assert plan["num_tasks"] == 2
+
+
+def test_ivfpq_list_major_lut_keeps_query_major_rows_for_vector_reorder():
+    query_major_lut = torch.arange(2 * 3 * 4, dtype=torch.float32).reshape(2, 3, 4)
+    list_major_lut = _layout_list_major_global_lut(query_major_lut)
+
+    assert list_major_lut.shape == (2, 3, 4)
+    torch.testing.assert_close(list_major_lut[1, :, 2], query_major_lut[1, :, 2])
+    assert list_major_lut.is_contiguous()
+
+
+def test_ivfsq_triton_plan_bounds_local_and_chunk_topk():
+    assert _ivfsq_triton._task_plan(topk=10, nprobe=50, max_list_group_count=40) == (
+        16,
+        5,
+        128,
+    )
+    assert _ivfsq_triton._task_plan(topk=33, nprobe=50, max_list_group_count=40) is None
+    assert _ivfsq_triton._task_plan(topk=10, nprobe=129, max_list_group_count=40) is None
+
+
+def test_ivfpq_list_cta_plan_supports_two_probe_lists_per_cta(monkeypatch):
+    config = _ivfpq_triton._MAdaptiveLaunchConfig(
+        scan_block_candidates=128,
+        num_warps=4,
+        probe_lists_per_cta=2,
+    )
+    monkeypatch.setattr(_ivfpq_triton, "_default_launch_config", lambda: config)
+    # The final odd probe is part of a masked two-list CTA group, so only 26
+    # group-local rows need to be merged for 51 probes.
+    assert _ivfpq_list_cta_launch_plan(topk=10, nprobe=51, m=25) == (
+        16,
+        26,
+        config,
+        512,
+    )
+
+
+def test_ivfpq_triton_autotune_cache_persists_and_reloads(tmp_path, monkeypatch):
+    cache_path = tmp_path / "ivfpq-triton-autotune.json"
+    monkeypatch.setenv("TENSORVS_TRITON_AUTOTUNE_CACHE", str(cache_path))
+    monkeypatch.setattr(_ivfpq_triton, "_PERSISTED_AUTOTUNE_CONFIGS", None)
+    _ivfpq_triton._AUTOTUNE_CONFIG_CACHE.clear()
+    cache_key = ("test GPU", (8, 9), 32, 256, 50, 10, 128, True, 1165, 3021, 4848)
+    expected = _ivfpq_triton._MAdaptiveLaunchConfig(512, 4, 1)
+
+    _ivfpq_triton._persist_autotune_config(cache_key, expected)
+    assert json.loads(cache_path.read_text())["version"] == 1
+
+    _ivfpq_triton._AUTOTUNE_CONFIG_CACHE.clear()
+    monkeypatch.setattr(_ivfpq_triton, "_PERSISTED_AUTOTUNE_CONFIGS", None)
+    assert _ivfpq_triton._cached_autotune_config(cache_key) == expected
 
 
 def test_tensor_pq_global_lut_lookup_reconstructs_residual_adc():
@@ -207,72 +360,6 @@ def test_tensor_pq_global_lut_handles_empty_and_short_lists():
     torch.testing.assert_close(ids, torch.tensor([[71]], dtype=torch.int64))
 
 
-def test_tensor_list_topk_matches_query_major_without_distance_ties():
-    generator = torch.Generator().manual_seed(43)
-    num_queries, nprobe, m, subdim, ksub = 2, 3, 3, 2, 5
-    queries = torch.randn(num_queries, m * subdim, generator=generator)
-    codebooks = torch.randn(m, ksub, subdim, generator=generator)
-    codebook_norms = (codebooks * codebooks).sum(dim=-1)
-    global_luts = _build_global_query_luts_bmm(
-        queries,
-        codebooks,
-        codebook_norms,
-        m=m,
-        subdim=subdim,
-        use_tf32=False,
-    ).permute(1, 0, 2).contiguous()
-    list_codes = torch.randint(ksub, (8, m), generator=generator, dtype=torch.uint8)
-    list_ids = torch.arange(200, 208, dtype=torch.int64)
-    # Random per-vector gamma makes equality at the final top-k boundary
-    # overwhelmingly unlikely, so this checks the packed global reduction.
-    static_corrections = torch.randn(8, generator=generator)
-    probe_distance_bias = torch.randn(num_queries, nprobe, generator=generator)
-    probe_cids = torch.tensor([[0, 2, 1], [2, 0, 1]], dtype=torch.int64)
-    list_prefix = torch.tensor([0, 3, 5], dtype=torch.int64)
-    list_count = torch.tensor([3, 2, 3], dtype=torch.int64)
-    probe_list_prefix = list_prefix[probe_cids]
-    probe_list_count = list_count[probe_cids]
-    expected_distances, expected_ids = _tensor_topk_pq_distance_impl(
-        global_luts,
-        list_codes,
-        list_ids,
-        static_corrections,
-        probe_distance_bias,
-        probe_list_prefix,
-        probe_list_count,
-        torch.arange(8, dtype=torch.int64),
-        topk=3,
-    )
-    actual_distances, actual_ids = _tensor_list_topk_pq_distance_impl(
-        global_luts,
-        list_codes,
-        list_ids,
-        static_corrections,
-        probe_cids,
-        probe_distance_bias,
-        list_prefix,
-        list_count,
-        topk=3,
-    )
-
-    torch.testing.assert_close(actual_distances, expected_distances)
-    torch.testing.assert_close(actual_ids, expected_ids)
-
-    nopadding_distances, nopadding_ids = _tensor_nopadding_topk_pq_distance_impl(
-        global_luts,
-        list_codes,
-        list_ids,
-        static_corrections,
-        probe_cids,
-        probe_distance_bias,
-        list_prefix,
-        list_count,
-        topk=3,
-    )
-    torch.testing.assert_close(nopadding_distances, expected_distances)
-    torch.testing.assert_close(nopadding_ids, expected_ids)
-
-
 def test_query_norm_free_global_lut_preserves_residual_pq_distance():
     generator = torch.Generator().manual_seed(71)
     num_queries, num_lists, m, subdim, ksub = 3, 2, 3, 4, 5
@@ -298,6 +385,17 @@ def test_query_norm_free_global_lut_preserves_residual_pq_distance():
         codebooks,
     )
     torch.testing.assert_close(global_luts, expected_global_luts)
+    list_major_global_luts = _build_global_query_luts_bmm(
+        queries,
+        codebooks,
+        codebook_norms,
+        m=m,
+        subdim=subdim,
+        use_tf32=False,
+        layout="list_major",
+    )
+    assert list_major_global_luts.shape == (m, num_queries, ksub)
+    torch.testing.assert_close(list_major_global_luts, expected_global_luts)
 
     probe_distances = squared_l2_distance(queries, centroids)
     subspace_idx = torch.arange(m, dtype=torch.int64)
@@ -455,20 +553,6 @@ def test_build_ivfflat_index(tmp_path):
     torch.testing.assert_close(padding_distances, tensor_distances)
     torch.testing.assert_close(padding_ids, tensor_ids)
 
-    list_profile: dict[str, float] = {}
-    list_distances, list_ids = search_ivfflat_index(
-        index,
-        queries,
-        topk=4,
-        nprobe=4,
-        device="cpu",
-        profile=list_profile,
-        selection_mode="tensor_list_topk",
-    )
-    assert "tensor_list_topk_select" in list_profile
-    torch.testing.assert_close(list_distances, tensor_distances)
-    torch.testing.assert_close(list_ids, tensor_ids)
-
     triton_profile: dict[str, float] = {}
     triton_distances, triton_ids = search_ivfflat_index(
         index,
@@ -484,6 +568,8 @@ def test_build_ivfflat_index(tmp_path):
     torch.testing.assert_close(triton_ids, tensor_ids)
 
     for removed_mode in (
+        "tensor_nopadding_topk",
+        "tensor_list_topk",
         "global_sort",
         "list_gemm_topk",
         "triton_interleaved_direct_topk",
@@ -544,21 +630,9 @@ def test_ivfflat_tensor_topk_handles_empty_lists_and_short_lists(tmp_path):
     torch.testing.assert_close(padding_distances, tensor_distances)
     torch.testing.assert_close(padding_ids, tensor_ids)
 
-    list_distances, list_ids = search_ivfflat_index(
-        index,
-        queries,
-        topk=5,
-        nprobe=3,
-        device="cpu",
-        selection_mode="tensor_list_topk",
-    )
-    torch.testing.assert_close(list_distances, tensor_distances)
-    torch.testing.assert_close(list_ids, tensor_ids)
-
-
 @pytest.mark.parametrize(
     "selection_mode",
-    ("tensor_topk", "tensor_padding_topk", "tensor_list_topk", "triton_topk"),
+    ("tensor_topk", "tensor_padding_topk", "triton_topk"),
 )
 def test_ivfflat_modes_select_nearest_nprobe_lists_from_all_centroids(tmp_path, selection_mode):
     centroids = torch.tensor([[0.0, 0.0], [20.0, 0.0], [2.0, 0.0], [40.0, 0.0]])
@@ -677,36 +751,34 @@ def test_ivfpq_seed_metadata_and_exact_refinement(tmp_path):
     )
     torch.testing.assert_close(triton_distances, approximate_distances)
     torch.testing.assert_close(triton_ids, approximate_ids)
-    tensor_list_profile: dict[str, float] = {}
-    tensor_list_distances, tensor_list_ids = search_ivfpq_index(
+    list_major_distances, list_major_ids = search_ivfpq_index(
         index,
         queries,
         topk=4,
         nprobe=4,
         device="cpu",
-        selection_mode="tensor_list_topk",
-        profile=tensor_list_profile,
+        selection_mode="list_major",
     )
-    assert "tensor_list_topk_select" in tensor_list_profile
-    torch.testing.assert_close(tensor_list_distances, approximate_distances, rtol=1e-5, atol=1e-5)
-    assert torch.all(tensor_list_ids >= 0)
-    tensor_list_fp16_distances, tensor_list_fp16_ids = search_ivfpq_index(
-        index,
-        queries,
-        topk=4,
-        nprobe=4,
-        device="cpu",
-        selection_mode="tensor_list_topk",
-        lut_dtype="fp16",
-    )
-    assert tensor_list_fp16_ids.dtype == torch.int64
-    torch.testing.assert_close(
-        tensor_list_fp16_distances,
-        approximate_distances,
-        rtol=5e-3,
-        atol=5e-3,
-    )
-    for removed_mode in ("global_sort", "per_query_topk", "triton_interleaved_topk"):
+    # CPU has no Triton kernel, so the public mode intentionally preserves
+    # exact tensor_topk semantics through the normal fallback.
+    torch.testing.assert_close(list_major_distances, approximate_distances)
+    torch.testing.assert_close(list_major_ids, approximate_ids)
+    for removed_mode in ("triton_list_topk", "triton_list_cta_topk"):
+        with pytest.raises(ValueError, match="Unsupported IVFPQ selection_mode"):
+            search_ivfpq_index(
+                index,
+                queries,
+                topk=4,
+                nprobe=4,
+                device="cpu",
+                selection_mode=removed_mode,
+            )
+    for removed_mode in (
+        "tensor_list_topk",
+        "global_sort",
+        "per_query_topk",
+        "triton_interleaved_topk",
+    ):
         try:
             search_ivfpq_index(
                 index,
@@ -738,6 +810,84 @@ def test_ivfpq_seed_metadata_and_exact_refinement(tmp_path):
     )
     expected_distances = ((queries - vectors[refined_ids[:, 0]]) ** 2).sum(dim=1)
     torch.testing.assert_close(refined_distances[:, 0], expected_distances)
+
+
+def test_ivfpq_nondivisible_m_uses_orthogonal_pq_working_space(tmp_path):
+    """Match cuVS's padded-and-rotated PQ semantics for ``dim % m != 0``."""
+    generator = torch.Generator().manual_seed(211)
+    vectors = torch.randn(64, 20, generator=generator)
+    queries = vectors[:5] + 0.01 * torch.randn(5, 20, generator=generator)
+
+    result = build_ivfpq_index(
+        vectors=vectors,
+        nlist=4,
+        niter=1,
+        use_triton=False,
+        device="cpu",
+        m=3,
+        nbits=2,
+        seed=17,
+        n_init=1,
+    )
+    assert result.pq_rotation_matrix is not None
+    assert result.pq_rotation_matrix.shape == (21, 20)
+    torch.testing.assert_close(
+        result.pq_rotation_matrix.transpose(0, 1) @ result.pq_rotation_matrix,
+        torch.eye(20),
+        rtol=1e-4,
+        atol=1e-4,
+    )
+
+    output_dir = tmp_path / "ivfpq_nondivisible"
+    save_ivfpq_index(result, output_dir)
+    assert (output_dir / "pq_rotation_matrix.pt").exists()
+    assert (output_dir / "pq_centroids.pt").exists()
+
+    index = load_ivfpq_index(output_dir)
+    assert index.metadata["dim"] == 20
+    assert index.metadata["subdim"] == 7
+    assert index.metadata["pq_working_dim"] == 21
+    assert index.metadata["pq_rotation"] == "random_orthogonal"
+    assert index.pq_rotation_matrix is not None
+    assert index.pq_centroids is not None
+    assert index.pq_centroids.shape == (4, 21)
+
+    actual_distances, actual_ids = search_ivfpq_index(
+        index,
+        queries,
+        topk=3,
+        nprobe=4,
+        device="cpu",
+        selection_mode="tensor_topk",
+    )
+
+    assert index.list_codes is not None
+    assert index.list_ids_flat is not None
+    rotated_queries = queries @ index.pq_rotation_matrix.transpose(0, 1)
+    subspace_indices = torch.arange(3, dtype=torch.int64).unsqueeze(0)
+    decoded_residuals = index.pq_codebooks[
+        subspace_indices,
+        index.list_codes.to(torch.int64),
+    ].reshape(index.list_codes.shape[0], 21)
+    candidate_lists = index.assignments[index.list_ids_flat].to(torch.int64)
+    reconstructed_vectors = index.pq_centroids[candidate_lists] + decoded_residuals
+    full_distances = squared_l2_distance(rotated_queries, reconstructed_vectors)
+    expected_distances, expected_positions = torch.topk(full_distances, k=3, largest=False)
+
+    torch.testing.assert_close(actual_distances, expected_distances, rtol=1e-4, atol=1e-4)
+    # The decomposed scanner and the explicit reconstruction may resolve a
+    # near-equal final boundary in a different order. Verify every returned
+    # ID maps back to its own reconstructed distance instead of imposing an
+    # accidental tie-ordering contract.
+    id_to_position = torch.empty(index.list_ids_flat.numel(), dtype=torch.int64)
+    id_to_position[index.list_ids_flat] = torch.arange(index.list_ids_flat.numel())
+    actual_positions = id_to_position[actual_ids]
+    torch.testing.assert_close(
+        actual_distances,
+        torch.gather(full_distances, 1, actual_positions),
+        rtol=1e-4,
+        atol=1e-4,
+    )
 
 
 def test_ivfpq_persists_dual_list_layouts(tmp_path):
@@ -887,7 +1037,7 @@ def test_ivfpq_persists_dual_list_layouts(tmp_path):
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
 @pytest.mark.parametrize("nbits", [3, 4])
-def test_ivfpq_triton_profile_splits_direct_scan_and_final_merge(tmp_path, nbits):
+def test_ivfpq_triton_profile_splits_cta_scan_and_final_merge(tmp_path, nbits):
     pytest.importorskip("triton")
     generator = torch.Generator().manual_seed(97)
     vectors = torch.randn(128, 8, generator=generator)
@@ -925,10 +1075,25 @@ def test_ivfpq_triton_profile_splits_direct_scan_and_final_merge(tmp_path, nbits
         device="cuda:0",
         selection_mode="tensor_topk",
     )
-    assert "triton_direct_scan" in profile
+    assert "triton_scan" in profile
     assert "triton_final_merge" in profile
     assert "triton_topk_select" not in profile
     torch.testing.assert_close(triton_distances, tensor_distances)
+
+    list_major_profile: dict[str, float] = {}
+    list_major_distances, list_major_ids = search_ivfpq_index(
+        index,
+        vectors[:16],
+        topk=4,
+        nprobe=4,
+        device="cuda:0",
+        selection_mode="list_major",
+        profile=list_major_profile,
+    )
+    assert "triton_scan" in list_major_profile
+    assert "triton_final_merge" in list_major_profile
+    torch.testing.assert_close(list_major_ids, triton_ids)
+    torch.testing.assert_close(list_major_distances, triton_distances)
 
     fp16_profile: dict[str, float] = {}
     fp16_triton_distances, fp16_triton_ids = search_ivfpq_index(
@@ -942,7 +1107,7 @@ def test_ivfpq_triton_profile_splits_direct_scan_and_final_merge(tmp_path, nbits
         lut_dtype="fp16",
     )
     assert "LUT_prepare" in fp16_profile
-    assert "triton_direct_scan" in fp16_profile
+    assert "triton_scan" in fp16_profile
     assert fp16_triton_ids.dtype == torch.int64
     torch.testing.assert_close(fp16_triton_distances, triton_distances, rtol=2e-3, atol=2e-3)
 
@@ -957,10 +1122,148 @@ def test_ivfpq_triton_profile_splits_direct_scan_and_final_merge(tmp_path, nbits
         profile=fp32_profile,
         lut_dtype="fp32",
     )
-    assert "triton_direct_scan" in fp32_profile
-    assert "triton_group_probe_lists" not in fp32_profile
+    assert "triton_scan" in fp32_profile
     torch.testing.assert_close(fp32_ids, triton_ids)
     torch.testing.assert_close(fp32_distances, triton_distances, rtol=2e-4, atol=2e-4)
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
+@pytest.mark.parametrize("m", [25, 32])
+def test_ivfpq_triton_packed_chunked_matches_tensor_topk(tmp_path, m):
+    pytest.importorskip("triton")
+    generator = torch.Generator().manual_seed(509)
+    vectors = torch.randn(128, m, generator=generator)
+    result = build_ivfpq_index(
+        vectors=vectors,
+        nlist=4,
+        niter=2,
+        use_triton=False,
+        device="cpu",
+        m=m,
+        nbits=3,
+        seed=11,
+        n_init=1,
+    )
+    output_path = tmp_path / f"ivfpq-m{m}-packed.bin"
+    save_ivfpq_index(result, output_path)
+    index = load_ivfpq_index(output_path)
+    index.reside_on_device("cuda:0")
+
+    profile: dict[str, float] = {}
+    packed_distances, packed_ids = search_ivfpq_index(
+        index,
+        vectors[:16],
+        topk=4,
+        nprobe=4,
+        device="cuda:0",
+        selection_mode="triton_topk",
+        profile=profile,
+    )
+    reference_distances, reference_ids = search_ivfpq_index(
+        index,
+        vectors[:16],
+        topk=4,
+        nprobe=4,
+        device="cuda:0",
+        selection_mode="tensor_topk",
+    )
+    assert "triton_packed_prepare" in profile
+    assert index.list_codes_interleaved_packed_16b is not None
+    assert index.list_codes_interleaved_packed_16b.shape[1:] == (2, 32, 2)
+    unpacked_distances, unpacked_ids = search_ivfpq_index(
+        index,
+        vectors[:16],
+        topk=4,
+        nprobe=4,
+        device="cuda:0",
+        selection_mode="triton_topk",
+        use_packed_16b_codes=False,
+    )
+    torch.testing.assert_close(packed_ids, reference_ids)
+    torch.testing.assert_close(packed_distances, reference_distances, rtol=2e-4, atol=2e-4)
+    torch.testing.assert_close(unpacked_ids, reference_ids)
+    torch.testing.assert_close(unpacked_distances, reference_distances, rtol=2e-4, atol=2e-4)
+
+    list_major_distances, list_major_ids = search_ivfpq_index(
+        index,
+        vectors[:16],
+        topk=4,
+        nprobe=4,
+        device="cuda:0",
+        selection_mode="list_major",
+    )
+    torch.testing.assert_close(list_major_ids, reference_ids)
+    torch.testing.assert_close(list_major_distances, reference_distances, rtol=2e-4, atol=2e-4)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
+def test_ivfpq_triton_chunked_m96_matches_tensor_topk(tmp_path):
+    pytest.importorskip("triton")
+    generator = torch.Generator().manual_seed(733)
+    vectors = torch.randn(128, 96, generator=generator)
+    result = build_ivfpq_index(
+        vectors=vectors,
+        nlist=4,
+        niter=1,
+        use_triton=False,
+        device="cpu",
+        m=96,
+        nbits=2,
+        seed=13,
+        n_init=1,
+    )
+    output_path = tmp_path / "ivfpq-m96-chunked.bin"
+    save_ivfpq_index(result, output_path)
+    index = load_ivfpq_index(output_path)
+    index.reside_on_device("cuda:0")
+
+    profile: dict[str, float] = {}
+    chunked_distances, chunked_ids = search_ivfpq_index(
+        index,
+        vectors[:16],
+        topk=4,
+        nprobe=4,
+        device="cuda:0",
+        selection_mode="triton_topk",
+        profile=profile,
+    )
+    reference_distances, reference_ids = search_ivfpq_index(
+        index,
+        vectors[:16],
+        topk=4,
+        nprobe=4,
+        device="cuda:0",
+        selection_mode="tensor_topk",
+    )
+
+    assert "triton_packed_prepare" in profile
+    assert "triton_scan" in profile
+    assert index.list_codes_interleaved_packed_16b is not None
+    assert index.list_codes_interleaved_packed_16b.shape[1:] == (6, 32, 2)
+    torch.testing.assert_close(chunked_ids, reference_ids)
+    torch.testing.assert_close(
+        chunked_distances,
+        reference_distances,
+        rtol=5e-4,
+        atol=5e-4,
+    )
+
+    list_major_distances, list_major_ids = search_ivfpq_index(
+        index,
+        vectors[:16],
+        topk=4,
+        nprobe=4,
+        device="cuda:0",
+        selection_mode="list_major",
+    )
+    torch.testing.assert_close(list_major_ids, chunked_ids)
+    torch.testing.assert_close(
+        list_major_distances,
+        chunked_distances,
+        rtol=5e-4,
+        atol=5e-4,
+    )
+
+
 
 
 def test_interleaved_layout_preserves_ivf_list_values():
@@ -986,3 +1289,90 @@ def test_interleaved_layout_preserves_ivf_list_values():
     torch.testing.assert_close(flat_layout.ids[physical_positions], ids)
     torch.testing.assert_close(pq_layout.codes_by_subspace[:, physical_positions].transpose(0, 1), codes)
     torch.testing.assert_close(pq_layout.ids[physical_positions], ids)
+
+    wide_codes = torch.arange(7 * 25, dtype=torch.uint8).reshape(7, 25)
+    packed_codes = build_interleaved_pq_code_chunks(wide_codes, list_prefix, list_count)
+    assert packed_codes.shape == (3, 2, INTERLEAVED_GROUP_SIZE, 2)
+    packed_rows = packed_codes.view(torch.uint8).permute(0, 2, 1, 3).reshape(-1, 32)
+    torch.testing.assert_close(packed_rows[physical_positions, :25], wide_codes)
+    assert torch.count_nonzero(packed_rows[:, 25:]) == 0
+
+
+def test_ivfsq_nibble_pack_roundtrip_odd_dimension():
+    codes = torch.tensor(
+        [[0, 1, 2, 3, 4], [15, 14, 13, 12, 11]],
+        dtype=torch.uint8,
+    )
+    packed = _pack_sq_codes(codes)
+    assert packed.dtype == torch.uint8
+    assert packed.shape == (2, 3)
+    torch.testing.assert_close(_unpack_sq_codes(packed, dim=5), codes)
+
+
+@pytest.mark.parametrize("bits", [8, 4])
+def test_ivfsq_build_save_load_search_and_refine(tmp_path, bits):
+    generator = torch.Generator().manual_seed(321)
+    vectors = torch.randn(96, 7, generator=generator)
+    queries = vectors[:8] + 0.01 * torch.randn(8, 7, generator=generator)
+    result = build_ivfsq_index(
+        vectors=vectors,
+        nlist=4,
+        niter=4,
+        use_triton=False,
+        device="cpu",
+        bits=bits,
+        seed=17,
+        n_init=1,
+    )
+
+    assert result.bits == bits
+    assert result.sq_codes.dtype == torch.uint8
+    assert result.sq_codes.shape == (96, 7 if bits == 8 else 4)
+    output_path = tmp_path / f"ivfsq_{bits}"
+    save_ivfsq_index(result, output_path, dataset_path="in-memory")
+    index = load_ivfsq_index(output_path)
+    assert index.metadata["sq_bits"] == bits
+    assert index.metadata["sq_mode"] == "residual_per_list_affine"
+    assert index.list_codes is not None
+    assert index.list_codes.shape == result.sq_codes.shape
+
+    profile: dict[str, float] = {}
+    distances, ids = search_ivfsq_index(
+        index,
+        queries,
+        topk=4,
+        nprobe=4,
+        device="cpu",
+        profile=profile,
+    )
+    assert distances.shape == (8, 4)
+    assert ids.shape == (8, 4)
+    assert distances.dtype == torch.float32
+    assert ids.dtype == torch.int64
+    assert torch.all(ids >= 0)
+    assert torch.all(ids < vectors.shape[0])
+    assert "sq_distance_topk" in profile
+
+    refined_distances, refined_ids = search_ivfsq_index(
+        index,
+        queries,
+        topk=3,
+        nprobe=4,
+        device="cpu",
+        refine_vectors=vectors,
+        refine_factor=2,
+    )
+    expected = ((queries[:, None, :] - vectors[refined_ids]) ** 2).sum(dim=2)
+    torch.testing.assert_close(refined_distances, expected, rtol=1e-5, atol=1e-5)
+
+    single_file = tmp_path / f"ivfsq_{bits}.bin"
+    save_ivfsq_index(result, single_file)
+    single_file_index = load_ivfsq_index(single_file)
+    torch.testing.assert_close(single_file_index.sq_min, index.sq_min)
+    torch.testing.assert_close(single_file_index.sq_scale, index.sq_scale)
+
+
+def test_ivfsq_rejects_unsupported_bits_and_selection_mode():
+    vectors = torch.randn(16, 4)
+    with pytest.raises(ValueError, match="bits must be 4 or 8"):
+        build_ivfsq_index(vectors, 2, 2, False, "cpu", bits=3)

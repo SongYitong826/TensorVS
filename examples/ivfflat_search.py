@@ -17,7 +17,7 @@ from tensorvs import (
     search_ivfflat_index,
 )
 
-DIR_PATH = Path("/storage/vector_data/glove1.2m")
+DIR_PATH = Path("/storage/vector_data/sift1m")
 DATASET_NAME = DIR_PATH.name
 DATASET_PATH = DIR_PATH / f"{DATASET_NAME}_base.fvecs"
 QUERY_PATH = DIR_PATH / f"{DATASET_NAME}_query.fvecs"
@@ -29,10 +29,10 @@ USE_TRITON = True
 DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 TOPK = 10
 NPROBE = 50
-NQ = 1000
-Q_BATCH = 128
+NQ = 1024
+Q_BATCH = 64
 SELECTION_MODE = "triton_topk"
-# 可选："triton_topk" / "tensor_topk" / "tensor_padding_topk" / "tensor_list_topk"
+# 可选："triton_topk" / "tensor_topk" / "tensor_padding_topk"
 # triton_topk 的batch越高越好？？为什么？
 # Enable only when inspecting per-stage timing. It adds CUDA timing events and
 # a per-search synchronization, so leave it False for QPS measurements.

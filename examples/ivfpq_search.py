@@ -27,24 +27,40 @@ NLIST = 1024
 NITER = 25
 USE_TRITON = True
 DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
-M = 16
+# ``M`` need not divide the input dimension. For example GloVe D=200,M=32
+# uses a cuVS-style 224-dimensional orthogonal PQ working space (32 x 7).
+M = 32
 NBITS = 8
 TOPK = 10
 NPROBE = 50
-SELECTION_MODE = "tensor_nopadding_topk"  # triton_topk / tensor_topk / tensor_list_topk / tensor_nopadding_topk
+SELECTION_MODE = "triton_list_major"
+# triton_topk / list_major / triton_list_major / tensor_topk
+# ``list_major`` sorts (query, probe-list) edges by IVF list, then evaluates
+# visiting queries in a small register-bounded tile. The global [M,Q,Ksub]
+# LUT is transposed to a temporary [Ksub,QueryTile] Vector LUT per task, so
+# candidate codes and corrections are shared across the visiting queries.
+# It automatically falls back to triton_topk when list overlap is sparse.
+# ``triton_autotune`` can measure the query-tile candidates.
 # Enable only when inspecting per-stage timing. For ``tensor_topk`` this also
 # splits its normal fused graph, so leave it False for QPS measurements.
 ENABLE_DETAILED_TIMING = False
+# Compare packed 16-byte code scanning against the subspace-major scanner by
+# setting this to False.
+USE_PACKED_16B_CODES = True
+# Measure a small CTA scan sweep and persist the fastest configuration under
+# ~/.cache/tensorvs. Later runs reuse it automatically, so enable this only
+# when a new GPU/workload shape needs calibration.
+ENABLE_TRITON_AUTOTUNE = True
 # LUT precision switch: ``"fp32"`` uses TF32 Tensor Core BMM while retaining
 # FP32 LUT storage/ADC accumulation; ``"fp16"`` uses fused residual/LUT
 # construction with FP16 Tensor Core dot operands.
 LUT_DTYPE = "fp32"  # fp32 / fp16
-# The sole Triton IVF-PQ path is query-major static-vector correction. Both
-# FP32 and FP16 use it; FP16 stores G compactly but accumulates ADC values
-# together with gamma in FP32.
+# Both Triton IVF-PQ modes use static-vector correction. FP16 stores G
+# compactly but accumulates ADC values together with gamma in FP32.
 REFINE_FACTOR = 1
-NQ = 1000
-Q_BATCH = 64
+NQ = 1024
+Q_BATCH = 256
+WARMUP_ITERATIONS = 3
 # 聚类参数
 SEED = 0
 N_INIT = 2
@@ -178,8 +194,17 @@ def main() -> None:
     warmup_done = False
     for start in range(0, nq, q_batch):
         end = min(start + q_batch, nq)
+        batch_size = end - start
         transfer_start_time = time.perf_counter()
         query_batch = queries[start:end].to(DEVICE)
+        # Keep one compiled/search workspace shape throughout the benchmark.
+        # The GloVe query set has 1,000 rows, so an unpadded final 232-query
+        # batch otherwise exercises a cold shape after warming only Q_BATCH.
+        if batch_size < q_batch:
+            query_batch = torch.cat(
+                (query_batch, query_batch[-1:].expand(q_batch - batch_size, -1)),
+                dim=0,
+            )
         batch_timings["query_to_device"] += time.perf_counter() - transfer_start_time
 
         if DEVICE.type == "cuda":
@@ -188,20 +213,24 @@ def main() -> None:
             batch_timings["pre_search_sync"] += time.perf_counter() - sync_start_time
 
         if not warmup_done:
-            warmup_profile: dict[str, float] | None = {} if ENABLE_DETAILED_TIMING else None
             warmup_start_time = time.perf_counter()
-            search_ivfpq_index(
-                index=index,
-                queries=query_batch,
-                topk=TOPK,
-                nprobe=NPROBE,
-                selection_mode=SELECTION_MODE,
-                refine_vectors=base_vectors if REFINE_FACTOR > 1 else None,
-                refine_factor=REFINE_FACTOR,
-                profile=warmup_profile,
-                detailed_tensor_topk_profile=ENABLE_DETAILED_TIMING,
-                lut_dtype=LUT_DTYPE,
-            )
+            warmup_profile: dict[str, float] | None = None
+            for _ in range(max(1, int(WARMUP_ITERATIONS))):
+                warmup_profile = {} if ENABLE_DETAILED_TIMING else None
+                search_ivfpq_index(
+                    index=index,
+                    queries=query_batch,
+                    topk=TOPK,
+                    nprobe=NPROBE,
+                    selection_mode=SELECTION_MODE,
+                    refine_vectors=base_vectors if REFINE_FACTOR > 1 else None,
+                    refine_factor=REFINE_FACTOR,
+                    profile=warmup_profile,
+                    use_packed_16b_codes=USE_PACKED_16B_CODES,
+                    triton_autotune=ENABLE_TRITON_AUTOTUNE,
+                    detailed_tensor_topk_profile=ENABLE_DETAILED_TIMING,
+                    lut_dtype=LUT_DTYPE,
+                )
             if DEVICE.type == "cuda":
                 torch.cuda.synchronize(DEVICE)
             batch_timings["warmup"] += time.perf_counter() - warmup_start_time
@@ -220,6 +249,8 @@ def main() -> None:
             refine_vectors=base_vectors if REFINE_FACTOR > 1 else None,
             refine_factor=REFINE_FACTOR,
             profile=batch_profile,
+            use_packed_16b_codes=USE_PACKED_16B_CODES,
+            triton_autotune=ENABLE_TRITON_AUTOTUNE,
             detailed_tensor_topk_profile=ENABLE_DETAILED_TIMING,
             lut_dtype=LUT_DTYPE,
         )
@@ -234,8 +265,8 @@ def main() -> None:
                 search_step_timings[name] = search_step_timings.get(name, 0.0) + value
 
         cpu_copy_start_time = time.perf_counter()
-        all_distances.append(batch_distances.cpu())
-        all_ids.append(batch_ids.cpu())
+        all_distances.append(batch_distances[:batch_size].cpu())
+        all_ids.append(batch_ids[:batch_size].cpu())
         batch_timings["result_to_cpu"] += time.perf_counter() - cpu_copy_start_time
 
     distances = torch.cat(all_distances, dim=0)

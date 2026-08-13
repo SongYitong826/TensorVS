@@ -708,9 +708,7 @@ def search_ivfflat_index(
     ``tensor_topk`` expands the actual candidate pairs and performs a packed
     global sort.  ``tensor_padding_topk`` instead pads each query's selected
     lists to the batch maximum, then performs a query-major dense scan and
-    per-query ``torch.topk``.  ``tensor_list_topk`` groups queries by IVF
-    list, expands only real query-vector pairs, and uses the packed global
-    sort from ``tensor_topk`` for the final per-query selection.
+    per-query ``torch.topk``.
     """
 
     search_device: torch.device | None = None
@@ -761,7 +759,6 @@ def search_ivfflat_index(
         "triton_topk",
         "tensor_topk",
         "tensor_padding_topk",
-        "tensor_list_topk",
     }:
         raise ValueError(f"Unsupported IVFFlat selection_mode: {selection_mode}")
 
@@ -907,55 +904,6 @@ def search_ivfflat_index(
             result_distances[:, :padded_topk].copy_(topk_distances)
             result_ids[:, :padded_topk].copy_(topk_ids)
             record_timing("tensor_padding_topk_select", step_start)
-        active_selection_mode = "done"
-
-    if active_selection_mode == "tensor_list_topk":
-        # Group probe edges by list, then expand only the real query-vector
-        # pairs for each selected list.  This avoids the former [list, qmax,
-        # lmax] padded BMM and reuses tensor_topk's packed global-sort tail.
-        step_start = start_timing()
-        edge_qid = torch.arange(num_queries, device=search_device, dtype=torch.int64).repeat_interleave(nprobe)
-        edge_cid = probe_cids.reshape(-1).to(torch.int64)
-        record_timing("tensor_list_expand_probe_edges", step_start)
-
-        step_start = start_timing()
-        edge_cid_sorted, perm = torch.sort(edge_cid)
-        edge_qid_sorted = edge_qid[perm]
-        unique_clusters, q_count = torch.unique_consecutive(edge_cid_sorted, return_counts=True)
-        q_prefix = torch.cumsum(q_count, dim=0) - q_count
-        record_timing("tensor_list_group_probes_by_cluster", step_start)
-
-        step_start = start_timing()
-        l_prefix = list_prefix[unique_clusters]
-        l_count = list_count[unique_clusters]
-        active_mask = l_count > 0
-        if active_mask.any():
-            q_count = q_count[active_mask]
-            q_prefix = q_prefix[active_mask]
-            l_prefix = l_prefix[active_mask]
-            l_count = l_count[active_mask]
-        record_timing("tensor_list_lookup_active_lists", step_start)
-
-        if active_mask.any():
-            step_start = start_timing()
-            _search_ivfflat_pair_expand_impl(
-                Q=Q,
-                list_vectors=list_vectors,
-                list_vector_norms=list_vector_norms,
-                list_ids_flat=list_ids_flat,
-                q_count=q_count,
-                q_prefix=q_prefix,
-                l_prefix=l_prefix,
-                l_count=l_count,
-                edge_qid_sorted=edge_qid_sorted,
-                result_distances=result_distances,
-                result_ids=result_ids,
-                topk=topk,
-                search_device=search_device,
-                start_timing=start_timing,
-                record_timing=record_timing,
-            )
-            record_timing("tensor_list_topk_select", step_start)
         active_selection_mode = "done"
 
     if active_selection_mode == "tensor_topk":

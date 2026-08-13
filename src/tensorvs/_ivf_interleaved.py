@@ -9,11 +9,15 @@ scanning the same dimension chunk across 32 candidates.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 
 import torch
 
 
 INTERLEAVED_GROUP_SIZE = 32
+# Matches cuVS IVF-PQ's ``kIndexGroupVecLen``: one thread owns a 16-byte
+# chunk of PQ codes, and a 32-thread group interleaves those chunks.
+PQ_CODE_CHUNK_BYTES = 16
 # cuVS vectorizes up to 16 bytes per load.  This is the maximum width for
 # float32; the actual width is selected per index by
 # ``interleaved_vector_width`` below.
@@ -167,6 +171,51 @@ def build_interleaved_pq_lists(
         ids=ids.contiguous(),
         group_prefix=group_prefix,
     )
+
+
+def build_interleaved_pq_code_chunks(
+    list_codes: torch.Tensor,
+    list_prefix: torch.Tensor,
+    list_count: torch.Tensor,
+) -> torch.Tensor:
+    """Build cuVS-style 16-byte PQ chunks in padded physical-list order.
+
+    The underlying byte layout is ``[group, code_chunk, lane, 16]``; it is
+    returned as ``[group, code_chunk, lane, 2]`` ``uint64`` words. Thus the
+    32 lanes of one warp read adjacent 16-byte records for a code chunk, while
+    a candidate's next chunk is exactly one group-stride away. The final chunk
+    is zero padded; callers must still mask subspaces beyond the true ``m``.
+    This cache is deliberately transient/device-resident because it is used
+    only by the M>16 packed chunk scanner.
+    """
+    if list_codes.ndim != 2:
+        raise ValueError("PQ codes must have shape [num_vectors, m]")
+    if list_codes.dtype != torch.uint8:
+        raise ValueError("Packed PQ code chunks require uint8 codes")
+
+    num_vectors, m = list_codes.shape
+    physical_positions, _, total_groups = _build_physical_positions(
+        list_prefix,
+        list_count,
+        int(num_vectors),
+    )
+    num_chunks = math.ceil(m / PQ_CODE_CHUNK_BYTES)
+    packed_codes = torch.zeros(
+        (total_groups, num_chunks, INTERLEAVED_GROUP_SIZE, PQ_CODE_CHUNK_BYTES),
+        dtype=torch.uint8,
+        device=list_codes.device,
+    )
+    if num_vectors > 0:
+        groups = torch.div(physical_positions, INTERLEAVED_GROUP_SIZE, rounding_mode="floor")
+        lanes = physical_positions % INTERLEAVED_GROUP_SIZE
+        for chunk_idx in range(num_chunks):
+            start = chunk_idx * PQ_CODE_CHUNK_BYTES
+            end = min(start + PQ_CODE_CHUNK_BYTES, m)
+            packed_codes[groups, chunk_idx, lanes, : end - start] = list_codes[:, start:end]
+    # Triton consumes the chunk as two aligned 64-bit words. ``view`` is a
+    # reinterpretation, so this keeps the exact cuVS byte layout without a
+    # second allocation or a packing copy.
+    return packed_codes.contiguous().view(torch.uint64)
 
 
 def build_interleaved_pq_scalar_cache(
