@@ -14,11 +14,50 @@ from ._kmeans import fit_best_kmeans
 from ._ivf_interleaved import (
     INTERLEAVED_GROUP_SIZE,
     build_interleaved_flat_lists,
+    build_interleaved_pq_scalar_cache,
     interleaved_vector_width,
 )
 from ._ivfflat_triton import can_run_topk as can_run_ivfflat_triton_topk
 from ._ivfflat_triton import triton_topk
-from .distance import squared_l2_distance
+
+
+def _coarse_squared_l2_distance_addmm(
+    queries: torch.Tensor,
+    centroids: torch.Tensor,
+    centroid_norms: torch.Tensor,
+) -> torch.Tensor:
+    """Compute all coarse ``||q-c||^2`` distances with cached centroid norms.
+
+    Coarse selection must be reproducible at the ``nprobe`` boundary, so the
+    matrix multiply deliberately disables TF32 on CUDA.  All operands are
+    FP32 at the call site and ``centroid_norms`` is static index data, yielding
+    ``||q||^2 + ||c||^2 - 2 q^T c`` without another centroid-norm reduction
+    for every query batch.
+    """
+    query_norms = (queries * queries).sum(dim=1, keepdim=True)
+    centroid_norm_base = centroid_norms.unsqueeze(0)
+    if not queries.is_cuda:
+        distances = torch.addmm(
+            centroid_norm_base,
+            queries,
+            centroids.transpose(0, 1),
+            beta=1.0,
+            alpha=-2.0,
+        )
+    else:
+        previous_allow_tf32 = torch.backends.cuda.matmul.allow_tf32
+        try:
+            torch.backends.cuda.matmul.allow_tf32 = False
+            distances = torch.addmm(
+                centroid_norm_base,
+                queries,
+                centroids.transpose(0, 1),
+                beta=1.0,
+                alpha=-2.0,
+            )
+        finally:
+            torch.backends.cuda.matmul.allow_tf32 = previous_allow_tf32
+    return distances.add_(query_norms).clamp_min_(0.0)
 
 
 def _decode_pairs_and_distance_impl(
@@ -44,9 +83,10 @@ def _decode_pairs_and_distance_impl(
     pair_qid = edge_qid_sorted[q_prefix[pair_cluster_idx] + query_local_id]
     pair_vec_pos = l_prefix[pair_cluster_idx] + cand_local_id
     pair_vid = list_ids_flat[pair_vec_pos]
-    pair_q = q[pair_qid]
-    pair_v = list_vectors[pair_vec_pos]
-    pair_score = (pair_q * pair_v).sum(dim=1)
+    # Keep the dot product as one indexed reduction.  Materializing both
+    # ``pair_q`` and ``pair_v`` first creates two [M, D] intermediates and
+    # prevents Inductor from fusing the pair mapping with the distance scan.
+    pair_score = (q[pair_qid] * list_vectors[pair_vec_pos]).sum(dim=1)
     pair_dist = q_norm[pair_qid] + list_vector_norms[pair_vec_pos] - 2.0 * pair_score
     pair_dist.clamp_min_(0.0)
     # All squared L2 distances are non-negative, so their FP32 IEEE bit order
@@ -70,14 +110,80 @@ def _decode_pairs_and_distance_mode() -> str:
     return "compiled" if fn is not _decode_pairs_and_distance_impl else "eager"
 
 
+def _tensor_padding_topk_distance_impl(
+    queries: torch.Tensor,
+    query_norms: torch.Tensor,
+    list_vectors: torch.Tensor,
+    list_vector_norms: torch.Tensor,
+    list_ids_flat: torch.Tensor,
+    probe_list_prefix: torch.Tensor,
+    probe_list_count: torch.Tensor,
+    candidate_offsets: torch.Tensor,
+    topk: int,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Scan a query-major, uniformly padded IVF candidate matrix.
+
+    ``candidate_offsets`` enumerates the concatenation of a query's probed
+    lists.  Rows shorter than the batch maximum are mapped to a safe vector
+    position and then masked before the per-query top-k.  This keeps the
+    distance scan and reduction entirely in dense Tensor operators, without
+    materializing the pair-wise query-ID keys used by ``tensor_topk``.
+    """
+    num_queries = queries.shape[0]
+    candidate_positions = candidate_offsets.unsqueeze(0).repeat(num_queries, 1)
+    candidate_count = probe_list_count.sum(dim=1, keepdim=True)
+    valid_mask = candidate_positions < candidate_count
+
+    probe_end = torch.cumsum(probe_list_count, dim=1)
+    probe_idx = torch.searchsorted(probe_end, candidate_positions, right=True)
+    probe_idx = probe_idx.clamp_max(probe_list_count.shape[1] - 1)
+    probe_start = probe_end - probe_list_count
+    list_start = torch.gather(probe_list_prefix, 1, probe_idx)
+    local_start = torch.gather(probe_start, 1, probe_idx)
+    vector_positions = list_start + candidate_positions - local_start
+    safe_vector_positions = vector_positions.masked_fill(~valid_mask, 0)
+
+    # Express the dot product as an indexed reduction rather than a batched
+    # GEMV.  In particular, this gives Inductor the opportunity to fuse the
+    # vector gather, query broadcast, multiply and reduction instead of first
+    # materializing a separate [Q, Cpad, D] candidate-vector tensor.
+    query_dot_candidates = (list_vectors[safe_vector_positions] * queries.unsqueeze(1)).sum(dim=2)
+    candidate_distances = (
+        query_norms
+        + list_vector_norms[safe_vector_positions]
+        - 2.0 * query_dot_candidates
+    )
+    candidate_distances.clamp_min_(0.0)
+    candidate_distances.masked_fill_(~valid_mask, float("inf"))
+
+    topk_distances, topk_positions = torch.topk(candidate_distances, k=topk, dim=1, largest=False)
+    topk_vector_positions = torch.gather(safe_vector_positions, 1, topk_positions)
+    topk_ids = list_ids_flat[topk_vector_positions]
+    topk_valid = torch.gather(valid_mask, 1, topk_positions)
+    topk_ids.masked_fill_(~topk_valid, -1)
+    return topk_distances, topk_ids
+
+
+@lru_cache(maxsize=1)
+def _get_tensor_padding_topk_distance_fn():
+    try:
+        # Cmax is data-dependent, so preserve the exact query-major width
+        # rather than rounding it into a bucket.  This matches tensor_topk's
+        # single, dynamically sized candidate tensor model.
+        return torch.compile(_tensor_padding_topk_distance_impl, fullgraph=True, dynamic=True)
+    except Exception:
+        return _tensor_padding_topk_distance_impl
+
+
 def _get_interleaved_flat_lists(
     index: IVFFlatIndex,
     list_vectors: torch.Tensor,
+    list_vector_norms: torch.Tensor,
     list_ids_flat: torch.Tensor,
     list_prefix: torch.Tensor,
     list_count: torch.Tensor,
     search_device: torch.device,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Retrieve the persisted cache or build the resident interleaved layout."""
     has_persisted_layout = (
         index.persisted_list_vectors_interleaved is not None
@@ -141,13 +247,35 @@ def _get_interleaved_flat_lists(
                 index.list_vectors_interleaved = layout.vectors
                 index.list_ids_interleaved = layout.ids
                 index.list_group_prefix = layout.group_prefix
-        return index.list_vectors_interleaved, index.list_ids_interleaved, index.list_group_prefix
+        if index.list_vector_norms_interleaved is None:
+            index.list_vector_norms_interleaved = build_interleaved_pq_scalar_cache(
+                list_vector_norms,
+                list_prefix,
+                list_count,
+            )
+        return (
+            index.list_vectors_interleaved,
+            index.list_ids_interleaved,
+            index.list_group_prefix,
+            index.list_vector_norms_interleaved,
+        )
 
     if has_compatible_persisted_layout:
-        return persisted_layout()
+        vectors, ids, group_prefix = persisted_layout()
+        vector_norms = build_interleaved_pq_scalar_cache(
+            list_vector_norms,
+            list_prefix,
+            list_count,
+        )
+        return vectors, ids, group_prefix, vector_norms
 
     layout = build_interleaved_flat_lists(list_vectors, list_ids_flat, list_prefix, list_count)
-    return layout.vectors, layout.ids, layout.group_prefix
+    vector_norms = build_interleaved_pq_scalar_cache(
+        list_vector_norms,
+        list_prefix,
+        list_count,
+    )
+    return layout.vectors, layout.ids, layout.group_prefix, vector_norms
 
 
 _DECODE_MODE_LOGGED = False
@@ -168,16 +296,31 @@ class IVFFlatIndex:
     list_ids_flat: torch.Tensor | None
     list_prefix: torch.Tensor | None
     list_count: torch.Tensor | None
+    # Static coarse-centroid squared norms used by all selection modes.
+    # ``None`` keeps direct construction of legacy in-memory indexes working;
+    # ``__post_init__`` materializes the cache once in that case.
+    centroid_norms: torch.Tensor | None = None
     # Optional resident-only cuVS-style `[group, chunk, 32, veclen]` cache.
     list_vectors_interleaved: torch.Tensor | None = None
     list_ids_interleaved: torch.Tensor | None = None
     list_group_prefix: torch.Tensor | None = None
+    list_vector_norms_interleaved: torch.Tensor | None = None
     # Optional CPU copy loaded from a dual-layout index. It is transferred only
     # when ``triton_topk`` requests the interleaved layout.
     persisted_list_vectors_interleaved: torch.Tensor | None = None
     persisted_list_ids_interleaved: torch.Tensor | None = None
     persisted_list_group_prefix: torch.Tensor | None = None
+    # Cached host scalar used to choose the long-list Triton split plan.  It
+    # avoids a device-to-host synchronization for every query batch.
+    triton_max_list_group_count: int | None = None
     resident_device: torch.device | None = None
+
+    def __post_init__(self) -> None:
+        self.centroids = self.centroids.to(dtype=torch.float32, copy=False)
+        if self.centroid_norms is None:
+            self.centroid_norms = (self.centroids * self.centroids).sum(dim=-1)
+        else:
+            self.centroid_norms = self.centroid_norms.to(dtype=torch.float32, copy=False)
 
     def reside_on_device(self, device: torch.device | str) -> IVFFlatIndex:
         """Move search-critical tensors onto a target device and keep them resident."""
@@ -186,6 +329,11 @@ class IVFFlatIndex:
 
         target_device = torch.device(device)
         self.centroids = self.centroids.to(dtype=torch.float32, device=target_device, copy=False)
+        self.centroid_norms = self.centroid_norms.to(
+            dtype=torch.float32,
+            device=target_device,
+            copy=False,
+        )
         self.list_vectors = self.list_vectors.to(dtype=torch.float32, device=target_device, copy=False)
         self.list_vector_norms = self.list_vector_norms.to(dtype=torch.float32, device=target_device, copy=False)
         self.list_ids_flat = self.list_ids_flat.to(dtype=torch.int64, device=target_device, copy=False)
@@ -194,6 +342,7 @@ class IVFFlatIndex:
         self.list_vectors_interleaved = None
         self.list_ids_interleaved = None
         self.list_group_prefix = None
+        self.list_vector_norms_interleaved = None
         self.resident_device = target_device
         return self
 
@@ -201,6 +350,7 @@ class IVFFlatIndex:
         """Move resident search tensors back to CPU."""
         if self.list_vectors is not None:
             self.centroids = self.centroids.to(dtype=torch.float32, device="cpu", copy=False)
+            self.centroid_norms = self.centroid_norms.to(dtype=torch.float32, device="cpu", copy=False)
             self.list_vectors = self.list_vectors.to(dtype=torch.float32, device="cpu", copy=False)
             self.list_vector_norms = self.list_vector_norms.to(dtype=torch.float32, device="cpu", copy=False)
             self.list_ids_flat = self.list_ids_flat.to(dtype=torch.int64, device="cpu", copy=False)
@@ -209,6 +359,7 @@ class IVFFlatIndex:
         self.list_vectors_interleaved = None
         self.list_ids_interleaved = None
         self.list_group_prefix = None
+        self.list_vector_norms_interleaved = None
         self.resident_device = None
         return self
 
@@ -237,7 +388,8 @@ def save_ivfflat_index(
 
     vectors_cpu = build_result.vectors.cpu()
     labels_cpu = build_result.labels.cpu().to(torch.int64)
-    centroids_cpu = build_result.centroids.cpu()
+    centroids_cpu = build_result.centroids.cpu().to(torch.float32)
+    centroid_norms_cpu = (centroids_cpu * centroids_cpu).sum(dim=-1)
     ids = torch.arange(vectors_cpu.shape[0], dtype=torch.int64)
 
     if labels_cpu.numel() > 0:
@@ -301,6 +453,7 @@ def save_ivfflat_index(
             "metadata": metadata,
             "assignments": labels_cpu,
             "centroids": centroids_cpu,
+            "centroid_norms": centroid_norms_cpu,
             "ids": ids,
             "list_vectors": list_vectors,
             "list_vector_norms": list_vector_norms,
@@ -328,6 +481,7 @@ def save_ivfflat_index(
     out_dir.mkdir(parents=True, exist_ok=True)
     torch.save(labels_cpu, out_dir / "assignments.pt")
     torch.save(centroids_cpu, out_dir / "centroids.pt")
+    torch.save(centroid_norms_cpu, out_dir / "centroid_norms.pt")
     torch.save(ids, out_dir / "ids.pt")
     torch.save(list_vectors, out_dir / "list_vectors.pt")
     torch.save(list_vector_norms, out_dir / "list_vector_norms.pt")
@@ -360,7 +514,13 @@ def load_ivfflat_index(index_dir: str | Path, load_lists: bool = True
         payload = torch.load(index_path, map_location="cpu")
         metadata = payload["metadata"]
         assignments = payload["assignments"]
-        centroids = payload["centroids"]
+        centroids = payload["centroids"].to(torch.float32)
+        centroid_norms = payload.get("centroid_norms")
+        if centroid_norms is None:
+            # Index archives created before the cache was added remain usable.
+            centroid_norms = (centroids * centroids).sum(dim=-1)
+        else:
+            centroid_norms = centroid_norms.to(torch.float32)
         ids = payload["ids"]
         if load_lists:
             list_vectors = payload["list_vectors"].to(torch.float32)
@@ -393,6 +553,7 @@ def load_ivfflat_index(index_dir: str | Path, load_lists: bool = True
             vectors=None,
             assignments=assignments,
             centroids=centroids,
+            centroid_norms=centroid_norms,
             ids=ids,
             lists=lists,
             list_vectors=list_vectors,
@@ -408,6 +569,7 @@ def load_ivfflat_index(index_dir: str | Path, load_lists: bool = True
     metadata_path = index_path / "metadata.json"
     assignments_path = index_path / "assignments.pt"
     centroids_path = index_path / "centroids.pt"
+    centroid_norms_path = index_path / "centroid_norms.pt"
     ids_path = index_path / "ids.pt"
     list_vectors_path = index_path / "list_vectors.pt"
     list_vector_norms_path = index_path / "list_vector_norms.pt"
@@ -432,7 +594,12 @@ def load_ivfflat_index(index_dir: str | Path, load_lists: bool = True
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     vectors = None
     assignments = torch.load(assignments_path, map_location="cpu")
-    centroids = torch.load(centroids_path, map_location="cpu")
+    centroids = torch.load(centroids_path, map_location="cpu").to(torch.float32)
+    if centroid_norms_path.exists():
+        centroid_norms = torch.load(centroid_norms_path, map_location="cpu").to(torch.float32)
+    else:
+        # Index directories created before the cache was added remain usable.
+        centroid_norms = (centroids * centroids).sum(dim=-1)
     ids = torch.load(ids_path, map_location="cpu")
 
     if load_lists:
@@ -513,6 +680,7 @@ def load_ivfflat_index(index_dir: str | Path, load_lists: bool = True
         vectors=vectors,
         assignments=assignments,
         centroids=centroids,
+        centroid_norms=centroid_norms,
         ids=ids,
         lists=lists,
         list_vectors=list_vectors,
@@ -535,7 +703,13 @@ def search_ivfflat_index(
     profile: dict[str, float] | None = None,
     selection_mode: str = "tensor_topk",
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Search IVF-Flat with the Triton or Tensor selection path."""
+    """Search IVF-Flat with Triton or Tensor-native selection paths.
+
+    ``tensor_topk`` expands the actual candidate pairs and performs a packed
+    global sort.  ``tensor_padding_topk`` instead pads each query's selected
+    lists to the batch maximum, then performs a query-major dense scan and
+    per-query ``torch.topk``.
+    """
 
     search_device: torch.device | None = None
     cuda_timing_events: list[tuple[str, torch.cuda.Event, torch.cuda.Event]] = []
@@ -584,6 +758,7 @@ def search_ivfflat_index(
     if selection_mode not in {
         "triton_topk",
         "tensor_topk",
+        "tensor_padding_topk",
     }:
         raise ValueError(f"Unsupported IVFFlat selection_mode: {selection_mode}")
 
@@ -601,6 +776,7 @@ def search_ivfflat_index(
     Q = queries.to(dtype=torch.float32, device=search_device, copy=False).contiguous()
     if index.resident_device is not None and index.resident_device == search_device:
         centroids = index.centroids
+        centroid_norms = index.centroid_norms
         list_vectors = index.list_vectors
         list_vector_norms = index.list_vector_norms
         list_ids_flat = index.list_ids_flat
@@ -608,6 +784,11 @@ def search_ivfflat_index(
         list_count = index.list_count
     else:
         centroids = index.centroids.to(dtype=torch.float32, device=search_device, copy=False)
+        centroid_norms = index.centroid_norms.to(
+            dtype=torch.float32,
+            device=search_device,
+            copy=False,
+        )
         list_vectors = index.list_vectors.to(dtype=torch.float32, device=search_device, copy=False)
         list_vector_norms = index.list_vector_norms.to(dtype=torch.float32, device=search_device, copy=False)
         list_ids_flat = index.list_ids_flat.to(dtype=torch.int64, device=search_device, copy=False)
@@ -623,12 +804,15 @@ def search_ivfflat_index(
     result_ids = torch.full((num_queries, topk), -1, dtype=torch.int64, device=search_device)
     record_timing("init_outputs", step_start)
 
-    # Step 1: 计算查询向量与所有质心的平方L2距离矩阵
-    # Compute the full query-centroid squared L2 distance matrix:
-    #   dist_qc[b, c] = ||Q[b] - C[c]||^2
-    # Then keep only the nearest `nprobe` centroids per query.
+    # Compute full [query, nlist] strict-FP32 coarse distances, then select
+    # the nearest nprobe list IDs for every query.  Both selection modes share
+    # these probes; their difference begins only when scanning the lists.
     step_start = start_timing()
-    dist_qc = squared_l2_distance(Q, centroids)
+    dist_qc = _coarse_squared_l2_distance_addmm(
+        Q,
+        centroids,
+        centroid_norms,
+    )
     record_timing("centroid_distance", step_start)
     step_start = start_timing()
     _, probe_cids = torch.topk(dist_qc, k=nprobe, dim=1, largest=False)
@@ -644,9 +828,15 @@ def search_ivfflat_index(
             dim=Q.shape[1],
         ):
             step_start = start_timing()
-            interleaved_vectors, interleaved_ids, list_group_prefix = _get_interleaved_flat_lists(
+            (
+                interleaved_vectors,
+                interleaved_ids,
+                list_group_prefix,
+                interleaved_vector_norms,
+            ) = _get_interleaved_flat_lists(
                 index,
                 list_vectors,
+                list_vector_norms,
                 list_ids_flat,
                 list_prefix,
                 list_count,
@@ -655,14 +845,24 @@ def search_ivfflat_index(
             record_timing("triton_prepare_layout", step_start)
 
             step_start = start_timing()
+            if index.triton_max_list_group_count is None:
+                index.triton_max_list_group_count = int(
+                    torch.div(
+                        list_count.max() + (INTERLEAVED_GROUP_SIZE - 1),
+                        INTERLEAVED_GROUP_SIZE,
+                        rounding_mode="floor",
+                    ).item()
+                )
             topk_distances, topk_ids = triton_topk(
                 queries=Q,
                 list_vectors_interleaved=interleaved_vectors,
                 list_ids_interleaved=interleaved_ids,
                 list_group_prefix=list_group_prefix,
+                list_vector_norms_interleaved=interleaved_vector_norms,
                 list_count=list_count,
                 probe_cids=probe_cids,
                 topk=topk,
+                max_list_group_count=index.triton_max_list_group_count,
             )
             result_distances.copy_(topk_distances)
             result_ids.copy_(topk_ids)
@@ -671,6 +871,40 @@ def search_ivfflat_index(
             # The Tensor path is the portable fallback for unsupported
             # Triton devices or shapes.
             active_selection_mode = "tensor_topk"
+
+    if active_selection_mode == "tensor_padding_topk":
+        # Keep the candidate columns in probe-list order.  Each row owns the
+        # same exact [0, Cmax) offset range, with offsets beyond that query's
+        # actual selected-list length masked in the compiled dense scan.
+        step_start = start_timing()
+        probe_list_prefix = list_prefix[probe_cids]
+        probe_list_count = list_count[probe_cids]
+        record_timing("lookup_probe_lists", step_start)
+
+        step_start = start_timing()
+        max_candidates = int(probe_list_count.sum(dim=1).max().item())
+        record_timing("max_candidates", step_start)
+        if max_candidates > 0:
+            step_start = start_timing()
+            candidate_offsets = torch.arange(max_candidates, device=search_device, dtype=torch.int64)
+            padded_topk = min(topk, max_candidates)
+            query_norms = (Q * Q).sum(dim=1, keepdim=True)
+            tensor_padding_topk = _get_tensor_padding_topk_distance_fn()
+            topk_distances, topk_ids = tensor_padding_topk(
+                Q,
+                query_norms,
+                list_vectors,
+                list_vector_norms,
+                list_ids_flat,
+                probe_list_prefix,
+                probe_list_count,
+                candidate_offsets,
+                padded_topk,
+            )
+            result_distances[:, :padded_topk].copy_(topk_distances)
+            result_ids[:, :padded_topk].copy_(topk_ids)
+            record_timing("tensor_padding_topk_select", step_start)
+        active_selection_mode = "done"
 
     if active_selection_mode == "tensor_topk":
         # Expand the selected IVF lists in cluster-major order, then globally
