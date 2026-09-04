@@ -274,7 +274,11 @@ def main() -> None:
     tv.add_argument("--device", type=str, default="cuda:3")
     tv.add_argument(
         "--selection-mode",
-        choices=("triton_topk", "list_major", "triton_list_major", "tensor_topk"),
+        choices=(
+            "triton_topk",
+            "triton_list_major",
+            "tensor_topk",
+        ),
         default="tensor_topk",
     )
 

@@ -29,6 +29,13 @@ _LUT_STORAGE_DTYPES = {
     "fp16": torch.float16,
 }
 
+# List-Major has sorting and task construction overhead. Enable it only when
+# the observed probe edges contain enough repeated list visits to amortize
+# that setup. The numerator counts all visits after the first visit to each
+# list, which is the maximum number of duplicate list-side loads that can be
+# eliminated by grouping.
+_LIST_MAJOR_MIN_REUSE_FRACTION = 0.5
+
 
 def _normalize_lut_dtype(lut_dtype: str) -> str:
     """Validate the shared Tensor/Triton IVF-PQ LUT precision switch."""
@@ -1500,10 +1507,11 @@ def search_ivfpq_index(
     edge, keeps an exact group-local top-k in that CTA, then runs only the
     query-level final merge. Unsupported Triton shapes fall back to
     ``tensor_topk``.
-    ``list_major`` (also accepted as ``triton_list_major``) sorts probe edges
-    by IVF list and scans the visiting queries in a register-bounded tile
-    when the expected Query reuse is high. For sparse Query-list overlap it
-    automatically uses the existing query-major Triton scanner instead.
+    ``triton_list_major`` sorts probe edges by IVF list and scans the visiting
+    queries in a register-bounded tile when the observed Query-list reuse is
+    high. The trigger is computed from the actual per-list probe counts in
+    this query batch; for sparse Query-list overlap it automatically uses the
+    existing query-major Triton scanner instead.
     Its construction-friendly ``[M, Q, Ksub]`` Global LUT is temporarily
     rearranged to a ``[Ksub, QueryTile]`` Vector LUT inside each task, so a
     candidate code and correction are shared across the visiting queries.
@@ -1582,7 +1590,6 @@ def search_ivfpq_index(
         raise ValueError("Index PQ lists are not loaded. Call load_ivfpq_index(..., load_lists=True).")
     if selection_mode not in {
         "triton_topk",
-        "list_major",
         "triton_list_major",
         "tensor_topk",
     }:
@@ -1684,7 +1691,7 @@ def search_ivfpq_index(
 
     m = int(index.metadata["m"])
     subdim = int(index.metadata["subdim"])
-    list_major_selection = selection_mode in {"list_major", "triton_list_major"}
+    list_major_selection = selection_mode == "triton_list_major"
     triton_topk_capable = can_run_ivfpq_triton_topk(
         device=search_device,
         topk=search_topk,
@@ -1695,19 +1702,38 @@ def search_ivfpq_index(
         code_dtype=list_codes.dtype,
         use_packed_16b_codes=use_packed_16b_codes,
     )
-    # A List-Major task pays for pair sorting and tile setup.  Below two
-    # expected visiting queries per list, code/correction reuse is usually
-    # insufficient to amortize that setup, so let list_major use the mature
-    # query-major Triton path instead.  This is a cheap density estimate and
-    # avoids a synchronizing bincount on every search.
-    expected_queries_per_list = (
-        float(num_queries * nprobe) / max(1, int(centroids.shape[0]))
-    )
-    if profile is not None and list_major_selection:
-        profile["list_major_expected_queries_per_list"] = expected_queries_per_list
+    # A List-Major task pays for pair sorting and tile setup. Use the actual
+    # probe-list visits in this batch instead of assuming that all IVF lists
+    # are visited uniformly. For a list visited c times, c-1 visits are the
+    # duplicate visits that grouping can potentially share.
+    list_major_reuse_fraction = 0.0
+    list_major_active_lists = 0
+    list_major_max_queries_per_list = 0
+    list_major_query_counts: torch.Tensor | None = None
+    if list_major_selection:
+        step_start = start_timing()
+        list_major_query_counts = torch.bincount(
+            probe_cids.reshape(-1),
+            minlength=int(centroids.shape[0]),
+        )
+        total_probe_edges = max(1, int(probe_cids.numel()))
+        reusable_query_edges = int(
+            (list_major_query_counts - 1).clamp_min(0).sum().item()
+        )
+        list_major_reuse_fraction = reusable_query_edges / total_probe_edges
+        list_major_active_lists = int((list_major_query_counts > 0).sum().item())
+        list_major_max_queries_per_list = int(list_major_query_counts.max().item())
+        record_timing("list_major_query_stats", step_start)
+        if profile is not None:
+            profile["list_major_active_lists"] = float(list_major_active_lists)
+            profile["list_major_max_queries_per_list"] = float(
+                list_major_max_queries_per_list
+            )
+            profile["list_major_reuse_fraction"] = list_major_reuse_fraction
+            profile["list_major_reuse_threshold"] = _LIST_MAJOR_MIN_REUSE_FRACTION
     triton_list_major_supported = (
-        list_major_selection
-        and expected_queries_per_list >= 2.0
+        selection_mode == "triton_list_major"
+        and list_major_reuse_fraction >= _LIST_MAJOR_MIN_REUSE_FRACTION
         and can_run_ivfpq_list_major_topk(
             device=search_device,
             topk=search_topk,
@@ -1719,13 +1745,18 @@ def search_ivfpq_index(
             use_packed_16b_codes=use_packed_16b_codes and m > 16,
         )
     )
+    if profile is not None and list_major_selection:
+        profile["list_major_enabled"] = float(triton_list_major_supported)
     # Prepare the same packed representation used by triton_topk whenever the
     # selected Triton route supports it.  For M>16 this keeps List-Major's code
     # load path aligned with IVFPQ query-major ADC instead of silently falling
     # back to one uint8 global load per subspace.
     triton_topk_supported = triton_topk_capable and (
         selection_mode == "triton_topk"
-        or (list_major_selection and not triton_list_major_supported)
+        or (
+            list_major_selection
+            and not triton_list_major_supported
+        )
     )
     global_query_luts: torch.Tensor | None = None
     probe_distance_bias: torch.Tensor | None = None
@@ -1753,7 +1784,10 @@ def search_ivfpq_index(
     record_timing("LUT_prepare", step_start)
 
     active_selection_mode = selection_mode
-    if triton_topk_supported or triton_list_major_supported:
+    if (
+        triton_topk_supported
+        or triton_list_major_supported
+    ):
         step_start = start_timing()
         interleaved_codes, interleaved_ids, list_group_prefix = _get_interleaved_pq_lists(
             index,
@@ -1782,7 +1816,10 @@ def search_ivfpq_index(
 
         packed_code_chunks: torch.Tensor | None = None
         if (
-            (triton_topk_supported or triton_list_major_supported)
+            (
+                triton_topk_supported
+                or triton_list_major_supported
+            )
             and use_packed_16b_codes
             and m > 16
         ):
@@ -1836,7 +1873,6 @@ def search_ivfpq_index(
             bool(packed_code_chunks is not None),
             *index.triton_list_count_stats,
         )
-
         list_scan_start = start_timing()
         final_merge_start: float | torch.cuda.Event | None = None
 
@@ -1862,6 +1898,7 @@ def search_ivfpq_index(
                 output_ids=result_ids,
                 list_partial_keys=index.triton_partial_keys,
                 list_codes_packed_16b=packed_code_chunks,
+                list_query_count=list_major_query_counts,
                 autotune=triton_autotune,
                 autotune_key=list_major_autotune_key,
                 on_list_scan_complete=record_triton_scan_complete,
@@ -1891,7 +1928,10 @@ def search_ivfpq_index(
         assert final_merge_start is not None
         record_timing("triton_final_merge", final_merge_start)
         active_selection_mode = "done"
-    elif selection_mode in {"triton_topk", "list_major", "triton_list_major"}:
+    elif selection_mode in {
+        "triton_topk",
+        "triton_list_major",
+    }:
         # Preserve the requested search semantics on CPU, for non-uint8
         # codes, and for kernel shapes outside the fixed Triton limits.
         active_selection_mode = "tensor_topk"

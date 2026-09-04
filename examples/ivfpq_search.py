@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import csv
-import json
 import time
 from pathlib import Path
 
 import torch
 
+from bench._benchmark_utils import probe_visit_statistics
 from tensorvs import (
     build_ivfpq_index,
     compute_recall_at_k,
@@ -33,9 +33,9 @@ M = 32
 NBITS = 8
 TOPK = 10
 NPROBE = 50
-SELECTION_MODE = "triton_list_major"
-# triton_topk / list_major / triton_list_major / tensor_topk
-# ``list_major`` sorts (query, probe-list) edges by IVF list, then evaluates
+SELECTION_MODE = "triton_topk"
+# triton_topk / triton_list_major / tensor_topk
+# ``triton_list_major`` sorts (query, probe-list) edges by IVF list, then evaluates
 # visiting queries in a small register-bounded tile. The global [M,Q,Ksub]
 # LUT is transposed to a temporary [Ksub,QueryTile] Vector LUT per task, so
 # candidate codes and corrections are shared across the visiting queries.
@@ -64,6 +64,10 @@ WARMUP_ITERATIONS = 3
 # 聚类参数
 SEED = 0
 N_INIT = 2
+SEARCH_RESULT_PATH = OUTPUT_DIR / (
+    f"IVFPQ_{DATASET_NAME}_nlist{NLIST}_m{M}_nbits{NBITS}"
+    f"_K{TOPK}_nprobe{NPROBE}.csv"
+)
 
 
 def print_timing_table(title: str, timings: dict[str, float], divisor: int) -> None:
@@ -76,35 +80,6 @@ def print_timing_table(title: str, timings: dict[str, float], divisor: int) -> N
         total_ms = total_seconds * 1000.0
         avg_us = (total_seconds / max(divisor, 1)) * 1_000_000.0
         print(f"  {name:<28} total={total_ms:10.4f} ms  avg={avg_us:10.4f} us/query")
-
-
-def append_statistics_row(output_root: str | Path, metadata: dict[str, object]) -> Path:
-    """Append build statistics to statistics_ivfpq.csv, creating it if needed."""
-    output_root_path = Path(output_root)
-    output_root_path.mkdir(parents=True, exist_ok=True)
-    statistics_path = output_root_path / "statistics_ivfpq.csv"
-    fieldnames = [
-        "dataset_path",
-        "output_dir",
-        "nlist",
-        "m",
-        "nbits",
-        "num_vectors",
-        "dim",
-        "device",
-        "build_time_seconds",
-        "index_size_bytes",
-        "index_size_mb",
-    ]
-
-    write_header = not statistics_path.exists()
-    with statistics_path.open("a", newline="", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-        if write_header:
-            writer.writeheader()
-        writer.writerow({name: metadata.get(name, "") for name in fieldnames})
-
-    return statistics_path
 
 
 def main() -> None:
@@ -148,12 +123,6 @@ def main() -> None:
             dataset_path=DATASET_PATH,
             build_time_seconds=build_time_seconds,
         )
-        if index_dir.is_file():
-            metadata = torch.load(index_dir, map_location="cpu")["metadata"]
-        else:
-            metadata = json.loads((index_dir / "metadata.json").read_text(encoding="utf-8"))
-        statistics_path = append_statistics_row(OUTPUT_DIR, metadata)
-        print(f"Statistics written to: {statistics_path}")
 
     index = load_ivfpq_index(index_dir, load_lists=True)
     print(f"Loaded IVF-PQ index from: {index.index_dir}")
@@ -172,6 +141,14 @@ def main() -> None:
     q_batch = max(1, int(Q_BATCH))
     queries = queries[:nq]
     groundtruth = groundtruth[:nq]
+    code_bytes_per_vector = int(index.list_codes.shape[1]) * index.list_codes.element_size()
+    visit_stats = probe_visit_statistics(
+        index=index,
+        queries=queries,
+        nprobe=NPROBE,
+        device=DEVICE,
+        data_bytes_per_vector=code_bytes_per_vector,
+    )
     print(f"Loaded queries from: {QUERY_PATH}")
     print(f"Loaded groundtruth from: {GROUNDTRUTH_PATH}")
     print(
@@ -192,6 +169,7 @@ def main() -> None:
     search_step_timings: dict[str, float] = {}
     warmup_step_timings: dict[str, float] = {}
     warmup_done = False
+    peak_gpu_memory: float | None = None
     for start in range(0, nq, q_batch):
         end = min(start + q_batch, nq)
         batch_size = end - start
@@ -233,6 +211,7 @@ def main() -> None:
                 )
             if DEVICE.type == "cuda":
                 torch.cuda.synchronize(DEVICE)
+                torch.cuda.reset_peak_memory_stats(DEVICE)
             batch_timings["warmup"] += time.perf_counter() - warmup_start_time
             warmup_done = True
             if warmup_profile is not None:
@@ -276,10 +255,49 @@ def main() -> None:
     average_search_time_ms = (search_time_seconds / queries.shape[0]) * 1000
     qps = queries.shape[0] / search_time_seconds
     strict_recall_at_topk = compute_recall_at_k(ids, groundtruth, TOPK)
+    if DEVICE.type == "cuda":
+        peak_gpu_memory = torch.cuda.max_memory_allocated(DEVICE) / (1024 * 1024)
+
+    result_path = SEARCH_RESULT_PATH
+    result_path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = (
+        "nprobes",
+        "q_batch",
+        "qps",
+        "recall",
+        "visited_vectors_per_query",
+        "peak_gpu_memory",
+    )
+    has_content = result_path.exists() and result_path.stat().st_size > 0
+    if has_content:
+        with result_path.open("r", newline="", encoding="utf-8") as csv_file:
+            existing_fieldnames = next(csv.reader(csv_file), [])
+        if existing_fieldnames != list(fieldnames):
+            result_path = result_path.with_name(
+                f"{result_path.stem}_summary{result_path.suffix}"
+            )
+            has_content = result_path.exists() and result_path.stat().st_size > 0
+
+    with result_path.open("a", newline="", encoding="utf-8") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        if not has_content:
+            writer.writeheader()
+        writer.writerow(
+            {
+                "nprobes": NPROBE,
+                "q_batch": q_batch,
+                "qps": qps,
+                "recall": strict_recall_at_topk,
+                "visited_vectors_per_query": visit_stats["visited_vectors_per_query"],
+                # This is peak allocated GPU memory in MiB.
+                "peak_gpu_memory": peak_gpu_memory,
+            }
+        )
 
     print(f"Average search time (with sync): {average_search_time_ms:.4f} ms/query")
     print(f"QPS (with sync): {qps:.4f}")
     print(f"Strict Recall@{TOPK}: {strict_recall_at_topk:.4f}")
+    print(f"CSV results appended to: {result_path}")
     if ENABLE_DETAILED_TIMING:
         print_timing_table("Batch-level timing breakdown:", batch_timings, queries.shape[0])
         print_timing_table(

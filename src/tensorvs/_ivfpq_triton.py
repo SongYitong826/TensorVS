@@ -32,6 +32,10 @@ PACKED_CODE_WORDS = PACKED_CODE_CHUNK_BYTES // PACKED_CODE_WORD_BYTES
 SCAN_BLOCK_CANDIDATES = 128
 MAX_LOCAL_K = 128
 MAX_FINAL_WIDTH = 2048
+# The original one-stage CTA-list merge was intentionally limited to this
+# width.  Query-major IVF-PQ now reduces wider candidate sets in multiple
+# stages, while keeping every individual ``tl.topk`` at MAX_FINAL_WIDTH.
+MAX_QUERY_MAJOR_NPROBE = 4096
 DIRECT_SCAN_MAX_NPROBE = 128
 LIST_TASK_MAX_MERGE_WIDTH = 2048
 MAX_SUBSPACES = 64
@@ -148,6 +152,44 @@ def _cached_autotune_config(
 
 
 if triton is not None:
+    @triton.jit
+    def _merge_pq_partial_keys_kernel(
+        input_keys_ptr,
+        output_keys_ptr,
+        input_count,
+        output_groups,
+        GRID_X: tl.constexpr,
+        LOCAL_K: tl.constexpr,
+        MERGE_WIDTH: tl.constexpr,
+        INF_KEY: tl.constexpr,
+    ):
+        """Reduce one contiguous candidate block to ``LOCAL_K`` keys.
+
+        The scan kernel emits one local TopK row per probe-list group.  When
+        those rows do not fit in one final ``tl.topk`` invocation, this
+        kernel reduces several fixed-width chunks first.  Since every
+        reduction retains at least ``LOCAL_K >= topk`` keys, the staged
+        reduction is exact.
+        """
+        query_idx = tl.program_id(0)
+        merge_group_idx = tl.program_id(1)
+        offsets = tl.arange(0, MERGE_WIDTH)
+        input_offset = merge_group_idx * MERGE_WIDTH + offsets
+        keys = tl.load(
+            input_keys_ptr + query_idx * input_count + input_offset,
+            mask=input_offset < input_count,
+            other=INF_KEY,
+        )
+        reduced_keys = ~tl.topk(~keys, LOCAL_K)
+        ranks = tl.arange(0, LOCAL_K)
+        tl.store(
+            output_keys_ptr
+            + (query_idx * output_groups + merge_group_idx) * LOCAL_K
+            + ranks,
+            reduced_keys,
+        )
+
+
     @triton.jit
     def _finalize_direct_pq_topk_kernel(
         partial_keys_ptr,
@@ -462,16 +504,17 @@ def _list_cta_launch_plan(
 
     Returns ``(local_k, cta_probe_groups, launch_config, final_width)``.  A
     group emits one local top-k that is exact across its covered probe lists.
+    ``final_width`` is the unreduced width; wide values are handled by the
+    staged merge planner below.
     """
-    base_plan = _list_cta_plan(topk=topk, nprobe=nprobe)
-    if base_plan is None:
+    if topk <= 0 or nprobe <= 0 or nprobe > MAX_QUERY_MAJOR_NPROBE:
         return None
-    local_k, _ = base_plan
+    local_k = max(2, _next_power_of_two(topk))
+    if local_k > MAX_LOCAL_K:
+        return None
     launch_config = _default_launch_config()
     cta_probe_groups = math.ceil(nprobe / launch_config.probe_lists_per_cta)
     final_width = _next_power_of_two(cta_probe_groups * local_k)
-    if final_width > LIST_TASK_MAX_MERGE_WIDTH:
-        return None
     return local_k, cta_probe_groups, launch_config, final_width
 
 
@@ -529,9 +572,34 @@ def _resolve_topk_launch_plan(
     config = launch_config or default_config
     cta_probe_groups = math.ceil(nprobe / config.probe_lists_per_cta)
     final_width = _next_power_of_two(cta_probe_groups * local_k)
-    if final_width > LIST_TASK_MAX_MERGE_WIDTH:
-        return None
     return local_k, cta_probe_groups, config, final_width
+
+
+def _hierarchical_merge_plan(
+    *,
+    cta_probe_groups: int,
+    local_k: int,
+) -> tuple[tuple[tuple[int, int], ...], int, int]:
+    """Return staged merge shapes and the final single-kernel merge width.
+
+    Each pair is ``(input_groups, output_groups)`` for one intermediate
+    reduction.  The returned final group count and width are guaranteed to
+    fit in one ``MAX_FINAL_WIDTH`` merge.  The helper is intentionally pure
+    Python so the planner can be tested without importing or launching CUDA.
+    """
+    input_groups = int(cta_probe_groups)
+    if input_groups <= 0 or local_k <= 0:
+        raise ValueError(
+            f"cta_probe_groups and local_k must be positive, got {input_groups}, {local_k}"
+        )
+
+    stages: list[tuple[int, int]] = []
+    while input_groups * local_k > MAX_FINAL_WIDTH:
+        input_width = input_groups * local_k
+        output_groups = math.ceil(input_width / MAX_FINAL_WIDTH)
+        stages.append((input_groups, output_groups))
+        input_groups = output_groups
+    return tuple(stages), input_groups, _next_power_of_two(input_groups * local_k)
 
 
 def _launch_topk_scan(
@@ -601,6 +669,45 @@ def _launch_topk_scan(
         INF_KEY=_INF_KEY,
         num_warps=launch_config.num_warps,
     )
+
+
+def _hierarchical_merge_partial_keys(
+    *,
+    partial_keys: torch.Tensor,
+    local_k: int,
+) -> tuple[torch.Tensor, int, int]:
+    """Reduce scan partials until the final merge fits in one Triton CTA."""
+    num_queries, cta_probe_groups, actual_local_k = partial_keys.shape
+    if int(actual_local_k) != int(local_k):
+        raise ValueError(
+            "Partial-key local-k dimension does not match the launch plan: "
+            f"{actual_local_k} != {local_k}"
+        )
+    stages, final_groups, final_width = _hierarchical_merge_plan(
+        cta_probe_groups=cta_probe_groups,
+        local_k=local_k,
+    )
+    current_keys = partial_keys
+    for input_groups, output_groups in stages:
+        output_keys = torch.empty(
+            (num_queries, output_groups, local_k),
+            dtype=torch.int64,
+            device=partial_keys.device,
+        )
+        _merge_pq_partial_keys_kernel[(num_queries, output_groups)](
+            current_keys,
+            output_keys,
+            input_groups * local_k,
+            output_groups,
+            GRID_X=output_groups,
+            LOCAL_K=local_k,
+            MERGE_WIDTH=MAX_FINAL_WIDTH,
+            INF_KEY=_INF_KEY,
+            num_warps=4,
+        )
+        current_keys = output_keys
+    assert current_keys.shape[1] == final_groups
+    return current_keys, final_groups, final_width
 
 
 def _autotune_topk_launch_config(
@@ -720,9 +827,12 @@ def triton_topk(
     """Run exact IVF-PQ ADC with query/probe CTA groups.
 
     A program scans one complete selected list by default and keeps its exact
-    group-local top-k across all code tiles.  ``list_codes_packed_16b`` uses a
-    rolled 16-byte chunk loop for M>16, avoiding code-size and register growth
-    without lower-bound bookkeeping or a per-query shared kth threshold.
+    group-local top-k across all code tiles.  Wide probe sets are reduced by
+    intermediate fixed-width TopK stages before the final query merge, so no
+    single ``tl.topk`` invocation exceeds ``MAX_FINAL_WIDTH``.
+    ``list_codes_packed_16b`` uses a rolled 16-byte chunk loop for M>16,
+    avoiding code-size and register growth without lower-bound bookkeeping or
+    a per-query shared kth threshold.
     """
     if global_query_luts.ndim != 3:
         raise ValueError("Global query LUT must have shape [m, query, ksub]")
@@ -881,13 +991,17 @@ def triton_topk(
     if on_list_scan_complete is not None:
         on_list_scan_complete()
 
+    partial_keys, final_groups, final_width = _hierarchical_merge_partial_keys(
+        partial_keys=list_partial_keys,
+        local_k=local_k,
+    )
     _finalize_direct_pq_topk_kernel[(num_queries,)](
-        list_partial_keys,
+        partial_keys,
         list_ids_interleaved,
         output_distances,
         output_ids,
         topk,
-        GRID_X=cta_probe_groups,
+        GRID_X=final_groups,
         LOCAL_K=local_k,
         FINAL_WIDTH=final_width,
         INF_KEY=_INF_KEY,

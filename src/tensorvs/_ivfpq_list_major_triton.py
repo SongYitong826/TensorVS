@@ -2,12 +2,13 @@
 
 This uses a list-major active-task schedule: one program is launched per
 ``(list, query-tile)`` pair. The task loops over candidate tiles while keeping
-the query tile's local top-k in registers. The PQ
-distance calculation uses the same global-LUT plus static-correction ADC
-decomposition as the existing IVF-PQ Triton scanner.  The Global LUT remains
-in its construction-friendly ``[M, Q, Ksub]`` layout.  For each active Query
-tile the kernel loads a temporary ``[Ksub, QueryTile]`` Vector LUT and gathers
-from it for all candidates in the tile.
+the query tile's local top-k in registers. The PQ distance calculation uses
+the same global-LUT plus static-correction ADC decomposition as the existing
+IVF-PQ Triton scanner. The Global LUT remains in its
+construction-friendly ``[M, Q, Ksub]`` layout. The kernel supports both a
+temporary ``[Ksub, QueryTile]`` Vector-LUT lookup and a direct code-indexed
+lookup; autotuning uses the latter for wide ``Ksub`` tables where materializing
+the full Vector LUT costs more than it saves.
 """
 
 from __future__ import annotations
@@ -288,7 +289,6 @@ if triton is not None:
 
         query_offsets = tl.arange(0, QUERY_TILE)
         vector_offsets = tl.arange(0, GROUP_SIZE * GROUPS_PER_CHUNK)
-        lut_k_offsets = tl.arange(0, KSUB)
         rank_offsets = tl.arange(0, LOCAL_K)
 
         query_positions = query_tile_idx * QUERY_TILE + query_offsets
@@ -348,6 +348,7 @@ if triton is not None:
                     cache_modifier=".ca",
                 ).to(tl.int64)
                 if USE_VECTOR_LUT:
+                    lut_k_offsets = tl.arange(0, KSUB)
                     query_lut_qk = tl.load(
                         global_query_luts_ptr
                         + subspace_idx * num_queries * KSUB
@@ -450,7 +451,6 @@ if triton is not None:
         candidate_offsets = tl.arange(0, GROUP_SIZE * GROUPS_PER_CHUNK)
         group_offsets = candidate_offsets // GROUP_SIZE
         lane_offsets = candidate_offsets % GROUP_SIZE
-        lut_k_offsets = tl.arange(0, KSUB)
         rank_offsets = tl.arange(0, LOCAL_K)
 
         query_positions = query_tile_idx * QUERY_TILE + query_offsets
@@ -514,6 +514,7 @@ if triton is not None:
                         subspace_valid = subspace_idx < M
                         codes = ((packed_word >> (byte_idx * 8)) & 0xFF).to(tl.int64)
                         if USE_VECTOR_LUT:
+                            lut_k_offsets = tl.arange(0, KSUB)
                             query_lut_qk = tl.load(
                                 global_query_luts_ptr
                                 + subspace_idx * num_queries * KSUB
@@ -653,6 +654,7 @@ def can_run_topk(
 def _build_list_major_edges(
     probe_cids: torch.Tensor,
     num_lists: int,
+    list_query_count: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Sort probe edges by list for the IVFPQ active-task schedule."""
     num_queries, nprobe = probe_cids.shape
@@ -660,14 +662,24 @@ def _build_list_major_edges(
     # The flattened probe edge order is query-major. Integer division creates
     # the matching query IDs without materializing repeat_interleave's extra
     # expanded index first.
-    edge_query_ids = torch.arange(
-        edge_cids.numel(),
-        dtype=torch.int64,
-        device=probe_cids.device,
-    ).div(nprobe, rounding_mode="floor")
     _, edge_sorted_to_original = torch.sort(edge_cids)
-    edge_query_ids_sorted = edge_query_ids[edge_sorted_to_original]
-    list_query_count = torch.bincount(edge_cids, minlength=num_lists).to(torch.int64)
+    # ``edge_sorted_to_original`` already maps each sorted edge back to its
+    # query-major flattened position. Deriving qid from it avoids an extra
+    # arange allocation and gather on every search.
+    edge_query_ids_sorted = edge_sorted_to_original.div(
+        nprobe,
+        rounding_mode="floor",
+    )
+    if list_query_count is None:
+        list_query_count = torch.bincount(edge_cids, minlength=num_lists).to(torch.int64)
+    else:
+        if (
+            list_query_count.ndim != 1
+            or list_query_count.shape[0] != num_lists
+            or list_query_count.device != probe_cids.device
+        ):
+            raise ValueError("List query counts must have shape [nlist] on the probe device")
+        list_query_count = list_query_count.to(torch.int64).contiguous()
     list_query_prefix = torch.cumsum(list_query_count, dim=0) - list_query_count
     return (
         edge_query_ids_sorted.contiguous(),
@@ -683,13 +695,14 @@ def _build_list_major_task_plan(
     list_count: torch.Tensor,
     query_tile: int,
     candidate_groups: int = LIST_MAJOR_CANDIDATE_GROUPS,
+    list_query_count: torch.Tensor | None = None,
 ) -> dict[str, torch.Tensor | int]:
     """Build compact ``(list, query-tile)`` tasks for the PQ scan."""
     if candidate_groups not in LIST_MAJOR_CANDIDATE_GROUP_OPTIONS:
         raise ValueError(f"Unsupported List-Major candidate-group tile: {candidate_groups}")
     num_lists = int(list_count.numel())
     edge_query_ids_sorted, edge_sorted_to_original, list_query_prefix, list_query_count = (
-        _build_list_major_edges(probe_cids, num_lists)
+        _build_list_major_edges(probe_cids, num_lists, list_query_count)
     )
     list_query_tile_count = torch.div(
         list_query_count + (query_tile - 1),
@@ -809,6 +822,7 @@ def _autotune_launch_config(
     list_count: torch.Tensor,
     probe_cids: torch.Tensor,
     local_k: int,
+    list_query_count: torch.Tensor | None = None,
 ) -> _ListMajorLaunchConfig:
     cached = _cached_autotune_config(cache_key)
     if cached is not None:
@@ -828,6 +842,7 @@ def _autotune_launch_config(
             list_count=list_count,
             query_tile=config.query_tile,
             candidate_groups=config.candidate_groups,
+            list_query_count=list_query_count,
         )
         if int(task_plan["num_tasks"]) == 0:
             continue
@@ -901,6 +916,7 @@ def triton_topk(
     output_ids: torch.Tensor,
     list_partial_keys: torch.Tensor | None = None,
     list_codes_packed_16b: torch.Tensor | None = None,
+    list_query_count: torch.Tensor | None = None,
     autotune: bool = False,
     autotune_key: tuple[object, ...] | None = None,
     on_list_scan_complete: Callable[[], None] | None = None,
@@ -913,6 +929,12 @@ def triton_topk(
         raise ValueError("Global query LUT must use FP32 or FP16 storage")
     if probe_cids.ndim != 2 or probe_cids.shape[0] != num_queries:
         raise ValueError("Probe centroid IDs must have shape [queries, nprobe]")
+    if list_query_count is not None and (
+        list_query_count.ndim != 1
+        or list_query_count.shape[0] != list_count.numel()
+        or list_query_count.device != global_query_luts.device
+    ):
+        raise ValueError("List query counts must have shape [nlist] on the LUT device")
     nprobe = int(probe_cids.shape[1])
     plan = _list_major_plan(topk=topk, nprobe=nprobe)
     if not can_run_topk(
@@ -985,6 +1007,8 @@ def triton_topk(
     list_group_prefix = list_group_prefix.contiguous()
     list_count = list_count.contiguous()
     probe_cids = probe_cids.contiguous()
+    if list_query_count is not None:
+        list_query_count = list_query_count.to(torch.int64).contiguous()
 
     cache_key = autotune_key or (
         "active_task",
@@ -1011,6 +1035,7 @@ def triton_topk(
             list_count=list_count,
             probe_cids=probe_cids,
             local_k=local_k,
+            list_query_count=list_query_count,
         )
     if config is None:
         config = _ListMajorLaunchConfig(
@@ -1033,6 +1058,7 @@ def triton_topk(
         list_count=list_count,
         query_tile=config.query_tile,
         candidate_groups=config.candidate_groups,
+        list_query_count=list_query_count,
     )
     num_edges = int(probe_cids.numel())
     if int(task_plan["num_tasks"]) == 0:

@@ -112,15 +112,17 @@ distances, ids = search_ivfpq_index(
 这会先检索 40 个 PQ 候选，再按原始向量的精确平方 L2 距离返回 top10；
 原始向量不会重复存进 PQ 索引。
 
-IVF-PQ 的 CUDA 搜索还支持 `selection_mode="list_major"`（别名
-`"triton_list_major"`）。它先把所有 `(query, probe-list)` 边按 List 排序，
+IVF-PQ 的 CUDA 搜索还支持 `selection_mode="triton_list_major"`。它先把所有
+`(query, probe-list)` 边按 List 排序，
 再把访问同一 List 的 Query 按小 tile 一起扫描；同一个 32-vector code tile
 会被这个 Query tile 共享访问。Global LUT 以构建友好的 `[M, Q, Ksub]` 布局保存，
 kernel 内会把当前 Query tile 临时重排成 `[Ksub, QueryTile]` 的 Vector LUT，
 让一份 PQ code 和 candidate correction 同时服务这个 Query tile；
 Query tile 和 32/64/128 candidate tile 默认按局部 key/LUT 寄存器占用估计选择，
 传入 `triton_autotune=True` 时还会在两种 tile 和 warp 配置中实测并缓存最快配置；
-当 Query-list 重叠较低时会自动复用 `triton_topk`，避免 List-Major 的分组开销。
+启用前会统计当前 Query batch 实际访问的每个 List：
+`sum(max(query_count[list] - 1, 0)) / (Q * nprobe)` 至少达到 50% 时才使用
+List-Major；否则自动复用 `triton_topk`，避免 List-Major 的分组开销。
 不满足 CUDA/Triton 形状限制时会回退到 `tensor_topk`。
 
 生成的 IVF-Flat 索引目录会包含：

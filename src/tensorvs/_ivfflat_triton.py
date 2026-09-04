@@ -26,6 +26,10 @@ DIRECT_SCAN_BLOCK_CANDIDATES = 128
 LIST_GROUPED_QUERY_TILE = 8
 LIST_GROUPED_VECTOR_TILE = 32
 LIST_GROUPED_DIM_TILE = 32
+# The grouped GEMM kernel statically specializes one dimension tile loop. A
+# conservative eight-tile bound keeps its shared-memory footprint bounded;
+# higher-dimensional indexes use the runtime-loop direct scan.
+LIST_GROUPED_MAX_DIM_TILES = 8
 LIST_GROUPED_MAX_FINAL_WIDTH = 2048
 # Each active list is partitioned into bounded vector-group chunks.  Combined
 # with its active query tiles, this yields exactly the number of Triton
@@ -38,7 +42,10 @@ LIST_GROUPED_TASK_VECTOR_GROUPS = 8
 DIRECT_SCAN_PROGRAMS_PER_SM = 2
 DIRECT_SCAN_FALLBACK_TARGET_PROGRAMS = 256
 DIRECT_SCAN_MAX_GRID_X = 8
-DIRECT_SCAN_MAX_NPROBE = 128
+# The direct kernel partitions the probe lists across GRID_X programs, so its
+# final merge width depends on GRID_X rather than on the full nprobe value.
+# Keep the planner generous enough for the configured IVF nlist values.
+DIRECT_SCAN_MAX_NPROBE = 4096
 _INF_KEY = 0x7F800000FFFFFFFF
 
 
@@ -775,6 +782,7 @@ def _list_grouped_gemm_plan(
         or nprobe <= 0
         or nprobe > DIRECT_SCAN_MAX_NPROBE
         or dim <= 0
+        or math.ceil(dim / LIST_GROUPED_DIM_TILE) > LIST_GROUPED_MAX_DIM_TILES
     ):
         return None
     local_k = max(2, _next_power_of_two(topk))

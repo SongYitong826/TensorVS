@@ -33,6 +33,7 @@ from tensorvs._ivf_interleaved import (
 from tensorvs._ivfflat_triton import _direct_scan_plan, _list_grouped_gemm_plan
 from tensorvs._ivfpq_triton import (
     _default_launch_config as _ivfpq_default_launch_config,
+    _hierarchical_merge_plan as _ivfpq_hierarchical_merge_plan,
     _list_cta_launch_plan as _ivfpq_list_cta_launch_plan,
     _list_cta_plan as _ivfpq_list_cta_plan,
 )
@@ -88,6 +89,9 @@ def test_ivfflat_triton_plan_uses_compact_local_topk():
     # A scan tile contains 128 candidates, so larger k retains the wide path.
     assert _direct_scan_plan(topk=33, num_queries=128, nprobe=50) == (128, 2, 256)
     assert _direct_scan_plan(topk=10, num_queries=64, nprobe=50) == (16, 4, 64)
+    # The direct scanner partitions wide probe sets across GRID_X programs;
+    # its final merge width does not grow with the full nprobe value.
+    assert _direct_scan_plan(topk=10, num_queries=64, nprobe=256) == (16, 4, 64)
 
 
 def test_ivfflat_list_grouped_gemm_plan_uses_one_local_topk_per_list():
@@ -99,6 +103,9 @@ def test_ivfflat_list_grouped_gemm_plan_uses_one_local_topk_per_list():
     # no longer need to be divisible by the 32-wide matrix tile.
     assert _list_grouped_gemm_plan(topk=10, nprobe=50, dim=16) == (16, 1024)
     assert _list_grouped_gemm_plan(topk=10, nprobe=50, dim=130) == (16, 1024)
+    # High-dimensional GIST-style vectors use the runtime-loop direct scan;
+    # the grouped GEMM specialization would exceed the GPU shared-memory cap.
+    assert _list_grouped_gemm_plan(topk=10, nprobe=50, dim=960) is None
     assert _list_grouped_gemm_plan(topk=33, nprobe=50, dim=128) is None
 
 
@@ -128,6 +135,103 @@ def test_ivfpq_triton_uses_generic_fallback_scan_plan():
         fallback,
         1024,
     )
+
+
+def test_ivfpq_triton_hierarchical_merge_supports_wide_probe_sets():
+    fallback = _ivfpq_default_launch_config()
+    assert _ivfpq_list_cta_launch_plan(topk=10, nprobe=256, m=16) == (
+        16,
+        256,
+        fallback,
+        4096,
+    )
+    assert _ivfpq_hierarchical_merge_plan(
+        cta_probe_groups=256,
+        local_k=16,
+    ) == (((256, 2),), 2, 32)
+    assert _ivfpq_hierarchical_merge_plan(
+        cta_probe_groups=1024,
+        local_k=16,
+    ) == (((1024, 8),), 8, 128)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
+def test_ivfpq_triton_hierarchical_merge_matches_reference():
+    pytest.importorskip("triton")
+    torch.manual_seed(123)
+    device = torch.device("cuda:0")
+    num_queries, m, ksub, topk = 2, 2, 4, 10
+
+    for nprobe in (256, 1024):
+        padded_vectors = nprobe * INTERLEAVED_GROUP_SIZE
+        global_luts = torch.rand((m, num_queries, ksub), device=device)
+        codes = torch.randint(
+            0,
+            ksub,
+            (m, padded_vectors),
+            device=device,
+            dtype=torch.uint8,
+        )
+        list_ids = torch.arange(padded_vectors, device=device, dtype=torch.int64)
+        valid_positions = torch.arange(nprobe, device=device, dtype=torch.int64)
+        valid_positions = valid_positions * INTERLEAVED_GROUP_SIZE
+        corrections = torch.zeros(padded_vectors, device=device)
+        corrections[valid_positions] = valid_positions.float() * 1e-4
+        probe_prefix = torch.arange(nprobe, device=device, dtype=torch.int64).repeat(
+            num_queries, 1
+        )
+        probe_count = torch.ones(
+            (num_queries, nprobe),
+            device=device,
+            dtype=torch.int64,
+        )
+        probe_bias = torch.zeros((num_queries, nprobe), device=device)
+        distances = torch.empty((num_queries, topk), device=device)
+        result_ids = torch.empty(
+            (num_queries, topk),
+            device=device,
+            dtype=torch.int64,
+        )
+
+        _ivfpq_triton.triton_topk(
+            global_query_luts=global_luts,
+            static_vector_corrections=corrections,
+            probe_distance_bias=probe_bias,
+            list_codes_interleaved=codes,
+            list_ids_interleaved=list_ids,
+            probe_group_prefix=probe_prefix,
+            probe_list_count=probe_count,
+            topk=topk,
+            output_distances=distances,
+            output_ids=result_ids,
+            list_codes_packed_16b=None,
+        )
+
+        reference_distances = torch.zeros(
+            (num_queries, nprobe),
+            device=device,
+        )
+        for subspace in range(m):
+            reference_distances += global_luts[
+                subspace,
+                :,
+                codes[subspace, valid_positions].long(),
+            ]
+        reference_distances += corrections[valid_positions]
+        expected_distances, expected_indices = torch.topk(
+            reference_distances,
+            topk,
+            dim=1,
+            largest=False,
+        )
+        expected_ids = valid_positions[expected_indices]
+        torch.testing.assert_close(
+            distances,
+            expected_distances,
+            rtol=1e-5,
+            atol=1e-6,
+        )
+        torch.testing.assert_close(result_ids, expected_ids)
 
 
 def test_ivfpq_list_major_plan_adapts_query_tile_to_local_key_footprint():
@@ -757,13 +861,18 @@ def test_ivfpq_seed_metadata_and_exact_refinement(tmp_path):
         topk=4,
         nprobe=4,
         device="cpu",
-        selection_mode="list_major",
+        selection_mode="triton_list_major",
     )
     # CPU has no Triton kernel, so the public mode intentionally preserves
     # exact tensor_topk semantics through the normal fallback.
     torch.testing.assert_close(list_major_distances, approximate_distances)
     torch.testing.assert_close(list_major_ids, approximate_ids)
-    for removed_mode in ("triton_list_topk", "triton_list_cta_topk"):
+    for removed_mode in (
+        "list_major",
+        "triton_list_major_vector_lut",
+        "triton_list_topk",
+        "triton_list_cta_topk",
+    ):
         with pytest.raises(ValueError, match="Unsupported IVFPQ selection_mode"):
             search_ivfpq_index(
                 index,
@@ -1087,7 +1196,7 @@ def test_ivfpq_triton_profile_splits_cta_scan_and_final_merge(tmp_path, nbits):
         topk=4,
         nprobe=4,
         device="cuda:0",
-        selection_mode="list_major",
+        selection_mode="triton_list_major",
         profile=list_major_profile,
     )
     assert "triton_scan" in list_major_profile
@@ -1189,7 +1298,7 @@ def test_ivfpq_triton_packed_chunked_matches_tensor_topk(tmp_path, m):
         topk=4,
         nprobe=4,
         device="cuda:0",
-        selection_mode="list_major",
+        selection_mode="triton_list_major",
     )
     torch.testing.assert_close(list_major_ids, reference_ids)
     torch.testing.assert_close(list_major_distances, reference_distances, rtol=2e-4, atol=2e-4)
@@ -1253,7 +1362,7 @@ def test_ivfpq_triton_chunked_m96_matches_tensor_topk(tmp_path):
         topk=4,
         nprobe=4,
         device="cuda:0",
-        selection_mode="list_major",
+        selection_mode="triton_list_major",
     )
     torch.testing.assert_close(list_major_ids, chunked_ids)
     torch.testing.assert_close(
