@@ -39,14 +39,26 @@ MAX_QUERY_MAJOR_NPROBE = 4096
 DIRECT_SCAN_MAX_NPROBE = 128
 LIST_TASK_MAX_MERGE_WIDTH = 2048
 MAX_SUBSPACES = 64
-MAX_PACKED_CHUNKED_SUBSPACES = 128
+# One virtual scan task covers at most 128 interleaved 32-vector groups
+# (4096 vectors).  Lists larger than this are represented by multiple probe
+# tasks at search time, without changing the IVF assignment or candidates.
+# The fixed rectangular shape avoids compiling a different merge kernel for
+# different query batches with different numbers of selected non-empty chunks.
+LIST_SCAN_CHUNK_GROUPS = 128
+# The rolled 16-byte chunk scanner uses a runtime chunk loop, so keep the
+# admission limit high enough for very wide PQ configurations. Actual Triton
+# compiler/register/resource limits can still reject an individual workload.
+MAX_PACKED_CHUNKED_SUBSPACES = 1024
 MAX_KSUB = 256
 MAX_INDEXED_VECTORS = (1 << 31) - 1
 _INF_KEY = 0x7F800000FFFFFFFF
 _SUPPORTED_GLOBAL_LUT_DTYPES = {torch.float32, torch.float16}
 _AUTOTUNE_WARMUP_RUNS = 1
 _AUTOTUNE_TIMED_RUNS = 3
-_AUTOTUNE_CACHE_FORMAT_VERSION = 1
+# The packed scanner's tail handling and CTA grid mapping are part of the
+# launch performance contract. Invalidate persisted choices when either
+# specialization changes so cached choices are retuned for the current kernel.
+_AUTOTUNE_CACHE_FORMAT_VERSION = 7
 
 
 @dataclass(frozen=True)
@@ -60,6 +72,96 @@ class _MAdaptiveLaunchConfig:
 
 _AUTOTUNE_CONFIG_CACHE: dict[tuple[object, ...], _MAdaptiveLaunchConfig] = {}
 _PERSISTED_AUTOTUNE_CONFIGS: dict[str, _MAdaptiveLaunchConfig] | None = None
+
+
+def plan_probe_chunks(
+    *,
+    nprobe: int,
+    max_list_count: int,
+    nprobe_limit: int = MAX_QUERY_MAJOR_NPROBE,
+) -> tuple[int, int]:
+    """Return ``(groups_per_chunk, max_chunks)`` without CUDA allocations."""
+    if nprobe <= 0:
+        raise ValueError("At least one probe list is required")
+    if max_list_count < 0:
+        raise ValueError(f"max_list_count must be non-negative, got {max_list_count}")
+    if nprobe_limit <= 0:
+        raise ValueError(f"nprobe_limit must be positive, got {nprobe_limit}")
+    if nprobe > nprobe_limit:
+        raise ValueError(
+            f"Selected nprobe={nprobe} exceeds the scan limit {nprobe_limit}"
+        )
+
+    chunk_groups = LIST_SCAN_CHUNK_GROUPS
+    max_chunks = max(
+        1,
+        math.ceil(max(int(max_list_count), 1) / (INTERLEAVED_GROUP_SIZE * chunk_groups)),
+    )
+    max_allowed_chunks = max(1, nprobe_limit // nprobe)
+    if max_chunks > max_allowed_chunks:
+        max_chunks = max_allowed_chunks
+        chunk_groups = max(
+            chunk_groups,
+            math.ceil(
+                max(int(max_list_count), 1)
+                / (INTERLEAVED_GROUP_SIZE * max_chunks)
+            ),
+        )
+    return int(chunk_groups), int(max_chunks)
+
+
+def chunk_probe_metadata(
+    probe_group_prefix: torch.Tensor,
+    probe_list_count: torch.Tensor,
+    probe_distance_bias: torch.Tensor,
+    *,
+    max_list_count: int,
+    nprobe_limit: int = MAX_QUERY_MAJOR_NPROBE,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, int, int]:
+    """Split selected oversized lists into virtual scan chunks.
+
+    The returned tensors keep the original list-major order for each query.
+    Oversized lists get multiple virtual slots, while shorter lists use
+    zero-sized slots for the remaining positions. A virtual slot starts at a
+    group boundary, so the existing interleaved scanner can scan it as an
+    ordinary list without changing any candidate IDs or distances.
+
+    ``max_list_count`` is taken from the resident index statistics rather than
+    the query-specific selection.  This keeps the launch shape rectangular
+    while avoiding a GPU synchronization for every search.
+    """
+    if probe_group_prefix.ndim != 2:
+        raise ValueError("Probe group prefixes must have shape [query, nprobe]")
+    if probe_list_count.shape != probe_group_prefix.shape:
+        raise ValueError("Probe list counts must match probe group prefixes")
+    if probe_distance_bias.shape != probe_group_prefix.shape:
+        raise ValueError("Probe distance bias must match probe group prefixes")
+    nprobe = int(probe_group_prefix.shape[1])
+    chunk_groups, max_chunks = plan_probe_chunks(
+        nprobe=nprobe,
+        max_list_count=max_list_count,
+        nprobe_limit=nprobe_limit,
+    )
+
+    device = probe_list_count.device
+    chunk_indices = torch.arange(max_chunks, device=device, dtype=probe_list_count.dtype)
+    group_starts = chunk_indices * int(chunk_groups)
+    vector_starts = group_starts * INTERLEAVED_GROUP_SIZE
+
+    chunk_prefix = probe_group_prefix.unsqueeze(-1) + group_starts
+    remaining = probe_list_count.unsqueeze(-1) - vector_starts
+    chunk_capacity = int(chunk_groups * INTERLEAVED_GROUP_SIZE)
+    chunk_counts = remaining.clamp(min=0, max=chunk_capacity)
+    chunk_bias = probe_distance_bias.unsqueeze(-1).expand(-1, -1, max_chunks)
+
+    query_count = int(probe_group_prefix.shape[0])
+    return (
+        chunk_prefix.reshape(query_count, nprobe * max_chunks).contiguous(),
+        chunk_counts.reshape(query_count, nprobe * max_chunks).contiguous(),
+        chunk_bias.reshape(query_count, nprobe * max_chunks).contiguous(),
+        int(chunk_groups),
+        int(max_chunks),
+    )
 
 
 def _default_launch_config() -> _MAdaptiveLaunchConfig:
@@ -99,7 +201,7 @@ def _load_persisted_autotune_configs() -> dict[str, _MAdaptiveLaunchConfig]:
                 for key, values in payload.get("entries", {}).items():
                     config = _MAdaptiveLaunchConfig(*values)
                     if (
-                        config.scan_block_candidates in (128, 256, 512, 1024)
+                        config.scan_block_candidates in (64, 128, 256, 512, 1024)
                         and config.num_warps in (4, 8)
                         and config.probe_lists_per_cta in (1, 2)
                     ):
@@ -232,10 +334,14 @@ if triton is not None:
         codes_by_subspace_ptr,
         probe_group_prefix_ptr,
         probe_list_count_ptr,
+        probe_cids_ptr,
+        list_group_prefix_ptr,
+        global_list_count_ptr,
         list_partial_keys_ptr,
         num_queries,
         num_code_vectors,
         nprobe,
+        scan_nprobe,
         GRID_X: tl.constexpr,
         M: tl.constexpr,
         KSUB: tl.constexpr,
@@ -243,6 +349,9 @@ if triton is not None:
         SCAN_BLOCK_C: tl.constexpr,
         PROBE_LISTS_PER_CTA: tl.constexpr,
         LOCAL_K: tl.constexpr,
+        FUSED_METADATA: tl.constexpr,
+        CHUNK_GROUPS: tl.constexpr,
+        MAX_CHUNKS: tl.constexpr,
         INF_KEY: tl.constexpr,
     ):
         """Scan one query-local group of complete probed lists in one CTA.
@@ -251,8 +360,10 @@ if triton is not None:
         lists).  The program keeps an exact top-k across every real list in
         that group, so the caller only needs the usual query-level merge.
         """
-        query_idx = tl.program_id(0)
-        cta_probe_group_idx = tl.program_id(1)
+        # Keep adjacent CTAs on the same query so the query-global LUT stays
+        # hot in L2 while its probe groups are scanned.
+        cta_probe_group_idx = tl.program_id(0)
+        query_idx = tl.program_id(1)
         probe_start = cta_probe_group_idx * PROBE_LISTS_PER_CTA
 
         candidate_offsets = tl.arange(0, SCAN_BLOCK_C)
@@ -262,23 +373,53 @@ if triton is not None:
 
         for probe_offset in tl.static_range(0, PROBE_LISTS_PER_CTA):
             probe_idx = probe_start + probe_offset
-            valid_probe = probe_idx < nprobe
-            edge_idx = query_idx * nprobe + probe_idx
-            vector_count = tl.load(
-                probe_list_count_ptr + edge_idx,
-                mask=valid_probe,
-                other=0,
-            ).to(tl.int32)
-            group_prefix = tl.load(
-                probe_group_prefix_ptr + edge_idx,
-                mask=valid_probe,
-                other=0,
-            ).to(tl.int64)
-            distance_bias = tl.load(
-                probe_distance_bias_ptr + edge_idx,
-                mask=valid_probe,
-                other=0.0,
-            ).to(tl.float32)
+            valid_probe = probe_idx < scan_nprobe
+            if FUSED_METADATA:
+                source_probe_idx = probe_idx // MAX_CHUNKS
+                chunk_idx = probe_idx % MAX_CHUNKS
+                source_edge_idx = query_idx * nprobe + source_probe_idx
+                centroid_id = tl.load(
+                    probe_cids_ptr + source_edge_idx,
+                    mask=valid_probe,
+                    other=0,
+                ).to(tl.int64)
+                full_vector_count = tl.load(
+                    global_list_count_ptr + centroid_id,
+                    mask=valid_probe,
+                    other=0,
+                ).to(tl.int32)
+                chunk_vector_start = chunk_idx * CHUNK_GROUPS * GROUP_SIZE
+                vector_count = tl.minimum(
+                    tl.maximum(full_vector_count - chunk_vector_start, 0),
+                    CHUNK_GROUPS * GROUP_SIZE,
+                )
+                group_prefix = tl.load(
+                    list_group_prefix_ptr + centroid_id,
+                    mask=valid_probe,
+                    other=0,
+                ).to(tl.int64) + chunk_idx * CHUNK_GROUPS
+                distance_bias = tl.load(
+                    probe_distance_bias_ptr + source_edge_idx,
+                    mask=valid_probe,
+                    other=0.0,
+                ).to(tl.float32)
+            else:
+                edge_idx = query_idx * scan_nprobe + probe_idx
+                vector_count = tl.load(
+                    probe_list_count_ptr + edge_idx,
+                    mask=valid_probe,
+                    other=0,
+                ).to(tl.int32)
+                group_prefix = tl.load(
+                    probe_group_prefix_ptr + edge_idx,
+                    mask=valid_probe,
+                    other=0,
+                ).to(tl.int64)
+                distance_bias = tl.load(
+                    probe_distance_bias_ptr + edge_idx,
+                    mask=valid_probe,
+                    other=0.0,
+                ).to(tl.float32)
             group_count = (vector_count + GROUP_SIZE - 1) // GROUP_SIZE
 
             for local_group_start in tl.range(0, group_count, SCAN_BLOCK_C // GROUP_SIZE):
@@ -319,8 +460,17 @@ if triton is not None:
                     tile_best_keys = ~tl.topk(~candidate_keys, LOCAL_K)
                     merged_keys = tl.ravel(tl.join(best_keys, tile_best_keys))
                     best_keys = ~tl.topk(~merged_keys, LOCAL_K)
+                elif LOCAL_K <= SCAN_BLOCK_C:
+                    tile_best_keys = ~tl.topk(~candidate_keys, LOCAL_K)
+                    merged_keys = tl.ravel(tl.join(best_keys, tile_best_keys))
+                    best_keys = ~tl.topk(~merged_keys, LOCAL_K)
                 else:
-                    merged_keys = tl.ravel(tl.join(best_keys, candidate_keys))
+                    padded_candidates = tl.cat(
+                        candidate_keys,
+                        tl.full((LOCAL_K - SCAN_BLOCK_C,), INF_KEY, tl.int64),
+                        dim=0,
+                    )
+                    merged_keys = tl.ravel(tl.join(best_keys, padded_candidates))
                     best_keys = ~tl.topk(~merged_keys, LOCAL_K)
 
         ranks = tl.arange(0, LOCAL_K)
@@ -340,9 +490,13 @@ if triton is not None:
         packed_codes_ptr,
         probe_group_prefix_ptr,
         probe_list_count_ptr,
+        probe_cids_ptr,
+        list_group_prefix_ptr,
+        global_list_count_ptr,
         list_partial_keys_ptr,
         num_queries,
         nprobe,
+        scan_nprobe,
         GRID_X: tl.constexpr,
         M: tl.constexpr,
         KSUB: tl.constexpr,
@@ -350,7 +504,13 @@ if triton is not None:
         SCAN_BLOCK_C: tl.constexpr,
         PROBE_LISTS_PER_CTA: tl.constexpr,
         LOCAL_K: tl.constexpr,
+        FUSED_METADATA: tl.constexpr,
+        CHUNK_GROUPS: tl.constexpr,
+        MAX_CHUNKS: tl.constexpr,
         PACKED_CHUNKS: tl.constexpr,
+        FULL_PACKED_CHUNKS: tl.constexpr,
+        TAIL_CODE_WORDS: tl.constexpr,
+        TAIL_CODE_BYTES: tl.constexpr,
         CODE_CHUNK_BYTES: tl.constexpr,
         CODE_WORD_BYTES: tl.constexpr,
         CODE_WORDS: tl.constexpr,
@@ -365,8 +525,10 @@ if triton is not None:
         chunk is zero padded in storage and masked here, so the same loop also
         supports M values that are not multiples of sixteen.
         """
-        query_idx = tl.program_id(0)
-        cta_probe_group_idx = tl.program_id(1)
+        # Keep adjacent CTAs on the same query so the query-global LUT stays
+        # hot in L2 while its probe groups are scanned.
+        cta_probe_group_idx = tl.program_id(0)
+        query_idx = tl.program_id(1)
         probe_start = cta_probe_group_idx * PROBE_LISTS_PER_CTA
 
         candidate_offsets = tl.arange(0, SCAN_BLOCK_C)
@@ -377,23 +539,53 @@ if triton is not None:
 
         for probe_offset in tl.static_range(0, PROBE_LISTS_PER_CTA):
             probe_idx = probe_start + probe_offset
-            valid_probe = probe_idx < nprobe
-            edge_idx = query_idx * nprobe + probe_idx
-            vector_count = tl.load(
-                probe_list_count_ptr + edge_idx,
-                mask=valid_probe,
-                other=0,
-            ).to(tl.int32)
-            group_prefix = tl.load(
-                probe_group_prefix_ptr + edge_idx,
-                mask=valid_probe,
-                other=0,
-            ).to(tl.int64)
-            distance_bias = tl.load(
-                probe_distance_bias_ptr + edge_idx,
-                mask=valid_probe,
-                other=0.0,
-            ).to(tl.float32)
+            valid_probe = probe_idx < scan_nprobe
+            if FUSED_METADATA:
+                source_probe_idx = probe_idx // MAX_CHUNKS
+                chunk_idx = probe_idx % MAX_CHUNKS
+                source_edge_idx = query_idx * nprobe + source_probe_idx
+                centroid_id = tl.load(
+                    probe_cids_ptr + source_edge_idx,
+                    mask=valid_probe,
+                    other=0,
+                ).to(tl.int64)
+                full_vector_count = tl.load(
+                    global_list_count_ptr + centroid_id,
+                    mask=valid_probe,
+                    other=0,
+                ).to(tl.int32)
+                chunk_vector_start = chunk_idx * CHUNK_GROUPS * GROUP_SIZE
+                vector_count = tl.minimum(
+                    tl.maximum(full_vector_count - chunk_vector_start, 0),
+                    CHUNK_GROUPS * GROUP_SIZE,
+                )
+                group_prefix = tl.load(
+                    list_group_prefix_ptr + centroid_id,
+                    mask=valid_probe,
+                    other=0,
+                ).to(tl.int64) + chunk_idx * CHUNK_GROUPS
+                distance_bias = tl.load(
+                    probe_distance_bias_ptr + source_edge_idx,
+                    mask=valid_probe,
+                    other=0.0,
+                ).to(tl.float32)
+            else:
+                edge_idx = query_idx * scan_nprobe + probe_idx
+                vector_count = tl.load(
+                    probe_list_count_ptr + edge_idx,
+                    mask=valid_probe,
+                    other=0,
+                ).to(tl.int32)
+                group_prefix = tl.load(
+                    probe_group_prefix_ptr + edge_idx,
+                    mask=valid_probe,
+                    other=0,
+                ).to(tl.int64)
+                distance_bias = tl.load(
+                    probe_distance_bias_ptr + edge_idx,
+                    mask=valid_probe,
+                    other=0.0,
+                ).to(tl.float32)
             group_count = (vector_count + GROUP_SIZE - 1) // GROUP_SIZE
 
             for local_group_start in tl.range(0, group_count, SCAN_BLOCK_C // GROUP_SIZE):
@@ -413,9 +605,14 @@ if triton is not None:
                     other=0.0,
                     cache_modifier=".cg",
                 ).to(tl.float32)
+                # Scan complete 16-byte chunks with the hot path shared by
+                # both aligned and non-aligned M values.  The tail is handled
+                # below with compile-time bounds, so an M=25 code performs
+                # exactly 25 LUT gathers instead of masking seven synthetic
+                # padding subspaces in the generic chunk loop.
                 for chunk_idx in tl.range(
                     0,
-                    PACKED_CHUNKS,
+                    FULL_PACKED_CHUNKS,
                     1,
                     loop_unroll_factor=1,
                     disable_licm=True,
@@ -434,18 +631,45 @@ if triton is not None:
                                 + word_idx * CODE_WORD_BYTES
                                 + byte_idx
                             )
-                            subspace_valid = subspace_idx < M
                             codes = ((packed_word >> (byte_idx * 8)) & 0xFF).to(tl.int64)
                             lut_values = tl.load(
                                 global_query_luts_ptr
                                 + subspace_idx * num_queries * KSUB
                                 + query_idx * KSUB
                                 + codes,
-                                mask=valid_candidates & subspace_valid,
+                                mask=valid_candidates,
                                 other=0.0,
                                 cache_modifier=".ca",
                             )
                             distances += lut_values.to(tl.float32)
+
+                if TAIL_CODE_BYTES > 0:
+                    tail_chunk = packed_chunk_zero + FULL_PACKED_CHUNKS * GROUP_SIZE * CODE_WORDS
+                    for word_idx in tl.static_range(0, TAIL_CODE_WORDS):
+                        packed_word = tl.load(
+                            packed_codes_ptr + tail_chunk + word_idx,
+                            mask=valid_candidates,
+                            other=0,
+                            cache_modifier=".ca",
+                        ).to(tl.uint64)
+                        for byte_idx in tl.static_range(0, CODE_WORD_BYTES):
+                            subspace_idx = (
+                                FULL_PACKED_CHUNKS * CODE_CHUNK_BYTES
+                                + word_idx * CODE_WORD_BYTES
+                                + byte_idx
+                            )
+                            if subspace_idx < M:
+                                codes = ((packed_word >> (byte_idx * 8)) & 0xFF).to(tl.int64)
+                                lut_values = tl.load(
+                                    global_query_luts_ptr
+                                        + subspace_idx * num_queries * KSUB
+                                        + query_idx * KSUB
+                                        + codes,
+                                    mask=valid_candidates,
+                                    other=0.0,
+                                    cache_modifier=".ca",
+                                )
+                                distances += lut_values.to(tl.float32)
 
                 distances = tl.maximum(distances + distance_bias, 0.0)
                 distance_bits = distances.to(tl.uint32, bitcast=True).to(tl.int64)
@@ -455,8 +679,17 @@ if triton is not None:
                     tile_best_keys = ~tl.topk(~candidate_keys, LOCAL_K)
                     merged_keys = tl.ravel(tl.join(best_keys, tile_best_keys))
                     best_keys = ~tl.topk(~merged_keys, LOCAL_K)
+                elif LOCAL_K <= SCAN_BLOCK_C:
+                    tile_best_keys = ~tl.topk(~candidate_keys, LOCAL_K)
+                    merged_keys = tl.ravel(tl.join(best_keys, tile_best_keys))
+                    best_keys = ~tl.topk(~merged_keys, LOCAL_K)
                 else:
-                    merged_keys = tl.ravel(tl.join(best_keys, candidate_keys))
+                    padded_candidates = tl.cat(
+                        candidate_keys,
+                        tl.full((LOCAL_K - SCAN_BLOCK_C,), INF_KEY, tl.int64),
+                        dim=0,
+                    )
+                    merged_keys = tl.ravel(tl.join(best_keys, padded_candidates))
                     best_keys = ~tl.topk(~merged_keys, LOCAL_K)
 
         tl.store(
@@ -547,9 +780,14 @@ def _candidate_launch_configs() -> tuple[_MAdaptiveLaunchConfig, ...]:
     """Return the small, device-independent Triton specialization sweep."""
     configs = [_default_launch_config()]
     raw_candidates = (
+        (64, 4, 1),
+        (64, 8, 1),
         (128, 4, 1),
+        (128, 4, 2),
+        (128, 8, 2),
         (256, 8, 1),
         (512, 4, 1),
+        (512, 4, 2),
         (512, 8, 1),
         (1024, 4, 1),
         (256, 4, 2),
@@ -607,32 +845,50 @@ def _launch_topk_scan(
     global_query_luts: torch.Tensor,
     static_vector_corrections: torch.Tensor,
     probe_distance_bias: torch.Tensor,
-    list_codes_interleaved: torch.Tensor,
+    list_codes_interleaved: torch.Tensor | None,
     list_ids_interleaved: torch.Tensor,
-    probe_group_prefix: torch.Tensor,
-    probe_list_count: torch.Tensor,
+    probe_group_prefix: torch.Tensor | None,
+    probe_list_count: torch.Tensor | None,
+    probe_cids: torch.Tensor | None,
+    list_group_prefix: torch.Tensor | None,
+    list_count: torch.Tensor | None,
     list_partial_keys: torch.Tensor,
     list_codes_packed_16b: torch.Tensor | None,
     m: int,
     ksub: int,
     num_queries: int,
     nprobe: int,
+    scan_nprobe: int,
+    chunk_groups: int,
+    max_chunks: int,
     local_k: int,
     cta_probe_groups: int,
     launch_config: _MAdaptiveLaunchConfig,
 ) -> None:
     """Launch only the CTA scan; shared by tuning and normal execution."""
+    fused_metadata = probe_cids is not None
+    # Triton still requires a valid pointer for compile-time-dead arguments.
+    dummy = probe_distance_bias
+    legacy_prefix = probe_group_prefix if probe_group_prefix is not None else dummy
+    legacy_count = probe_list_count if probe_list_count is not None else dummy
+    fused_cids = probe_cids if probe_cids is not None else dummy
+    global_prefix = list_group_prefix if list_group_prefix is not None else dummy
+    global_count = list_count if list_count is not None else dummy
     if list_codes_packed_16b is not None:
-        _list_cta_pq_packed_chunked_topk_kernel[(num_queries, cta_probe_groups)](
+        _list_cta_pq_packed_chunked_topk_kernel[(cta_probe_groups, num_queries)](
             global_query_luts,
             static_vector_corrections,
             probe_distance_bias,
             list_codes_packed_16b,
-            probe_group_prefix,
-            probe_list_count,
+            legacy_prefix,
+            legacy_count,
+            fused_cids,
+            global_prefix,
+            global_count,
             list_partial_keys,
             num_queries,
             nprobe,
+            scan_nprobe,
             GRID_X=cta_probe_groups,
             M=m,
             KSUB=ksub,
@@ -640,7 +896,13 @@ def _launch_topk_scan(
             SCAN_BLOCK_C=launch_config.scan_block_candidates,
             PROBE_LISTS_PER_CTA=launch_config.probe_lists_per_cta,
             LOCAL_K=local_k,
+            FUSED_METADATA=fused_metadata,
+            CHUNK_GROUPS=chunk_groups,
+            MAX_CHUNKS=max_chunks,
             PACKED_CHUNKS=math.ceil(m / PACKED_CODE_CHUNK_BYTES),
+            FULL_PACKED_CHUNKS=m // PACKED_CODE_CHUNK_BYTES,
+            TAIL_CODE_WORDS=math.ceil((m % PACKED_CODE_CHUNK_BYTES) / PACKED_CODE_WORD_BYTES),
+            TAIL_CODE_BYTES=m % PACKED_CODE_CHUNK_BYTES,
             CODE_CHUNK_BYTES=PACKED_CODE_CHUNK_BYTES,
             CODE_WORD_BYTES=PACKED_CODE_WORD_BYTES,
             CODE_WORDS=PACKED_CODE_WORDS,
@@ -648,17 +910,23 @@ def _launch_topk_scan(
             num_warps=launch_config.num_warps,
         )
         return
-    _list_cta_pq_topk_kernel[(num_queries, cta_probe_groups)](
+    if list_codes_interleaved is None:
+        raise ValueError("Unpacked IVF-PQ scan requires interleaved PQ codes")
+    _list_cta_pq_topk_kernel[(cta_probe_groups, num_queries)](
         global_query_luts,
         static_vector_corrections,
         probe_distance_bias,
         list_codes_interleaved,
-        probe_group_prefix,
-        probe_list_count,
+        legacy_prefix,
+        legacy_count,
+        fused_cids,
+        global_prefix,
+        global_count,
         list_partial_keys,
         num_queries,
         list_ids_interleaved.numel(),
         nprobe,
+        scan_nprobe,
         GRID_X=cta_probe_groups,
         M=m,
         KSUB=ksub,
@@ -666,6 +934,9 @@ def _launch_topk_scan(
         SCAN_BLOCK_C=launch_config.scan_block_candidates,
         PROBE_LISTS_PER_CTA=launch_config.probe_lists_per_cta,
         LOCAL_K=local_k,
+        FUSED_METADATA=fused_metadata,
+        CHUNK_GROUPS=chunk_groups,
+        MAX_CHUNKS=max_chunks,
         INF_KEY=_INF_KEY,
         num_warps=launch_config.num_warps,
     )
@@ -716,12 +987,19 @@ def _autotune_topk_launch_config(
     global_query_luts: torch.Tensor,
     static_vector_corrections: torch.Tensor,
     probe_distance_bias: torch.Tensor,
-    list_codes_interleaved: torch.Tensor,
+    list_codes_interleaved: torch.Tensor | None,
     list_ids_interleaved: torch.Tensor,
-    probe_group_prefix: torch.Tensor,
-    probe_list_count: torch.Tensor,
+    probe_group_prefix: torch.Tensor | None,
+    probe_list_count: torch.Tensor | None,
+    probe_cids: torch.Tensor | None,
+    list_group_prefix: torch.Tensor | None,
+    list_count: torch.Tensor | None,
     list_codes_packed_16b: torch.Tensor | None,
     topk: int,
+    nprobe: int,
+    scan_nprobe: int,
+    chunk_groups: int,
+    max_chunks: int,
 ) -> _MAdaptiveLaunchConfig:
     """Measure a few CTA shapes once and cache the fastest scan-only plan."""
     cached = _cached_autotune_config(cache_key)
@@ -729,7 +1007,6 @@ def _autotune_topk_launch_config(
         return cached
 
     m, num_queries, ksub = global_query_luts.shape
-    nprobe = int(probe_group_prefix.shape[1])
     device = global_query_luts.device
     best_config: _MAdaptiveLaunchConfig | None = None
     best_ms = float("inf")
@@ -737,7 +1014,7 @@ def _autotune_topk_launch_config(
         plan = _resolve_topk_launch_plan(
             m=m,
             topk=topk,
-            nprobe=nprobe,
+            nprobe=scan_nprobe,
             launch_config=config,
         )
         if plan is None:
@@ -757,12 +1034,18 @@ def _autotune_topk_launch_config(
                 list_ids_interleaved=list_ids_interleaved,
                 probe_group_prefix=probe_group_prefix,
                 probe_list_count=probe_list_count,
+                probe_cids=probe_cids,
+                list_group_prefix=list_group_prefix,
+                list_count=list_count,
                 list_partial_keys=scratch,
                 list_codes_packed_16b=list_codes_packed_16b,
                 m=m,
                 ksub=ksub,
                 num_queries=num_queries,
                 nprobe=nprobe,
+                scan_nprobe=scan_nprobe,
+                chunk_groups=chunk_groups,
+                max_chunks=max_chunks,
                 local_k=local_k,
                 cta_probe_groups=cta_probe_groups,
                 launch_config=config,
@@ -781,12 +1064,18 @@ def _autotune_topk_launch_config(
                 list_ids_interleaved=list_ids_interleaved,
                 probe_group_prefix=probe_group_prefix,
                 probe_list_count=probe_list_count,
+                probe_cids=probe_cids,
+                list_group_prefix=list_group_prefix,
+                list_count=list_count,
                 list_partial_keys=scratch,
                 list_codes_packed_16b=list_codes_packed_16b,
                 m=m,
                 ksub=ksub,
                 num_queries=num_queries,
                 nprobe=nprobe,
+                scan_nprobe=scan_nprobe,
+                chunk_groups=chunk_groups,
+                max_chunks=max_chunks,
                 local_k=local_k,
                 cta_probe_groups=cta_probe_groups,
                 launch_config=config,
@@ -811,25 +1100,31 @@ def triton_topk(
     global_query_luts: torch.Tensor,
     static_vector_corrections: torch.Tensor,
     probe_distance_bias: torch.Tensor,
-    list_codes_interleaved: torch.Tensor,
+    list_codes_interleaved: torch.Tensor | None,
     list_ids_interleaved: torch.Tensor,
-    probe_group_prefix: torch.Tensor,
-    probe_list_count: torch.Tensor,
+    probe_group_prefix: torch.Tensor | None,
+    probe_list_count: torch.Tensor | None,
     topk: int,
     output_distances: torch.Tensor,
     output_ids: torch.Tensor,
     list_partial_keys: torch.Tensor | None = None,
     list_codes_packed_16b: torch.Tensor | None = None,
+    probe_cids: torch.Tensor | None = None,
+    list_group_prefix: torch.Tensor | None = None,
+    list_count: torch.Tensor | None = None,
+    scan_chunk_groups: int = LIST_SCAN_CHUNK_GROUPS,
+    scan_max_chunks: int = 1,
     autotune: bool = False,
     autotune_key: tuple[object, ...] | None = None,
     on_list_scan_complete: Callable[[], None] | None = None,
 ) -> torch.Tensor:
-    """Run exact IVF-PQ ADC with query/probe CTA groups.
+    """Run exact IVF-PQ ADC with query/probe-chunk CTA groups.
 
-    A program scans one complete selected list by default and keeps its exact
-    group-local top-k across all code tiles.  Wide probe sets are reduced by
-    intermediate fixed-width TopK stages before the final query merge, so no
-    single ``tl.topk`` invocation exceeds ``MAX_FINAL_WIDTH``.
+    Oversized selected lists are represented by multiple virtual probe chunks;
+    each program keeps an exact group-local top-k for one chunk.  Wide probe
+    sets are reduced by intermediate fixed-width TopK stages before the final
+    query merge, so no single ``tl.topk`` invocation exceeds
+    ``MAX_FINAL_WIDTH``.
     ``list_codes_packed_16b`` uses a rolled 16-byte chunk loop for M>16,
     avoiding code-size and register growth without lower-bound bookkeeping or
     a per-query shared kth threshold.
@@ -839,25 +1134,68 @@ def triton_topk(
     m, num_queries, ksub = global_query_luts.shape
     if global_query_luts.dtype not in _SUPPORTED_GLOBAL_LUT_DTYPES:
         raise ValueError("Global query LUT must use FP32 or FP16 storage")
-    if probe_group_prefix.ndim != 2 or probe_group_prefix.shape != probe_list_count.shape:
-        raise ValueError("Probe group-prefix/count tensors must have matching [query, nprobe] shapes")
-    if probe_distance_bias.shape != probe_group_prefix.shape:
-        raise ValueError("Probe distance bias must match [query, nprobe] probe metadata")
-    nprobe = int(probe_group_prefix.shape[1])
-    if probe_group_prefix.shape[0] != num_queries:
+    legacy_metadata = probe_group_prefix is not None or probe_list_count is not None
+    fused_metadata = any(
+        tensor is not None for tensor in (probe_cids, list_group_prefix, list_count)
+    )
+    if legacy_metadata and fused_metadata:
+        raise ValueError("Provide either expanded probe metadata or fused list metadata, not both")
+    if legacy_metadata:
+        if probe_group_prefix is None or probe_list_count is None:
+            raise ValueError("Both probe_group_prefix and probe_list_count are required")
+        if probe_group_prefix.ndim != 2 or probe_group_prefix.shape != probe_list_count.shape:
+            raise ValueError(
+                "Probe group-prefix/count tensors must have matching [query, nprobe] shapes"
+            )
+        if probe_distance_bias.shape != probe_group_prefix.shape:
+            raise ValueError("Probe distance bias must match [query, nprobe] probe metadata")
+        nprobe = int(probe_group_prefix.shape[1])
+        scan_nprobe = nprobe
+        scan_chunk_groups = LIST_SCAN_CHUNK_GROUPS
+        scan_max_chunks = 1
+        metadata_query_count = int(probe_group_prefix.shape[0])
+    else:
+        if probe_cids is None or list_group_prefix is None or list_count is None:
+            raise ValueError(
+                "Fused metadata requires probe_cids, list_group_prefix, and list_count"
+            )
+        if probe_cids.ndim != 2:
+            raise ValueError("Probe centroid IDs must have shape [query, nprobe]")
+        if probe_distance_bias.shape != probe_cids.shape:
+            raise ValueError("Probe distance bias must match probe centroid IDs")
+        if list_group_prefix.ndim != 1 or list_count.ndim != 1:
+            raise ValueError("Global list metadata must be one-dimensional")
+        if list_group_prefix.shape != list_count.shape:
+            raise ValueError("Global list prefix/count tensors must have matching shapes")
+        if scan_chunk_groups <= 0 or scan_max_chunks <= 0:
+            raise ValueError("Chunk groups and max chunks must be positive")
+        nprobe = int(probe_cids.shape[1])
+        scan_nprobe = nprobe * int(scan_max_chunks)
+        metadata_query_count = int(probe_cids.shape[0])
+    if metadata_query_count != num_queries:
         raise ValueError("Probe metadata query count does not match the global query LUT")
+    if list_codes_interleaved is None and list_codes_packed_16b is None:
+        raise ValueError("IVF-PQ scan requires an unpacked or packed code layout")
+    code_dtype = (
+        list_codes_interleaved.dtype
+        if list_codes_interleaved is not None
+        else torch.uint8
+    )
     if not can_run_topk(
         device=global_query_luts.device,
         topk=topk,
         m=m,
         ksub=ksub,
-        nprobe=nprobe,
+        nprobe=scan_nprobe,
         num_code_vectors=list_ids_interleaved.numel(),
-        code_dtype=list_codes_interleaved.dtype,
+        code_dtype=code_dtype,
         use_packed_16b_codes=list_codes_packed_16b is not None,
     ):
         raise ValueError("IVFPQ Triton CTA-list top-k is unavailable for these search parameters")
-    if list_codes_interleaved.shape != (m, list_ids_interleaved.numel()):
+    if (
+        list_codes_interleaved is not None
+        and list_codes_interleaved.shape != (m, list_ids_interleaved.numel())
+    ):
         raise ValueError("Interleaved PQ code cache must have shape [m, padded_num_indexed_vectors]")
     if static_vector_corrections.shape != (list_ids_interleaved.numel(),):
         raise ValueError("Static vector corrections must match padded interleaved vector count")
@@ -868,17 +1206,22 @@ def triton_topk(
     if output_ids.shape[0] != num_queries or output_ids.shape[1] < topk:
         raise ValueError("Output ID tensor must have shape [num_queries, >= topk]")
 
-    tensors = (
+    tensors: tuple[torch.Tensor, ...] = (
         global_query_luts,
         static_vector_corrections,
         probe_distance_bias,
-        list_codes_interleaved,
         list_ids_interleaved,
-        probe_group_prefix,
-        probe_list_count,
         output_distances,
         output_ids,
     )
+    if list_codes_interleaved is not None:
+        tensors += (list_codes_interleaved,)
+    if legacy_metadata:
+        assert probe_group_prefix is not None and probe_list_count is not None
+        tensors += (probe_group_prefix, probe_list_count)
+    else:
+        assert probe_cids is not None and list_group_prefix is not None and list_count is not None
+        tensors += (probe_cids, list_group_prefix, list_count)
     if list_codes_packed_16b is not None:
         if m <= 16:
             raise ValueError("Packed PQ code scanning requires M > 16")
@@ -903,7 +1246,7 @@ def triton_topk(
     plan = _resolve_topk_launch_plan(
         m=m,
         topk=topk,
-        nprobe=nprobe,
+        nprobe=scan_nprobe,
     )
     if plan is None:  # pragma: no cover - guarded by can_run_topk
         raise ValueError("Unsupported IVFPQ Triton CTA-list top-k plan")
@@ -925,10 +1268,19 @@ def triton_topk(
     global_query_luts = global_query_luts.contiguous()
     static_vector_corrections = static_vector_corrections.contiguous()
     probe_distance_bias = probe_distance_bias.contiguous()
-    list_codes_interleaved = list_codes_interleaved.contiguous()
+    if list_codes_interleaved is not None:
+        list_codes_interleaved = list_codes_interleaved.contiguous()
     list_ids_interleaved = list_ids_interleaved.contiguous()
-    probe_group_prefix = probe_group_prefix.contiguous()
-    probe_list_count = probe_list_count.contiguous()
+    if probe_group_prefix is not None:
+        probe_group_prefix = probe_group_prefix.contiguous()
+    if probe_list_count is not None:
+        probe_list_count = probe_list_count.contiguous()
+    if probe_cids is not None:
+        probe_cids = probe_cids.contiguous()
+    if list_group_prefix is not None:
+        list_group_prefix = list_group_prefix.contiguous()
+    if list_count is not None:
+        list_count = list_count.contiguous()
     if list_codes_packed_16b is not None:
         list_codes_packed_16b = list_codes_packed_16b.contiguous()
 
@@ -936,7 +1288,7 @@ def triton_topk(
         str(global_query_luts.device),
         m,
         ksub,
-        nprobe,
+        scan_nprobe,
         topk,
         num_queries,
         packed_codes,
@@ -954,14 +1306,21 @@ def triton_topk(
             list_ids_interleaved=list_ids_interleaved,
             probe_group_prefix=probe_group_prefix,
             probe_list_count=probe_list_count,
+            probe_cids=probe_cids,
+            list_group_prefix=list_group_prefix,
+            list_count=list_count,
             list_codes_packed_16b=list_codes_packed_16b,
             topk=topk,
+            nprobe=nprobe,
+            scan_nprobe=scan_nprobe,
+            chunk_groups=scan_chunk_groups,
+            max_chunks=scan_max_chunks,
         )
     if cached_launch_config is not None or autotune:
         tuned_plan = _resolve_topk_launch_plan(
             m=m,
             topk=topk,
-            nprobe=nprobe,
+            nprobe=scan_nprobe,
             launch_config=launch_config,
         )
         assert tuned_plan is not None
@@ -978,12 +1337,18 @@ def triton_topk(
         list_ids_interleaved=list_ids_interleaved,
         probe_group_prefix=probe_group_prefix,
         probe_list_count=probe_list_count,
+        probe_cids=probe_cids,
+        list_group_prefix=list_group_prefix,
+        list_count=list_count,
         list_partial_keys=list_partial_keys,
         list_codes_packed_16b=list_codes_packed_16b,
         m=m,
         ksub=ksub,
         num_queries=num_queries,
         nprobe=nprobe,
+        scan_nprobe=scan_nprobe,
+        chunk_groups=scan_chunk_groups,
+        max_chunks=scan_max_chunks,
         local_k=local_k,
         cta_probe_groups=cta_probe_groups,
         launch_config=launch_config,

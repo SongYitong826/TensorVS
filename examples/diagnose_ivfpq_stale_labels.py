@@ -8,7 +8,11 @@ import torch
 
 from flash_kmeans.kmeans_large import kmeans_largeN_assign
 from tensorvs import load_dataset, load_ivfpq_index, search_ivfpq_index
-from tensorvs.index_ivfpq import _encode_vectors_with_pq
+from tensorvs._ivf_interleaved import build_interleaved_pq_lists
+from tensorvs.index_ivfpq import (
+    _build_interleaved_pq_static_corrections,
+    _encode_vectors_with_pq,
+)
 from tensorvs.util import load_ivecs
 
 
@@ -62,6 +66,8 @@ def main() -> None:
 
     centroids = index.centroids.to(device=device, dtype=torch.float32)
     codebooks = index.pq_codebooks.to(device=device, dtype=torch.float32)
+    if index.persisted_list_codes_interleaved_by_subspace is None:
+        raise ValueError("Loaded IVF-PQ index is missing its Triton code layout")
     vectors_device = vectors.to(device=device, dtype=torch.float32)
     labels_device = new_labels.to(device=device)
     residuals = (vectors_device - centroids[labels_device]).contiguous()
@@ -69,7 +75,7 @@ def main() -> None:
         residuals,
         codebooks,
         int(index.metadata["m"]),
-        code_dtype=index.list_codes.dtype,
+        code_dtype=index.persisted_list_codes_interleaved_by_subspace.dtype,
     ).cpu()
 
     sort_perm = torch.argsort(new_labels, stable=True)
@@ -77,11 +83,27 @@ def main() -> None:
     list_count = torch.bincount(
         labels_sorted, minlength=index.centroids.shape[0]
     ).to(torch.int64)
+    list_prefix = torch.cumsum(list_count, dim=0) - list_count
+    sorted_ids = torch.arange(vectors.shape[0], dtype=torch.int64)[sort_perm]
+    interleaved_layout = build_interleaved_pq_lists(
+        corrected_codes[sort_perm],
+        sorted_ids,
+        list_prefix,
+        list_count,
+    )
+    interleaved_corrections = _build_interleaved_pq_static_corrections(
+        corrected_codes[sort_perm],
+        list_prefix,
+        list_count,
+        index.pq_centroids if index.pq_centroids is not None else index.centroids,
+        index.pq_codebooks,
+    )
     index.assignments = new_labels
-    index.list_codes = corrected_codes[sort_perm]
-    index.list_ids_flat = torch.arange(vectors.shape[0], dtype=torch.int64)[sort_perm]
     index.list_count = list_count
-    index.list_prefix = torch.cumsum(list_count, dim=0) - list_count
+    index.persisted_list_codes_interleaved_by_subspace = interleaved_layout.codes_by_subspace
+    index.persisted_list_ids_interleaved = interleaved_layout.ids
+    index.persisted_list_group_prefix = interleaved_layout.group_prefix
+    index.persisted_list_pq_static_corrections_interleaved = interleaved_corrections
 
     del residuals, corrected_codes, vectors_device, labels_device, centroids, codebooks
     torch.cuda.empty_cache()

@@ -32,7 +32,7 @@ NPROBE = 50
 NQ = 1024
 Q_BATCH = 64
 SELECTION_MODE = "triton_topk"
-# 可选："triton_topk" / "tensor_topk" / "tensor_padding_topk"
+# IVF-Flat currently uses the Triton TopK implementation exclusively.
 # triton_topk 的batch越高越好？？为什么？
 # Enable only when inspecting per-stage timing. It adds CUDA timing events and
 # a per-search synchronization, so leave it False for QPS measurements.

@@ -3,23 +3,30 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass, field
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 import torch
 
-from ._kmeans import fit_best_kmeans
+from flash_kmeans import (
+    FAISS_DEFAULT_MAX_POINTS_PER_CENTROID,
+    FAISS_DEFAULT_MIN_POINTS_PER_CENTROID,
+    FAISS_DEFAULT_NITER,
+    FAISS_DEFAULT_NREDO,
+    FAISS_DEFAULT_SEED,
+    fit_best_kmeans,
+    select_training_indices,
+)
 from ._ivf_interleaved import (
     INTERLEAVED_GROUP_SIZE,
     build_interleaved_pq_lists,
-    build_interleaved_pq_code_chunks,
     build_interleaved_pq_scalar_cache,
 )
-from ._ivfpq_triton import can_run_topk as can_run_ivfpq_triton_topk
+from ._ivfpq_triton import (
+    can_run_topk as can_run_ivfpq_triton_topk,
+    plan_probe_chunks,
+)
 from ._ivfpq_triton import triton_topk as triton_ivfpq_topk
-from ._ivfpq_list_major_triton import can_run_topk as can_run_ivfpq_list_major_topk
-from ._ivfpq_list_major_triton import triton_list_major_topk as triton_ivfpq_list_major_topk
 from .distance import squared_l2_distance
 from .refine import refine_search_results
 
@@ -28,14 +35,6 @@ _LUT_STORAGE_DTYPES = {
     "fp32": torch.float32,
     "fp16": torch.float16,
 }
-
-# List-Major has sorting and task construction overhead. Enable it only when
-# the observed probe edges contain enough repeated list visits to amortize
-# that setup. The numerator counts all visits after the first visit to each
-# list, which is the maximum number of duplicate list-side loads that can be
-# eliminated by grouping.
-_LIST_MAJOR_MIN_REUSE_FRACTION = 0.5
-
 
 def _normalize_lut_dtype(lut_dtype: str) -> str:
     """Validate the shared Tensor/Triton IVF-PQ LUT precision switch."""
@@ -157,411 +156,97 @@ def _restore_pq_transform(
     return rotation_matrix, pq_centroids.contiguous()
 
 
-def _tensor_topk_pq_distance_impl(
-    global_query_luts: torch.Tensor,
-    list_codes: torch.Tensor,
-    list_ids_flat: torch.Tensor,
-    list_pq_static_corrections: torch.Tensor,
-    probe_distance_bias: torch.Tensor,
-    probe_list_prefix: torch.Tensor,
-    probe_list_count: torch.Tensor,
-    candidate_offsets: torch.Tensor,
-    topk: int,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Select nearest candidates from a query-global LUT without residual LUTs.
-
-    ``global_query_luts[q, m, code]`` stores only the query-dependent part of
-    ADC in the Tensor gather layout. Candidate lookup adds its persisted
-    list/PQ scalar correction and the selected coarse-list distance, which
-    reconstructs the true residual LUT value without materializing a
-    ``[query, probe, m, ksub]`` tensor.
-    """
-    safe_candidate_positions, probe_idx, valid_mask = _tensor_topk_pq_candidate_map_impl(
-        list_codes,
-        probe_list_prefix,
-        probe_list_count,
-        candidate_offsets,
-    )
-    candidate_codes = _tensor_topk_pq_code_gather_impl(list_codes, safe_candidate_positions)
-    pair_distances = _tensor_topk_pq_lut_reduce_impl(
-        global_query_luts,
-        candidate_codes,
-        list_pq_static_corrections,
-        probe_distance_bias,
-        safe_candidate_positions,
-        probe_idx,
-        valid_mask,
-    )
-    topk_distances, topk_positions = _tensor_topk_pq_select_impl(pair_distances, topk)
-    topk_ids = _tensor_topk_pq_id_lookup_impl(
-        list_ids_flat,
-        safe_candidate_positions,
-        valid_mask,
-        topk_positions,
-    )
-    return topk_distances, topk_ids
-
-
-def _tensor_topk_pq_candidate_map_impl(
-    list_codes: torch.Tensor,
-    probe_list_prefix: torch.Tensor,
-    probe_list_count: torch.Tensor,
-    candidate_offsets: torch.Tensor,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Map padded query-local offsets into flat codes and their probe lists."""
-    num_queries, nprobe = probe_list_count.shape
-    query_candidate_count = probe_list_count.sum(dim=1)
-    candidate_offsets_2d = candidate_offsets.unsqueeze(0).repeat(num_queries, 1)
-    valid_mask = candidate_offsets_2d < query_candidate_count.unsqueeze(1)
-    probe_end = torch.cumsum(probe_list_count, dim=1)
-    probe_idx = torch.searchsorted(probe_end, candidate_offsets_2d, right=True)
-    probe_idx = probe_idx.clamp_max(nprobe - 1)
-    probe_start = probe_end - probe_list_count
-    candidate_in_list = candidate_offsets_2d - torch.gather(probe_start, 1, probe_idx)
-    candidate_positions = torch.gather(probe_list_prefix, 1, probe_idx) + candidate_in_list
-    safe_candidate_positions = candidate_positions.clamp(0, list_codes.shape[0] - 1)
-    return safe_candidate_positions, probe_idx, valid_mask
-
-
-def _tensor_topk_pq_code_gather_impl(
-    list_codes: torch.Tensor,
-    safe_candidate_positions: torch.Tensor,
-) -> torch.Tensor:
-    """Gather compact row-major PQ codes once for all query candidates."""
-    return list_codes[safe_candidate_positions]
-
-
-def _tensor_topk_pq_lut_reduce_impl(
-    global_query_luts: torch.Tensor,
-    candidate_codes: torch.Tensor,
-    list_pq_static_corrections: torch.Tensor,
-    probe_distance_bias: torch.Tensor,
-    safe_candidate_positions: torch.Tensor,
-    probe_idx: torch.Tensor,
-    valid_mask: torch.Tensor,
-) -> torch.Tensor:
-    """Reconstruct residual ADC from one query-global LUT.
-
-    ``global_query_luts`` is query-major ``[query, m, ksub]``.  The compact
-    row-major candidate codes are converted directly to offsets in each
-    query's flattened ``[m, ksub]`` table, so a single Tensor gather produces
-    the ADC values.  No per-probe residual LUT is materialized.
-    """
-    num_queries, max_candidates, m = candidate_codes.shape
-    ksub = global_query_luts.shape[2]
-    code_offsets = candidate_codes.to(torch.int64)
-    code_offsets.add_(
-        torch.arange(m, device=global_query_luts.device, dtype=torch.int64) * ksub
-    )
-    global_adc = torch.gather(
-        global_query_luts.flatten(1),
-        1,
-        code_offsets.reshape(num_queries, max_candidates * m),
-    ).reshape(num_queries, max_candidates, m).sum(dim=2, dtype=torch.float32)
-    static_corrections = list_pq_static_corrections[safe_candidate_positions]
-    list_bias = torch.gather(probe_distance_bias, 1, probe_idx)
-    pair_distances = global_adc + static_corrections + list_bias
-    return pair_distances.masked_fill(~valid_mask, float("inf"))
-
-
-def _tensor_topk_pq_select_impl(
-    pair_distances: torch.Tensor,
-    topk: int,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Perform the original full query-major candidate selection."""
-    return torch.topk(pair_distances, k=topk, dim=1, largest=False)
-
-
-def _tensor_topk_pq_id_lookup_impl(
-    list_ids_flat: torch.Tensor,
-    safe_candidate_positions: torch.Tensor,
-    valid_mask: torch.Tensor,
-    topk_positions: torch.Tensor,
-) -> torch.Tensor:
-    """Translate top-k candidate columns into vector IDs and invalid markers."""
-    topk_vector_positions = torch.gather(safe_candidate_positions, 1, topk_positions)
-    topk_ids = list_ids_flat[topk_vector_positions]
-    topk_valid = torch.gather(valid_mask, 1, topk_positions)
-    return topk_ids.masked_fill(~topk_valid, -1)
-
-
-@lru_cache(maxsize=1)
-def _get_tensor_topk_pq_distance_fn():
-    try:
-        # Keep this whole candidate-map/ADC/top-k path in one Dynamo graph.
-        # Dynamic candidate widths avoid recompiling on each query batch.
-        return torch.compile(_tensor_topk_pq_distance_impl, fullgraph=True, dynamic=True)
-    except Exception:
-        return _tensor_topk_pq_distance_impl
-
-
-@lru_cache(maxsize=1)
-def _get_tensor_topk_pq_candidate_map_fn():
-    try:
-        return torch.compile(_tensor_topk_pq_candidate_map_impl, fullgraph=True, dynamic=True)
-    except Exception:
-        return _tensor_topk_pq_candidate_map_impl
-
-
-@lru_cache(maxsize=1)
-def _get_tensor_topk_pq_code_gather_fn():
-    try:
-        return torch.compile(_tensor_topk_pq_code_gather_impl, fullgraph=True, dynamic=True)
-    except Exception:
-        return _tensor_topk_pq_code_gather_impl
-
-
-@lru_cache(maxsize=1)
-def _get_tensor_topk_pq_lut_reduce_fn():
-    try:
-        return torch.compile(_tensor_topk_pq_lut_reduce_impl, fullgraph=True, dynamic=True)
-    except Exception:
-        return _tensor_topk_pq_lut_reduce_impl
-
-
-@lru_cache(maxsize=1)
-def _get_tensor_topk_pq_select_fn():
-    try:
-        return torch.compile(_tensor_topk_pq_select_impl, fullgraph=True, dynamic=True)
-    except Exception:
-        return _tensor_topk_pq_select_impl
-
-
-@lru_cache(maxsize=1)
-def _get_tensor_topk_pq_id_lookup_fn():
-    try:
-        return torch.compile(_tensor_topk_pq_id_lookup_impl, fullgraph=True, dynamic=True)
-    except Exception:
-        return _tensor_topk_pq_id_lookup_impl
-
-
 def _get_interleaved_pq_lists(
     index: IVFPQIndex,
-    list_codes: torch.Tensor,
-    list_ids_flat: torch.Tensor,
-    list_prefix: torch.Tensor,
-    list_count: torch.Tensor,
     search_device: torch.device,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Retrieve the persisted interleaved lists or build a legacy fallback."""
-    has_persisted_layout = (
-        index.persisted_list_codes_interleaved_by_subspace is not None
-        and index.persisted_list_ids_interleaved is not None
-        and index.persisted_list_group_prefix is not None
-    )
-
-    def persisted_layout() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        assert index.persisted_list_codes_interleaved_by_subspace is not None
-        assert index.persisted_list_ids_interleaved is not None
-        assert index.persisted_list_group_prefix is not None
-        return (
-            index.persisted_list_codes_interleaved_by_subspace.to(
-                device=search_device,
-                copy=False,
-            ),
-            index.persisted_list_ids_interleaved.to(
-                dtype=torch.int64,
-                device=search_device,
-                copy=False,
-            ),
-            index.persisted_list_group_prefix.to(
-                dtype=torch.int64,
-                device=search_device,
-                copy=False,
-            ),
+) -> tuple[torch.Tensor | None, torch.Tensor, torch.Tensor]:
+    """Retrieve the sole persisted list layout used by Triton TopK."""
+    if (
+        index.persisted_list_codes_interleaved_by_subspace is None
+        or index.persisted_list_ids_interleaved is None
+        or index.persisted_list_group_prefix is None
+    ):
+        raise ValueError(
+            "Triton IVF-PQ interleaved lists are not loaded. Rebuild the index."
         )
 
     if index.resident_device is not None and index.resident_device == search_device:
         if (
-            index.list_codes_interleaved_by_subspace is None
-            or index.list_ids_interleaved is None
+            index.list_ids_interleaved is None
             or index.list_group_prefix is None
+            or (
+                index.list_codes_interleaved_by_subspace is None
+                and index.list_codes_interleaved_packed_16b is None
+            )
         ):
-            if has_persisted_layout:
-                (
-                    index.list_codes_interleaved_by_subspace,
-                    index.list_ids_interleaved,
-                    index.list_group_prefix,
-                ) = persisted_layout()
-            else:
-                layout = build_interleaved_pq_lists(list_codes, list_ids_flat, list_prefix, list_count)
-                index.list_codes_interleaved_by_subspace = layout.codes_by_subspace
-                index.list_ids_interleaved = layout.ids
-                index.list_group_prefix = layout.group_prefix
-        return index.list_codes_interleaved_by_subspace, index.list_ids_interleaved, index.list_group_prefix
+            raise ValueError("Resident Triton IVF-PQ list layout is incomplete")
+        return (
+            index.list_codes_interleaved_by_subspace,
+            index.list_ids_interleaved,
+            index.list_group_prefix,
+        )
 
-    if has_persisted_layout:
-        return persisted_layout()
-
-    layout = build_interleaved_pq_lists(list_codes, list_ids_flat, list_prefix, list_count)
-    return layout.codes_by_subspace, layout.ids, layout.group_prefix
-
-
-def _get_row_major_pq_static_corrections(
-    index: IVFPQIndex,
-    list_codes: torch.Tensor,
-    list_prefix: torch.Tensor,
-    list_count: torch.Tensor,
-    search_device: torch.device,
-) -> torch.Tensor:
-    """Return row-major gamma aligned with ``list_codes`` for Tensor ADC."""
-    if index.resident_device is not None and index.resident_device == search_device:
-        if index.list_pq_static_corrections is None:
-            if index.persisted_list_pq_static_corrections is not None:
-                index.list_pq_static_corrections = (
-                    index.persisted_list_pq_static_corrections.to(
-                        dtype=torch.float32,
-                        device=search_device,
-                        copy=False,
-                    )
-                )
-            else:
-                index.list_pq_static_corrections = _build_pq_static_corrections(
-                    list_codes,
-                    list_prefix,
-                    list_count,
-                    index.pq_centroids if index.pq_centroids is not None else index.centroids,
-                    index.pq_codebooks,
-                )
-        return index.list_pq_static_corrections
-
-    if index.persisted_list_pq_static_corrections is not None:
-        return index.persisted_list_pq_static_corrections.to(
-            dtype=torch.float32,
+    return (
+        index.persisted_list_codes_interleaved_by_subspace.to(
             device=search_device,
             copy=False,
-        )
-    return _build_pq_static_corrections(
-        list_codes,
-        list_prefix,
-        list_count,
-        index.pq_centroids if index.pq_centroids is not None else index.centroids,
-        index.pq_codebooks,
+        ),
+        index.persisted_list_ids_interleaved.to(
+            dtype=torch.int64,
+            device=search_device,
+            copy=False,
+        ),
+        index.persisted_list_group_prefix.to(
+            dtype=torch.int64,
+            device=search_device,
+            copy=False,
+        ),
     )
 
 
 def _get_interleaved_pq_static_corrections(
     index: IVFPQIndex,
-    list_codes: torch.Tensor,
-    list_prefix: torch.Tensor,
-    list_count: torch.Tensor,
     search_device: torch.device,
 ) -> torch.Tensor:
-    """Return the physical-order static centroid/PQ scalar cache for Triton."""
+    """Return the physical-order scalar cache persisted for Triton TopK."""
     if index.resident_device is not None and index.resident_device == search_device:
         if index.list_pq_static_corrections_interleaved is None:
-            if index.persisted_list_pq_static_corrections_interleaved is not None:
-                index.list_pq_static_corrections_interleaved = (
-                    index.persisted_list_pq_static_corrections_interleaved.to(
-                        dtype=torch.float32,
-                        device=search_device,
-                        copy=False,
-                    )
-                )
-            else:
-                row_major_corrections = _get_row_major_pq_static_corrections(
-                    index,
-                    list_codes,
-                    list_prefix,
-                    list_count,
-                    search_device,
-                )
-                index.list_pq_static_corrections_interleaved = build_interleaved_pq_scalar_cache(
-                    row_major_corrections,
-                    list_prefix,
-                    list_count,
-                )
+            raise ValueError("Resident Triton IVF-PQ correction cache is missing")
         return index.list_pq_static_corrections_interleaved
-
-    if index.persisted_list_pq_static_corrections_interleaved is not None:
-        return index.persisted_list_pq_static_corrections_interleaved.to(
-            dtype=torch.float32,
-            device=search_device,
-            copy=False,
+    if index.persisted_list_pq_static_corrections_interleaved is None:
+        raise ValueError(
+            "Triton IVF-PQ correction cache is not loaded. Rebuild the index."
         )
-    row_major_corrections = _get_row_major_pq_static_corrections(
-        index,
-        list_codes,
-        list_prefix,
-        list_count,
-        search_device,
-    )
-    return build_interleaved_pq_scalar_cache(
-        row_major_corrections,
-        list_prefix,
-        list_count,
+    return index.persisted_list_pq_static_corrections_interleaved.to(
+        dtype=torch.float32,
+        device=search_device,
+        copy=False,
     )
 
 
-def _get_interleaved_pq_code_chunks(
-    index: IVFPQIndex,
-    list_codes: torch.Tensor,
-    list_prefix: torch.Tensor,
-    list_count: torch.Tensor,
-    search_device: torch.device,
-    interleaved_codes: torch.Tensor | None = None,
+def _pack_interleaved_pq_code_chunks(
+    interleaved_codes: torch.Tensor,
 ) -> torch.Tensor | None:
-    """Return the transient cuVS-style 16-byte PQ chunk cache for M>16.
-
-    When the subspace-major resident cache is already available, pack it with
-    one contiguous reshape/copy. Rebuilding physical positions with a
-    row-major ``searchsorted`` plus one scatter per chunk made the first
-    List-Major search pay an avoidable preload cost.
-    """
-    if int(list_codes.shape[1]) <= 16 or list_codes.dtype != torch.uint8:
+    """Convert subspace-major codes to the packed 16-byte scanner layout."""
+    m = int(interleaved_codes.shape[0])
+    if m <= 16 or interleaved_codes.dtype != torch.uint8:
         return None
-    if index.resident_device == search_device:
-        cache = index.list_codes_interleaved_packed_16b
-        if cache is None or cache.device != search_device:
-            if interleaved_codes is None:
-                cache = build_interleaved_pq_code_chunks(list_codes, list_prefix, list_count)
-            else:
-                num_groups = interleaved_codes.shape[1] // INTERLEAVED_GROUP_SIZE
-                num_chunks = (int(list_codes.shape[1]) + 15) // 16
-                padded_m = num_chunks * 16
-                codes = interleaved_codes.reshape(
-                    int(list_codes.shape[1]),
-                    num_groups,
-                    INTERLEAVED_GROUP_SIZE,
-                ).permute(1, 2, 0)
-                if padded_m != int(list_codes.shape[1]):
-                    padded_codes = torch.zeros(
-                        (num_groups, INTERLEAVED_GROUP_SIZE, padded_m),
-                        dtype=interleaved_codes.dtype,
-                        device=interleaved_codes.device,
-                    )
-                    padded_codes[..., : int(list_codes.shape[1])] = codes
-                    codes = padded_codes
-                cache = (
-                    codes.reshape(
-                        num_groups,
-                        INTERLEAVED_GROUP_SIZE,
-                        num_chunks,
-                        16,
-                    )
-                    .permute(0, 2, 1, 3)
-                    .contiguous()
-                    .view(torch.uint64)
-                )
-            index.list_codes_interleaved_packed_16b = cache
-        return cache
-    if interleaved_codes is None:
-        return build_interleaved_pq_code_chunks(list_codes, list_prefix, list_count)
+
     num_groups = interleaved_codes.shape[1] // INTERLEAVED_GROUP_SIZE
-    num_chunks = (int(list_codes.shape[1]) + 15) // 16
+    num_chunks = (m + 15) // 16
     padded_m = num_chunks * 16
     codes = interleaved_codes.reshape(
-        int(list_codes.shape[1]),
+        m,
         num_groups,
         INTERLEAVED_GROUP_SIZE,
     ).permute(1, 2, 0)
-    if padded_m != int(list_codes.shape[1]):
+    if padded_m != m:
         padded_codes = torch.zeros(
             (num_groups, INTERLEAVED_GROUP_SIZE, padded_m),
             dtype=interleaved_codes.dtype,
             device=interleaved_codes.device,
         )
-        padded_codes[..., : int(list_codes.shape[1])] = codes
+        padded_codes[..., :m] = codes
         codes = padded_codes
     return (
         codes.reshape(num_groups, INTERLEAVED_GROUP_SIZE, num_chunks, 16)
@@ -571,53 +256,22 @@ def _get_interleaved_pq_code_chunks(
     )
 
 
-def _build_query_luts_bmm(
-    residual_q: torch.Tensor,
-    pq_codebooks: torch.Tensor,
-    pq_codebook_norms: torch.Tensor,
-    *,
-    num_queries: int,
-    nprobe: int,
-    m: int,
-    subdim: int,
-    use_tf32: bool = False,
-) -> torch.Tensor:
-    """Build residual-PQ lookup tables via batched GEMM instead of broadcast subtraction.
-
-    ``use_tf32`` keeps FP32 LUT storage and FP32 ADC accumulation, while
-    allowing CUDA Tensor Cores to accelerate the FP32 BMM inputs. The CUDA
-    matmul setting is restored immediately after the launch so this search
-    choice does not leak into unrelated caller operations.
-    """
-    q_sub_by_m = (
-        residual_q.view(num_queries, nprobe, m, subdim)
-        .permute(2, 0, 1, 3)
-        .reshape(m, num_queries * nprobe, subdim)
-        .contiguous()
-    )
-    query_norms = (q_sub_by_m * q_sub_by_m).sum(dim=-1, keepdim=True)
-    query_luts = query_norms + pq_codebook_norms.unsqueeze(1)
-    if not use_tf32 or not residual_q.is_cuda:
-        return torch.baddbmm(
-            query_luts,
-            q_sub_by_m,
-            pq_codebooks.transpose(1, 2),
-            beta=1.0,
-            alpha=-2.0,
-        ).clamp_min_(0.0)
-
-    previous_allow_tf32 = torch.backends.cuda.matmul.allow_tf32
-    try:
-        torch.backends.cuda.matmul.allow_tf32 = True
-        return torch.baddbmm(
-            query_luts,
-            q_sub_by_m,
-            pq_codebooks.transpose(1, 2),
-            beta=1.0,
-            alpha=-2.0,
-        ).clamp_min_(0.0)
-    finally:
-        torch.backends.cuda.matmul.allow_tf32 = previous_allow_tf32
+def _get_interleaved_pq_code_chunks(
+    index: IVFPQIndex,
+    interleaved_codes: torch.Tensor | None,
+    search_device: torch.device,
+) -> torch.Tensor | None:
+    """Return the cuVS-style 16-byte PQ layout used by the packed scanner."""
+    if index.resident_device == search_device:
+        cache = index.list_codes_interleaved_packed_16b
+        if cache is not None and cache.device == search_device:
+            return cache
+    if interleaved_codes is None:
+        raise ValueError("Packed IVF-PQ search is missing both resident code layouts")
+    cache = _pack_interleaved_pq_code_chunks(interleaved_codes)
+    if index.resident_device == search_device:
+        index.list_codes_interleaved_packed_16b = cache
+    return cache
 
 
 def _build_pq_static_corrections(
@@ -706,13 +360,11 @@ def _build_global_query_luts_bmm(
     m: int,
     subdim: int,
     use_tf32: bool,
-    layout: str = "query_major",
 ) -> torch.Tensor:
     """Build ``||p_mk||^2 - 2 q_m^T p_mk`` as a global LUT.
 
-    The returned Global LUT always uses ``[m, q, k]`` storage.  List-Major
-    temporarily reorders the current Query tile inside its kernel into a
-    ``[k, query_tile]`` Vector LUT.
+    The returned Global LUT uses ``[m, q, k]`` storage for the Triton TopK
+    scanner.
 
     The omitted ``||q||^2`` is intentionally carried by neither this table
     nor the probe bias.  For a candidate in list ``l`` the direct scanner
@@ -723,9 +375,6 @@ def _build_global_query_luts_bmm(
     Individual entries of this table may be negative, so unlike a squared-L2
     LUT it must not be clamped before ADC accumulation.
     """
-    layout = str(layout).lower()
-    if layout not in {"query_major", "list_major"}:
-        raise ValueError(f"Unsupported global LUT layout: {layout}")
     num_queries = queries.shape[0]
     q_sub_by_m = (
         queries.view(num_queries, m, subdim)
@@ -738,26 +387,28 @@ def _build_global_query_luts_bmm(
     # baddbmm broadcasts the static codeword-norm table across the Query
     # dimension, without materializing a separate query-norm tensor.
     if not use_tf32 or not queries.is_cuda:
-        return torch.baddbmm(
+        values = torch.baddbmm(
             norm_base,
             q_sub_by_m,
             codebooks,
             beta=1.0,
             alpha=-2.0,
         )
+    else:
+        previous_allow_tf32 = torch.backends.cuda.matmul.allow_tf32
+        try:
+            torch.backends.cuda.matmul.allow_tf32 = True
+            values = torch.baddbmm(
+                norm_base,
+                q_sub_by_m,
+                codebooks,
+                beta=1.0,
+                alpha=-2.0,
+            )
+        finally:
+            torch.backends.cuda.matmul.allow_tf32 = previous_allow_tf32
 
-    previous_allow_tf32 = torch.backends.cuda.matmul.allow_tf32
-    try:
-        torch.backends.cuda.matmul.allow_tf32 = True
-        return torch.baddbmm(
-            norm_base,
-            q_sub_by_m,
-            codebooks,
-            beta=1.0,
-            alpha=-2.0,
-        )
-    finally:
-        torch.backends.cuda.matmul.allow_tf32 = previous_allow_tf32
+    return values
 
 
 def _coarse_squared_l2_distance_addmm(
@@ -800,6 +451,19 @@ def _coarse_squared_l2_distance_addmm(
 
 
 @dataclass
+class _IVFPQSearchWorkspace:
+    """Reusable fixed-shape buffers and an optional captured CUDA graph."""
+
+    static_queries: torch.Tensor
+    result_distances: torch.Tensor
+    result_ids: torch.Tensor
+    triton_partial_keys: torch.Tensor | None = None
+    graph: Any = None
+    graph_outputs: tuple[torch.Tensor, torch.Tensor] | None = None
+    capture_stream: Any = None
+
+
+@dataclass
 class IVFPQIndex:
     """In-memory representation of IVF-PQ index."""
 
@@ -812,32 +476,24 @@ class IVFPQIndex:
     pq_codebooks: torch.Tensor
     pq_codebook_norms: torch.Tensor
     ids: torch.Tensor
-    list_codes: torch.Tensor | None
-    list_ids_flat: torch.Tensor | None
-    list_prefix: torch.Tensor | None
     list_count: torch.Tensor | None
     # cuVS-style tall orthogonal transform and coarse centers in its PQ
     # working space. They are populated only when ``dim % m != 0``.
     pq_rotation_matrix: torch.Tensor | None = None
     pq_centroids: torch.Tensor | None = None
-    # Device-resident padded 32-vector code cache for the CUDA direct scanner.
-    # Each subspace stream is contiguous across a warp group.
+    # Unpacked device cache for M<=16 and explicit compatibility fallback.
+    # Wide uint8 PQ indices use only the packed 16-byte cache on CUDA.
     list_codes_interleaved_by_subspace: torch.Tensor | None = None
-    # Transient [group, 16-byte-chunk, lane, two uint64 words] packed PQ cache.
+    # [group, 16-byte-chunk, lane, two uint64 words] packed PQ cache.
     list_codes_interleaved_packed_16b: torch.Tensor | None = None
     list_ids_interleaved: torch.Tensor | None = None
     list_group_prefix: torch.Tensor | None = None
-    # Row-major gamma aligns with ``list_codes`` and is used by tensor_topk.
-    list_pq_static_corrections: torch.Tensor | None = None
     # One FP32 scalar per padded physical vector: sum_m R[list, m, code_m].
-    # It lets the query-major Triton path avoid a per-subspace R-table gather.
     list_pq_static_corrections_interleaved: torch.Tensor | None = None
-    # CPU copy loaded from a dual-layout index. ``reside_on_device`` keeps a
-    # matching interleaved copy beside the row-major Tensor layout.
+    # CPU copies of the sole persisted Triton layout.
     persisted_list_codes_interleaved_by_subspace: torch.Tensor | None = None
     persisted_list_ids_interleaved: torch.Tensor | None = None
     persisted_list_group_prefix: torch.Tensor | None = None
-    persisted_list_pq_static_corrections: torch.Tensor | None = None
     persisted_list_pq_static_corrections_interleaved: torch.Tensor | None = None
     # Reused by the one-CTA-per-(query, probe-group) Triton route.
     triton_partial_keys: torch.Tensor | None = None
@@ -845,13 +501,36 @@ class IVFPQIndex:
     # without synchronizing a GPU-resident ``list_count`` on every search.
     triton_list_count_stats: tuple[int, int, int] | None = None
     resident_device: torch.device | None = None
+    # A single fixed-shape workspace is enough for the benchmark's
+    # warmup-then-measure access pattern and bounds CUDA Graph pool growth as
+    # nprobe changes.
+    search_workspace_key: tuple[object, ...] | None = field(default=None, repr=False)
+    search_workspace: _IVFPQSearchWorkspace | None = field(default=None, repr=False)
 
     def reside_on_device(self, device: torch.device | str) -> IVFPQIndex:
         """Move search-critical tensors onto a target device and keep them resident."""
-        if self.list_codes is None or self.list_ids_flat is None or self.list_prefix is None or self.list_count is None:
+        if self.list_count is None:
             raise ValueError("Index PQ lists are not loaded. Call load_ivfpq_index(..., load_lists=True).")
+        if (
+            self.persisted_list_codes_interleaved_by_subspace is None
+            or self.persisted_list_ids_interleaved is None
+            or self.persisted_list_group_prefix is None
+            or self.persisted_list_pq_static_corrections_interleaved is None
+        ):
+            raise ValueError("Triton IVF-PQ layout is incomplete. Rebuild the index.")
 
         target_device = torch.device(device)
+        if (
+            self.resident_device == target_device
+            and self.list_ids_interleaved is not None
+            and self.list_group_prefix is not None
+            and self.list_pq_static_corrections_interleaved is not None
+            and (
+                self.list_codes_interleaved_by_subspace is not None
+                or self.list_codes_interleaved_packed_16b is not None
+            )
+        ):
+            return self
         self.centroids = self.centroids.to(dtype=torch.float32, device=target_device, copy=False)
         self.centroid_norms = self.centroid_norms.to(
             dtype=torch.float32,
@@ -876,107 +555,81 @@ class IVFPQIndex:
                 device=target_device,
                 copy=False,
             )
-        self.list_codes = self.list_codes.to(device=target_device, copy=False)
-        self.list_ids_flat = self.list_ids_flat.to(dtype=torch.int64, device=target_device, copy=False)
-        self.list_prefix = self.list_prefix.to(dtype=torch.int64, device=target_device, copy=False)
         self.list_count = self.list_count.to(dtype=torch.int64, device=target_device, copy=False)
-        if self.persisted_list_pq_static_corrections is not None:
-            self.list_pq_static_corrections = self.persisted_list_pq_static_corrections.to(
+        persisted_codes = self.persisted_list_codes_interleaved_by_subspace
+        # The M>16 Triton hot path consumes only the 16-byte packed layout.
+        # Pack on the CPU before upload so the GPU never owns both complete
+        # code layouts at once. Keep the original layout for M<=16 and for
+        # non-CUDA residency, where the unpacked scanner is still used.
+        if (
+            target_device.type == "cuda"
+            and int(persisted_codes.shape[0]) > 16
+            and persisted_codes.dtype == torch.uint8
+        ):
+            packed_codes = _pack_interleaved_pq_code_chunks(persisted_codes)
+            assert packed_codes is not None
+            self.list_codes_interleaved_packed_16b = packed_codes.to(
+                device=target_device,
+                copy=False,
+            )
+            self.list_codes_interleaved_by_subspace = None
+        else:
+            self.list_codes_interleaved_by_subspace = persisted_codes.to(
+                device=target_device,
+                copy=False,
+            )
+            self.list_codes_interleaved_packed_16b = None
+        self.list_ids_interleaved = self.persisted_list_ids_interleaved.to(
+            dtype=torch.int64,
+            device=target_device,
+            copy=False,
+        )
+        self.list_group_prefix = self.persisted_list_group_prefix.to(
+            dtype=torch.int64,
+            device=target_device,
+            copy=False,
+        )
+        self.list_pq_static_corrections_interleaved = (
+            self.persisted_list_pq_static_corrections_interleaved.to(
                 dtype=torch.float32,
                 device=target_device,
                 copy=False,
             )
-        else:
-            self.list_pq_static_corrections = _build_pq_static_corrections(
-                self.list_codes,
-                self.list_prefix,
-                self.list_count,
-                self.pq_centroids if self.pq_centroids is not None else self.centroids,
-                self.pq_codebooks,
-            )
-        if (
-            self.persisted_list_codes_interleaved_by_subspace is not None
-            and self.persisted_list_ids_interleaved is not None
-            and self.persisted_list_group_prefix is not None
-        ):
-            self.list_codes_interleaved_by_subspace = (
-                self.persisted_list_codes_interleaved_by_subspace.to(
-                    device=target_device,
-                    copy=False,
-                )
-            )
-            self.list_ids_interleaved = self.persisted_list_ids_interleaved.to(
-                dtype=torch.int64,
-                device=target_device,
-                copy=False,
-            )
-            self.list_group_prefix = self.persisted_list_group_prefix.to(
-                dtype=torch.int64,
-                device=target_device,
-                copy=False,
-            )
-            if self.persisted_list_pq_static_corrections_interleaved is not None:
-                self.list_pq_static_corrections_interleaved = (
-                    self.persisted_list_pq_static_corrections_interleaved.to(
-                        dtype=torch.float32,
-                        device=target_device,
-                        copy=False,
-                    )
-                )
-        else:
-            # Legacy indexes do not have the persisted interleaved files, so
-            # materialize an equivalent device-resident cache from row-major
-            # lists during residency setup.
-            layout = build_interleaved_pq_lists(
-                self.list_codes,
-                self.list_ids_flat,
-                self.list_prefix,
-                self.list_count,
-            )
-            self.list_codes_interleaved_by_subspace = layout.codes_by_subspace
-            self.list_ids_interleaved = layout.ids
-            self.list_group_prefix = layout.group_prefix
-        if self.list_pq_static_corrections_interleaved is None:
-            assert self.list_pq_static_corrections is not None
-            self.list_pq_static_corrections_interleaved = build_interleaved_pq_scalar_cache(
-                self.list_pq_static_corrections,
-                self.list_prefix,
-                self.list_count,
-            )
+        )
         self.triton_partial_keys = None
+        self.search_workspace_key = None
+        self.search_workspace = None
         self.resident_device = target_device
         return self
 
     def release_device_residency(self) -> IVFPQIndex:
         """Move resident search tensors back to CPU."""
-        if self.list_codes is not None:
-            self.centroids = self.centroids.to(dtype=torch.float32, device="cpu", copy=False)
-            self.centroid_norms = self.centroid_norms.to(dtype=torch.float32, device="cpu", copy=False)
-            self.pq_codebooks = self.pq_codebooks.to(dtype=torch.float32, device="cpu", copy=False)
-            self.pq_codebook_norms = self.pq_codebook_norms.to(dtype=torch.float32, device="cpu", copy=False)
-            if self.pq_rotation_matrix is not None:
-                self.pq_rotation_matrix = self.pq_rotation_matrix.to(
-                    dtype=torch.float32,
-                    device="cpu",
-                    copy=False,
-                )
-            if self.pq_centroids is not None:
-                self.pq_centroids = self.pq_centroids.to(
-                    dtype=torch.float32,
-                    device="cpu",
-                    copy=False,
-                )
-            self.list_codes = self.list_codes.to(device="cpu", copy=False)
-            self.list_ids_flat = self.list_ids_flat.to(dtype=torch.int64, device="cpu", copy=False)
-            self.list_prefix = self.list_prefix.to(dtype=torch.int64, device="cpu", copy=False)
+        self.centroids = self.centroids.to(dtype=torch.float32, device="cpu", copy=False)
+        self.centroid_norms = self.centroid_norms.to(dtype=torch.float32, device="cpu", copy=False)
+        self.pq_codebooks = self.pq_codebooks.to(dtype=torch.float32, device="cpu", copy=False)
+        self.pq_codebook_norms = self.pq_codebook_norms.to(dtype=torch.float32, device="cpu", copy=False)
+        if self.pq_rotation_matrix is not None:
+            self.pq_rotation_matrix = self.pq_rotation_matrix.to(
+                dtype=torch.float32,
+                device="cpu",
+                copy=False,
+            )
+        if self.pq_centroids is not None:
+            self.pq_centroids = self.pq_centroids.to(
+                dtype=torch.float32,
+                device="cpu",
+                copy=False,
+            )
+        if self.list_count is not None:
             self.list_count = self.list_count.to(dtype=torch.int64, device="cpu", copy=False)
         self.list_codes_interleaved_by_subspace = None
         self.list_codes_interleaved_packed_16b = None
         self.list_ids_interleaved = None
         self.list_group_prefix = None
-        self.list_pq_static_corrections = None
         self.list_pq_static_corrections_interleaved = None
         self.triton_partial_keys = None
+        self.search_workspace_key = None
+        self.search_workspace = None
         self.resident_device = None
         return self
 
@@ -1001,6 +654,24 @@ class IVFPQBuildResult:
     coarse_seed: int | None = None
     pq_inertias: list[float] = field(default_factory=list)
     pq_seeds: list[int] = field(default_factory=list)
+    # Keep IVF/coarse and PQ training controls independent.  ``n_init`` above
+    # remains as a legacy compatibility field for callers that used the old
+    # shared setting.
+    coarse_niter: int = FAISS_DEFAULT_NITER
+    pq_niter: int = FAISS_DEFAULT_NITER
+    coarse_n_init: int = FAISS_DEFAULT_NREDO
+    pq_n_init: int = FAISS_DEFAULT_NREDO
+    coarse_max_points_per_centroid: int | None = FAISS_DEFAULT_MAX_POINTS_PER_CENTROID
+    coarse_trainset_fraction: float | None = None
+    pq_max_points_per_centroid: int | None = FAISS_DEFAULT_MAX_POINTS_PER_CENTROID
+    coarse_init_method: str = "kmeans++"
+    coarse_kmeans_method: str = "balanced"
+    pq_init_method: str = "kmeans++"
+    pq_kmeans_method: str = "balanced"
+    # Diagnostic fields retained in metadata to make the PQ sampling policy
+    # explicit. The default benchmark keeps PQ sampling independent.
+    pq_training_rows: int | None = None
+    pq_reuses_coarse_trainset: bool = False
 
 
 def _encode_vectors_with_pq(
@@ -1030,7 +701,7 @@ def save_ivfpq_index(
     dataset_path: str | Path | None = None,
     build_time_seconds: float | None = None,
 ) -> Path:
-    """Persist row-major Tensor and interleaved Triton IVF-PQ list layouts."""
+    """Persist the interleaved IVF-PQ layout consumed by Triton TopK."""
     output_path = Path(output_dir)
 
     vectors_cpu = build_result.vectors.cpu()
@@ -1077,17 +748,12 @@ def save_ivfpq_index(
         list_prefix,
         list_count,
     )
-    row_major_static_corrections = _build_pq_static_corrections(
+    interleaved_static_corrections = _build_interleaved_pq_static_corrections(
         list_codes,
         list_prefix,
         list_count,
         pq_centroids_cpu,
         pq_codebooks_cpu,
-    )
-    interleaved_static_corrections = build_interleaved_pq_scalar_cache(
-        row_major_static_corrections,
-        list_prefix,
-        list_count,
     )
 
     cluster_sizes = {
@@ -1111,7 +777,21 @@ def save_ivfpq_index(
         "pq_rotation": "random_orthogonal" if pq_rotation_matrix_cpu is not None else "identity",
         "device": str(build_result.device),
         "seed": int(build_result.seed),
+        # ``n_init`` is kept for compatibility with older index readers.
         "n_init": int(build_result.n_init),
+        "coarse_niter": int(build_result.coarse_niter),
+        "pq_niter": int(build_result.pq_niter),
+        "coarse_n_init": int(build_result.coarse_n_init),
+        "pq_n_init": int(build_result.pq_n_init),
+        "coarse_max_points_per_centroid": build_result.coarse_max_points_per_centroid,
+        "coarse_trainset_fraction": build_result.coarse_trainset_fraction,
+        "pq_max_points_per_centroid": build_result.pq_max_points_per_centroid,
+        "coarse_init_method": str(build_result.coarse_init_method),
+        "coarse_kmeans_method": str(build_result.coarse_kmeans_method),
+        "pq_init_method": str(build_result.pq_init_method),
+        "pq_kmeans_method": str(build_result.pq_kmeans_method),
+        "pq_training_rows": build_result.pq_training_rows,
+        "pq_reuses_coarse_trainset": bool(build_result.pq_reuses_coarse_trainset),
         "coarse_inertia": build_result.coarse_inertia,
         "coarse_seed": build_result.coarse_seed,
         "pq_inertias": build_result.pq_inertias,
@@ -1120,7 +800,7 @@ def save_ivfpq_index(
         "has_pq_static_vector_corrections": True,
         "stores_full_vectors": False,
         "cluster_sizes": cluster_sizes,
-        "storage_format": "single_file" if is_single_file else "directory_flat",
+        "storage_format": "single_file" if is_single_file else "directory_interleaved",
         "interleaved_layout": {
             "available": True,
             "group_size": INTERLEAVED_GROUP_SIZE,
@@ -1141,11 +821,7 @@ def save_ivfpq_index(
             "pq_codebook_norms": pq_codebook_norms_cpu,
             "pq_codes": pq_codes_cpu,
             "ids": ids,
-            "list_codes": list_codes,
-            "list_ids_flat": list_ids_flat,
-            "list_prefix": list_prefix,
             "list_count": list_count,
-            "list_pq_static_corrections": row_major_static_corrections,
             "list_codes_interleaved_by_subspace": interleaved_layout.codes_by_subspace,
             "list_ids_interleaved": interleaved_layout.ids,
             "list_group_prefix": interleaved_layout.group_prefix,
@@ -1164,12 +840,17 @@ def save_ivfpq_index(
 
     out_dir = output_path
     out_dir.mkdir(parents=True, exist_ok=True)
-    # A previous index version persisted R[nlist,m,ksub]. The sole remaining
-    # scheme stores only per-vector gamma, so reclaim this known obsolete file
-    # when overwriting an existing directory index.
-    obsolete_correction_path = out_dir / "pq_centroid_corrections.pt"
-    if obsolete_correction_path.is_file():
-        obsolete_correction_path.unlink()
+    # Remove files from the former row-major/Tensor layout when overwriting an
+    # existing directory index. Triton TopK now has one physical list layout.
+    for obsolete_path in (
+        out_dir / "list_codes.pt",
+        out_dir / "list_ids_flat.pt",
+        out_dir / "list_prefix.pt",
+        out_dir / "list_pq_static_corrections.pt",
+        out_dir / "pq_centroid_corrections.pt",
+    ):
+        if obsolete_path.is_file():
+            obsolete_path.unlink()
     torch.save(labels_cpu, out_dir / "assignments.pt")
     torch.save(centroids_cpu, out_dir / "centroids.pt")
     torch.save(centroid_norms_cpu, out_dir / "centroid_norms.pt")
@@ -1184,11 +865,7 @@ def save_ivfpq_index(
                 stale_path.unlink()
     torch.save(pq_codes_cpu, out_dir / "pq_codes.pt")
     torch.save(ids, out_dir / "ids.pt")
-    torch.save(list_codes, out_dir / "list_codes.pt")
-    torch.save(list_ids_flat, out_dir / "list_ids_flat.pt")
-    torch.save(list_prefix, out_dir / "list_prefix.pt")
     torch.save(list_count, out_dir / "list_count.pt")
-    torch.save(row_major_static_corrections, out_dir / "list_pq_static_corrections.pt")
     torch.save(
         interleaved_layout.codes_by_subspace,
         out_dir / "list_codes_interleaved_by_subspace.pt",
@@ -1241,61 +918,33 @@ def load_ivfpq_index(index_dir: str | Path, load_lists: bool = True) -> IVFPQInd
         )
         ids = payload["ids"]
         if load_lists:
-            list_codes = payload["list_codes"]
-            list_ids_flat = payload["list_ids_flat"].to(torch.int64)
-            list_prefix = payload["list_prefix"].to(torch.int64)
+            required_payload_keys = (
+                "list_count",
+                "list_codes_interleaved_by_subspace",
+                "list_ids_interleaved",
+                "list_group_prefix",
+                "list_pq_static_corrections_interleaved",
+            )
+            missing_payload_keys = [key for key in required_payload_keys if key not in payload]
+            if missing_payload_keys:
+                raise FileNotFoundError(
+                    "Triton IVF-PQ interleaved layout is missing from this archive; "
+                    f"rebuild the index. Missing keys: {missing_payload_keys}"
+                )
             list_count = payload["list_count"].to(torch.int64)
-            persisted_list_pq_static_corrections = payload.get("list_pq_static_corrections")
-            if persisted_list_pq_static_corrections is None:
-                persisted_list_pq_static_corrections = _build_pq_static_corrections(
-                    list_codes,
-                    list_prefix,
-                    list_count,
-                    pq_centroids if pq_centroids is not None else centroids,
-                    pq_codebooks,
-                )
-            else:
-                persisted_list_pq_static_corrections = persisted_list_pq_static_corrections.to(
-                    torch.float32
-                )
-            persisted_list_codes_interleaved_by_subspace = payload.get(
+            persisted_list_codes_interleaved_by_subspace = payload[
                 "list_codes_interleaved_by_subspace"
-            )
-            persisted_list_ids_interleaved = payload.get("list_ids_interleaved")
-            persisted_list_group_prefix = payload.get("list_group_prefix")
-            persisted_list_pq_static_corrections_interleaved = payload.get(
+            ]
+            persisted_list_ids_interleaved = payload["list_ids_interleaved"].to(torch.int64)
+            persisted_list_group_prefix = payload["list_group_prefix"].to(torch.int64)
+            persisted_list_pq_static_corrections_interleaved = payload[
                 "list_pq_static_corrections_interleaved"
-            )
-            if persisted_list_pq_static_corrections_interleaved is None:
-                persisted_list_pq_static_corrections_interleaved = build_interleaved_pq_scalar_cache(
-                    persisted_list_pq_static_corrections,
-                    list_prefix,
-                    list_count,
-                )
-            else:
-                persisted_list_pq_static_corrections_interleaved = (
-                    persisted_list_pq_static_corrections_interleaved.to(torch.float32)
-                )
-            if (
-                persisted_list_codes_interleaved_by_subspace is not None
-                and persisted_list_ids_interleaved is not None
-                and persisted_list_group_prefix is not None
-            ):
-                persisted_list_ids_interleaved = persisted_list_ids_interleaved.to(torch.int64)
-                persisted_list_group_prefix = persisted_list_group_prefix.to(torch.int64)
-            else:
-                persisted_list_codes_interleaved_by_subspace = None
-                persisted_list_ids_interleaved = None
-                persisted_list_group_prefix = None
+            ].to(torch.float32)
         else:
-            list_codes = None
-            list_ids_flat = None
-            list_prefix = None
             list_count = None
             persisted_list_codes_interleaved_by_subspace = None
             persisted_list_ids_interleaved = None
             persisted_list_group_prefix = None
-            persisted_list_pq_static_corrections = None
             persisted_list_pq_static_corrections_interleaved = None
 
         return IVFPQIndex(
@@ -1308,13 +957,9 @@ def load_ivfpq_index(index_dir: str | Path, load_lists: bool = True) -> IVFPQInd
             pq_codebooks=pq_codebooks,
             pq_codebook_norms=pq_codebook_norms,
             ids=ids,
-            list_codes=list_codes,
-            list_ids_flat=list_ids_flat,
-            list_prefix=list_prefix,
             list_count=list_count,
             pq_rotation_matrix=pq_rotation_matrix,
             pq_centroids=pq_centroids,
-            persisted_list_pq_static_corrections=persisted_list_pq_static_corrections,
             persisted_list_codes_interleaved_by_subspace=persisted_list_codes_interleaved_by_subspace,
             persisted_list_ids_interleaved=persisted_list_ids_interleaved,
             persisted_list_group_prefix=persisted_list_group_prefix,
@@ -1332,11 +977,7 @@ def load_ivfpq_index(index_dir: str | Path, load_lists: bool = True) -> IVFPQInd
     pq_rotation_matrix_path = index_path / "pq_rotation_matrix.pt"
     pq_centroids_path = index_path / "pq_centroids.pt"
     ids_path = index_path / "ids.pt"
-    list_codes_path = index_path / "list_codes.pt"
-    list_ids_flat_path = index_path / "list_ids_flat.pt"
-    list_prefix_path = index_path / "list_prefix.pt"
     list_count_path = index_path / "list_count.pt"
-    list_pq_static_corrections_path = index_path / "list_pq_static_corrections.pt"
     list_codes_interleaved_by_subspace_path = index_path / "list_codes_interleaved_by_subspace.pt"
     list_ids_interleaved_path = index_path / "list_ids_interleaved.pt"
     list_group_prefix_path = index_path / "list_group_prefix.pt"
@@ -1390,73 +1031,40 @@ def load_ivfpq_index(index_dir: str | Path, load_lists: bool = True) -> IVFPQInd
 
     if load_lists:
         list_files = [
-            list_codes_path,
-            list_ids_flat_path,
-            list_prefix_path,
             list_count_path,
-        ]
-        missing_list_files = [str(path) for path in list_files if not path.exists()]
-        if missing_list_files:
-            raise FileNotFoundError(f"Missing IVF-PQ list files: {missing_list_files}")
-        list_codes = torch.load(list_codes_path, map_location="cpu")
-        list_ids_flat = torch.load(list_ids_flat_path, map_location="cpu").to(torch.int64)
-        list_prefix = torch.load(list_prefix_path, map_location="cpu").to(torch.int64)
-        list_count = torch.load(list_count_path, map_location="cpu").to(torch.int64)
-        if list_pq_static_corrections_path.exists():
-            persisted_list_pq_static_corrections = torch.load(
-                list_pq_static_corrections_path,
-                map_location="cpu",
-            ).to(torch.float32)
-        else:
-            persisted_list_pq_static_corrections = _build_pq_static_corrections(
-                list_codes,
-                list_prefix,
-                list_count,
-                pq_centroids if pq_centroids is not None else centroids,
-                pq_codebooks,
-            )
-        interleaved_layout_paths = [
             list_codes_interleaved_by_subspace_path,
             list_ids_interleaved_path,
             list_group_prefix_path,
+            list_pq_static_corrections_interleaved_path,
         ]
-        if all(path.exists() for path in interleaved_layout_paths):
-            persisted_list_codes_interleaved_by_subspace = torch.load(
-                list_codes_interleaved_by_subspace_path,
-                map_location="cpu",
+        missing_list_files = [str(path) for path in list_files if not path.exists()]
+        if missing_list_files:
+            raise FileNotFoundError(
+                "Triton IVF-PQ interleaved layout is incomplete; rebuild the index. "
+                f"Missing files: {missing_list_files}"
             )
-            persisted_list_ids_interleaved = torch.load(
-                list_ids_interleaved_path,
-                map_location="cpu",
-            ).to(torch.int64)
-            persisted_list_group_prefix = torch.load(
-                list_group_prefix_path,
-                map_location="cpu",
-            ).to(torch.int64)
-        else:
-            persisted_list_codes_interleaved_by_subspace = None
-            persisted_list_ids_interleaved = None
-            persisted_list_group_prefix = None
-        if list_pq_static_corrections_interleaved_path.exists():
-            persisted_list_pq_static_corrections_interleaved = torch.load(
-                list_pq_static_corrections_interleaved_path,
-                map_location="cpu",
-            ).to(torch.float32)
-        else:
-            persisted_list_pq_static_corrections_interleaved = build_interleaved_pq_scalar_cache(
-                persisted_list_pq_static_corrections,
-                list_prefix,
-                list_count,
-            )
+        list_count = torch.load(list_count_path, map_location="cpu").to(torch.int64)
+        persisted_list_codes_interleaved_by_subspace = torch.load(
+            list_codes_interleaved_by_subspace_path,
+            map_location="cpu",
+        )
+        persisted_list_ids_interleaved = torch.load(
+            list_ids_interleaved_path,
+            map_location="cpu",
+        ).to(torch.int64)
+        persisted_list_group_prefix = torch.load(
+            list_group_prefix_path,
+            map_location="cpu",
+        ).to(torch.int64)
+        persisted_list_pq_static_corrections_interleaved = torch.load(
+            list_pq_static_corrections_interleaved_path,
+            map_location="cpu",
+        ).to(torch.float32)
     else:
-        list_codes = None
-        list_ids_flat = None
-        list_prefix = None
         list_count = None
         persisted_list_codes_interleaved_by_subspace = None
         persisted_list_ids_interleaved = None
         persisted_list_group_prefix = None
-        persisted_list_pq_static_corrections = None
         persisted_list_pq_static_corrections_interleaved = None
 
     return IVFPQIndex(
@@ -1469,13 +1077,9 @@ def load_ivfpq_index(index_dir: str | Path, load_lists: bool = True) -> IVFPQInd
         pq_codebooks=pq_codebooks,
         pq_codebook_norms=pq_codebook_norms,
         ids=ids,
-        list_codes=list_codes,
-        list_ids_flat=list_ids_flat,
-        list_prefix=list_prefix,
         list_count=list_count,
         pq_rotation_matrix=pq_rotation_matrix,
         pq_centroids=pq_centroids,
-        persisted_list_pq_static_corrections=persisted_list_pq_static_corrections,
         persisted_list_codes_interleaved_by_subspace=persisted_list_codes_interleaved_by_subspace,
         persisted_list_ids_interleaved=persisted_list_ids_interleaved,
         persisted_list_group_prefix=persisted_list_group_prefix,
@@ -1485,40 +1089,31 @@ def load_ivfpq_index(index_dir: str | Path, load_lists: bool = True) -> IVFPQInd
     )
 
 
-def search_ivfpq_index(
+def _search_ivfpq_index_eager(
     index: IVFPQIndex,
     queries: torch.Tensor,
     topk: int = 10,
     nprobe: int = 10,
     device: torch.device | str | None = None,
-    selection_mode: str = "tensor_topk",
+    selection_mode: str = "triton_topk",
     profile: dict[str, float] | None = None,
     use_packed_16b_codes: bool = True,
     triton_autotune: bool = False,
+    triton_autotune_cache_nprobe: int | None = None,
     refine_vectors: torch.Tensor | None = None,
     refine_factor: int = 1,
-    detailed_tensor_topk_profile: bool = False,
     lut_dtype: str = "fp32",
+    _workspace: _IVFPQSearchWorkspace | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Search IVF-PQ, optionally reranking an expanded candidate set exactly.
 
-    ``tensor_topk`` is the portable query-major Tensor-native path.
     ``triton_topk`` assigns one CTA to each ``(query, probed-list group)``
     edge, keeps an exact group-local top-k in that CTA, then runs only the
-    query-level final merge. Unsupported Triton shapes fall back to
-    ``tensor_topk``.
-    ``triton_list_major`` sorts probe edges by IVF list and scans the visiting
-    queries in a register-bounded tile when the observed Query-list reuse is
-    high. The trigger is computed from the actual per-list probe counts in
-    this query batch; for sparse Query-list overlap it automatically uses the
-    existing query-major Triton scanner instead.
-    Its construction-friendly ``[M, Q, Ksub]`` Global LUT is temporarily
-    rearranged to a ``[Ksub, QueryTile]`` Vector LUT inside each task, so a
-    candidate code and correction are shared across the visiting queries.
-    Unsupported shapes fall back to ``tensor_topk``.
+    query-level final merge. Unsupported CUDA shapes raise an error instead
+    of silently selecting another search implementation.
 
     ``use_packed_16b_codes`` selects cuVS-style 16-byte code storage.  M=17-32
-    and M=33-128 both use a rolled chunk-loop ADC
+    and M=33-1024 both use a rolled chunk-loop ADC
     whose compiled body and register lifetime do not grow linearly with M.
     Set it to ``False`` to retain the subspace-major path where supported.
 
@@ -1529,14 +1124,12 @@ def search_ivfpq_index(
     ``TENSORVS_TRITON_AUTOTUNE_CACHE`` to choose a different path or to an
     empty string to disable persistence.
 
-    Set ``detailed_tensor_topk_profile=True`` together with ``profile`` to
-    time the Tensor path's candidate map, compact code gather, global-LUT
-    reduction, top-k, ID lookup, and output writeback separately. This diagnostic path
-    splits a normally fused graph, so use its individual timings for
-    attribution rather than comparing its aggregate time to normal search
-    throughput.
+    ``triton_autotune_cache_nprobe`` optionally replaces the actual ``nprobe``
+    in the autotune cache key. This lets a benchmark tune representative
+    nprobe values and reuse their launch configuration for nearby values; it
+    does not change the actual number of probed lists.
 
-    All selection paths use decomposed query-global ``G`` in FP32 with TF32
+    The Triton path uses decomposed query-global ``G`` in FP32 with TF32
     Tensor Cores, stored as FP32 or FP16 according to ``lut_dtype``. ADC adds
     the persisted FP32 scalar correction and selected coarse-list distance;
     it does not materialize a per-probe ``R[nlist,m,ksub]`` table or true
@@ -1586,14 +1179,13 @@ def search_ivfpq_index(
             "This IVF-PQ index uses the legacy global-PQ layout. Rebuild the index with the current "
             "residual-PQ implementation before searching."
         )
-    if index.list_codes is None or index.list_ids_flat is None or index.list_prefix is None or index.list_count is None:
+    if index.list_count is None:
         raise ValueError("Index PQ lists are not loaded. Call load_ivfpq_index(..., load_lists=True).")
-    if selection_mode not in {
-        "triton_topk",
-        "triton_list_major",
-        "tensor_topk",
-    }:
-        raise ValueError(f"Unsupported IVFPQ selection_mode: {selection_mode}")
+    if selection_mode != "triton_topk":
+        raise ValueError(
+            "Unsupported IVFPQ selection_mode: "
+            f"{selection_mode}; only 'triton_topk' is supported"
+        )
     lut_dtype = _normalize_lut_dtype(lut_dtype)
 
     if device is None:
@@ -1614,10 +1206,6 @@ def search_ivfpq_index(
         pq_codebooks = index.pq_codebooks
         pq_codebook_norms = index.pq_codebook_norms
         pq_rotation_matrix = index.pq_rotation_matrix
-        pq_centroids = index.pq_centroids if index.pq_centroids is not None else centroids
-        list_codes = index.list_codes
-        list_ids_flat = index.list_ids_flat
-        list_prefix = index.list_prefix
         list_count = index.list_count
     else:
         centroids = index.centroids.to(dtype=torch.float32, device=search_device, copy=False)
@@ -1641,10 +1229,6 @@ def search_ivfpq_index(
             if index.pq_rotation_matrix is not None
             else None
         )
-        pq_centroids = index.pq_centroids.to(dtype=torch.float32, device=search_device, copy=False) if index.pq_centroids is not None else centroids
-        list_codes = index.list_codes.to(device=search_device, copy=False)
-        list_ids_flat = index.list_ids_flat.to(dtype=torch.int64, device=search_device, copy=False)
-        list_prefix = index.list_prefix.to(dtype=torch.int64, device=search_device, copy=False)
         list_count = index.list_count.to(dtype=torch.int64, device=search_device, copy=False)
     record_timing("prepare_tensors", step_start)
 
@@ -1662,18 +1246,32 @@ def search_ivfpq_index(
     num_queries = q.shape[0]
 
     step_start = start_timing()
-    result_distances = torch.full(
-        (num_queries, search_topk),
-        float("inf"),
-        dtype=torch.float32,
-        device=search_device,
-    )
-    result_ids = torch.full(
-        (num_queries, search_topk),
-        -1,
-        dtype=torch.int64,
-        device=search_device,
-    )
+    if _workspace is None:
+        result_distances = torch.full(
+            (num_queries, search_topk),
+            float("inf"),
+            dtype=torch.float32,
+            device=search_device,
+        )
+        result_ids = torch.full(
+            (num_queries, search_topk),
+            -1,
+            dtype=torch.int64,
+            device=search_device,
+        )
+    else:
+        expected_shape = (num_queries, search_topk)
+        if (
+            _workspace.result_distances.shape != expected_shape
+            or _workspace.result_distances.device != search_device
+            or _workspace.result_ids.shape != expected_shape
+            or _workspace.result_ids.device != search_device
+        ):
+            raise ValueError("IVFPQ workspace does not match the current search shape")
+        result_distances = _workspace.result_distances
+        result_ids = _workspace.result_ids
+        result_distances.fill_(float("inf"))
+        result_ids.fill_(-1)
     record_timing("init_outputs", step_start)
 
     # Step 1: compute the full query-centroid squared L2 distance matrix, then
@@ -1691,78 +1289,31 @@ def search_ivfpq_index(
 
     m = int(index.metadata["m"])
     subdim = int(index.metadata["subdim"])
-    list_major_selection = selection_mode == "triton_list_major"
-    triton_topk_capable = can_run_ivfpq_triton_topk(
-        device=search_device,
-        topk=search_topk,
-        m=m,
-        ksub=int(index.metadata["ksub"]),
-        nprobe=nprobe,
-        num_code_vectors=list_ids_flat.numel(),
-        code_dtype=list_codes.dtype,
-        use_packed_16b_codes=use_packed_16b_codes,
+    step_start = start_timing()
+    interleaved_codes, interleaved_ids, list_group_prefix = _get_interleaved_pq_lists(
+        index,
+        search_device,
     )
-    # A List-Major task pays for pair sorting and tile setup. Use the actual
-    # probe-list visits in this batch instead of assuming that all IVF lists
-    # are visited uniformly. For a list visited c times, c-1 visits are the
-    # duplicate visits that grouping can potentially share.
-    list_major_reuse_fraction = 0.0
-    list_major_active_lists = 0
-    list_major_max_queries_per_list = 0
-    list_major_query_counts: torch.Tensor | None = None
-    if list_major_selection:
-        step_start = start_timing()
-        list_major_query_counts = torch.bincount(
-            probe_cids.reshape(-1),
-            minlength=int(centroids.shape[0]),
-        )
-        total_probe_edges = max(1, int(probe_cids.numel()))
-        reusable_query_edges = int(
-            (list_major_query_counts - 1).clamp_min(0).sum().item()
-        )
-        list_major_reuse_fraction = reusable_query_edges / total_probe_edges
-        list_major_active_lists = int((list_major_query_counts > 0).sum().item())
-        list_major_max_queries_per_list = int(list_major_query_counts.max().item())
-        record_timing("list_major_query_stats", step_start)
-        if profile is not None:
-            profile["list_major_active_lists"] = float(list_major_active_lists)
-            profile["list_major_max_queries_per_list"] = float(
-                list_major_max_queries_per_list
-            )
-            profile["list_major_reuse_fraction"] = list_major_reuse_fraction
-            profile["list_major_reuse_threshold"] = _LIST_MAJOR_MIN_REUSE_FRACTION
-    triton_list_major_supported = (
-        selection_mode == "triton_list_major"
-        and list_major_reuse_fraction >= _LIST_MAJOR_MIN_REUSE_FRACTION
-        and can_run_ivfpq_list_major_topk(
+    if interleaved_codes is None and not (use_packed_16b_codes and m > 16):
+        # Packed-only residency is the default for wide uint8 PQ codes. Keep
+        # the public unpacked fallback available by uploading the persisted
+        # layout only for callers that explicitly disable packed scanning.
+        assert index.persisted_list_codes_interleaved_by_subspace is not None
+        interleaved_codes = index.persisted_list_codes_interleaved_by_subspace.to(
             device=search_device,
-            topk=search_topk,
-            m=m,
-            ksub=int(index.metadata["ksub"]),
-            nprobe=nprobe,
-            num_code_vectors=list_ids_flat.numel(),
-            code_dtype=list_codes.dtype,
-            use_packed_16b_codes=use_packed_16b_codes and m > 16,
+            copy=False,
         )
+    interleaved_static_corrections = _get_interleaved_pq_static_corrections(
+        index,
+        search_device,
     )
-    if profile is not None and list_major_selection:
-        profile["list_major_enabled"] = float(triton_list_major_supported)
-    # Prepare the same packed representation used by triton_topk whenever the
-    # selected Triton route supports it.  For M>16 this keeps List-Major's code
-    # load path aligned with IVFPQ query-major ADC instead of silently falling
-    # back to one uint8 global load per subspace.
-    triton_topk_supported = triton_topk_capable and (
-        selection_mode == "triton_topk"
-        or (
-            list_major_selection
-            and not triton_list_major_supported
-        )
-    )
+    record_timing("triton_prepare_layout", step_start)
+
+    triton_topk_supported = True
     global_query_luts: torch.Tensor | None = None
     probe_distance_bias: torch.Tensor | None = None
     step_start = start_timing()
-    # Every route builds one Global LUT in the construction-friendly
-    # [M, Q, Ksub] layout. List-Major reorders only the active Query tile.
+    # Build the single Global LUT layout consumed by Triton TopK.
     pq_queries = _apply_pq_rotation(q, pq_rotation_matrix)
     if pq_queries.shape[1] != m * subdim:
         raise ValueError(
@@ -1776,61 +1327,20 @@ def search_ivfpq_index(
         m=m,
         subdim=subdim,
         use_tf32=True,
-        layout="query_major",
     )
     if lut_dtype == "fp16":
         global_query_luts = global_query_luts.to(torch.float16)
     probe_distance_bias = probe_distances
     record_timing("LUT_prepare", step_start)
 
-    active_selection_mode = selection_mode
-    if (
-        triton_topk_supported
-        or triton_list_major_supported
-    ):
-        step_start = start_timing()
-        interleaved_codes, interleaved_ids, list_group_prefix = _get_interleaved_pq_lists(
-            index,
-            list_codes,
-            list_ids_flat,
-            list_prefix,
-            list_count,
-            search_device,
-        )
-        interleaved_static_corrections = _get_interleaved_pq_static_corrections(
-            index,
-            list_codes,
-            list_prefix,
-            list_count,
-            search_device,
-        )
-        record_timing("triton_prepare_layout", step_start)
-
-        probe_group_prefix: torch.Tensor | None = None
-        probe_list_count: torch.Tensor | None = None
-        if triton_topk_supported:
-            step_start = start_timing()
-            probe_group_prefix = list_group_prefix[probe_cids]
-            probe_list_count = list_count[probe_cids]
-            record_timing("triton_lookup_probe_lists", step_start)
-
+    if triton_topk_supported:
         packed_code_chunks: torch.Tensor | None = None
-        if (
-            (
-                triton_topk_supported
-                or triton_list_major_supported
-            )
-            and use_packed_16b_codes
-            and m > 16
-        ):
+        if use_packed_16b_codes and m > 16:
             step_start = start_timing()
             packed_code_chunks = _get_interleaved_pq_code_chunks(
                 index,
-                list_codes,
-                list_prefix,
-                list_count,
+                interleaved_codes,
                 search_device,
-                interleaved_codes=interleaved_codes,
             )
             record_timing("triton_packed_prepare", step_start)
 
@@ -1841,6 +1351,37 @@ def search_ivfpq_index(
                 int(torch.quantile(count_cpu, 0.95).item()),
                 int(count_cpu.max().item()),
             )
+
+        scan_chunk_groups, scan_max_chunks = plan_probe_chunks(
+            nprobe=nprobe,
+            max_list_count=index.triton_list_count_stats[2],
+        )
+        scan_nprobe = nprobe * scan_max_chunks
+        triton_topk_capable = can_run_ivfpq_triton_topk(
+            device=search_device,
+            topk=search_topk,
+            m=m,
+            ksub=int(index.metadata["ksub"]),
+            nprobe=scan_nprobe,
+            num_code_vectors=interleaved_ids.numel(),
+            code_dtype=(
+                interleaved_codes.dtype
+                if interleaved_codes is not None
+                else torch.uint8
+            ),
+            use_packed_16b_codes=packed_code_chunks is not None,
+        )
+        if not triton_topk_capable:
+            raise RuntimeError(
+                "IVF-PQ search requires the Triton TopK path and a supported CUDA shape"
+            )
+        if triton_autotune_cache_nprobe is None:
+            autotune_cache_nprobe = nprobe
+        else:
+            autotune_cache_nprobe = max(
+                1,
+                min(int(triton_autotune_cache_nprobe), int(centroids.shape[0])),
+            )
         gpu_name = torch.cuda.get_device_name(search_device)
         compute_capability = torch.cuda.get_device_capability(search_device)
         autotune_key: tuple[object, ...] = (
@@ -1849,30 +1390,18 @@ def search_ivfpq_index(
             compute_capability,
             torch.__version__,
             torch.version.cuda,
+            lut_dtype,
             m,
             int(index.metadata["ksub"]),
-            nprobe,
+            autotune_cache_nprobe * scan_max_chunks,
             search_topk,
             num_queries,
             bool(packed_code_chunks is not None),
+            scan_chunk_groups,
+            scan_max_chunks,
             *index.triton_list_count_stats,
         )
 
-        list_major_autotune_key: tuple[object, ...] = (
-            "list_major_pq_task_v4",
-            gpu_name,
-            compute_capability,
-            torch.__version__,
-            torch.version.cuda,
-            m,
-            int(index.metadata["ksub"]),
-            nprobe,
-            search_topk,
-            num_queries,
-            str(global_query_luts.dtype),
-            bool(packed_code_chunks is not None),
-            *index.triton_list_count_stats,
-        )
         list_scan_start = start_timing()
         final_merge_start: float | torch.cuda.Event | None = None
 
@@ -1883,163 +1412,38 @@ def search_ivfpq_index(
 
         assert global_query_luts is not None
         assert probe_distance_bias is not None
-        if triton_list_major_supported:
-            partial_keys = triton_ivfpq_list_major_topk(
-                global_query_luts=global_query_luts,
-                static_vector_corrections=interleaved_static_corrections,
-                probe_distance_bias=probe_distance_bias,
-                list_codes_interleaved=interleaved_codes,
-                list_ids_interleaved=interleaved_ids,
-                list_group_prefix=list_group_prefix,
-                list_count=list_count,
-                probe_cids=probe_cids,
-                topk=search_topk,
-                output_distances=result_distances,
-                output_ids=result_ids,
-                list_partial_keys=index.triton_partial_keys,
-                list_codes_packed_16b=packed_code_chunks,
-                list_query_count=list_major_query_counts,
-                autotune=triton_autotune,
-                autotune_key=list_major_autotune_key,
-                on_list_scan_complete=record_triton_scan_complete,
-            )
-        else:
-            assert probe_group_prefix is not None
-            assert probe_list_count is not None
-            partial_keys = triton_ivfpq_topk(
-                global_query_luts=global_query_luts,
-                static_vector_corrections=interleaved_static_corrections,
-                probe_distance_bias=probe_distance_bias,
-                list_codes_interleaved=interleaved_codes,
-                list_ids_interleaved=interleaved_ids,
-                probe_group_prefix=probe_group_prefix,
-                probe_list_count=probe_list_count,
-                topk=search_topk,
-                output_distances=result_distances,
-                output_ids=result_ids,
-                list_partial_keys=index.triton_partial_keys,
-                list_codes_packed_16b=packed_code_chunks,
-                autotune=triton_autotune,
-                autotune_key=autotune_key,
-                on_list_scan_complete=record_triton_scan_complete,
-            )
-        if index.resident_device is not None and index.resident_device == search_device:
+        partial_keys = triton_ivfpq_topk(
+            global_query_luts=global_query_luts,
+            static_vector_corrections=interleaved_static_corrections,
+            probe_distance_bias=probe_distance_bias,
+            list_codes_interleaved=interleaved_codes,
+            list_ids_interleaved=interleaved_ids,
+            probe_group_prefix=None,
+            probe_list_count=None,
+            probe_cids=probe_cids,
+            list_group_prefix=list_group_prefix,
+            list_count=list_count,
+            scan_chunk_groups=scan_chunk_groups,
+            scan_max_chunks=scan_max_chunks,
+            topk=search_topk,
+            output_distances=result_distances,
+            output_ids=result_ids,
+            list_partial_keys=(
+                _workspace.triton_partial_keys
+                if _workspace is not None
+                else index.triton_partial_keys
+            ),
+            list_codes_packed_16b=packed_code_chunks,
+            autotune=triton_autotune,
+            autotune_key=autotune_key,
+            on_list_scan_complete=record_triton_scan_complete,
+        )
+        if _workspace is not None:
+            _workspace.triton_partial_keys = partial_keys
+        elif index.resident_device is not None and index.resident_device == search_device:
             index.triton_partial_keys = partial_keys
         assert final_merge_start is not None
         record_timing("triton_final_merge", final_merge_start)
-        active_selection_mode = "done"
-    elif selection_mode in {
-        "triton_topk",
-        "triton_list_major",
-    }:
-        # Preserve the requested search semantics on CPU, for non-uint8
-        # codes, and for kernel shapes outside the fixed Triton limits.
-        active_selection_mode = "tensor_topk"
-
-    if active_selection_mode == "tensor_topk":
-        # Retain the original full query-major top-k reduction.  Its lookup
-        # reads only query-global G plus a per-vector gamma scalar, instead of
-        # materializing a complete residual LUT for every (query, probe).
-        assert global_query_luts is not None
-        assert probe_distance_bias is not None
-
-        step_start = start_timing()
-        # Tensor gather is query-major: flatten each query's [m, ksub] table
-        # without ever constructing a separate LUT for every probe list.
-        tensor_global_query_luts = global_query_luts.permute(1, 0, 2).contiguous()
-        record_timing("tensor_global_lut_layout", step_start)
-
-        step_start = start_timing()
-        row_major_static_corrections = _get_row_major_pq_static_corrections(
-            index,
-            list_codes,
-            list_prefix,
-            list_count,
-            search_device,
-        )
-        record_timing("tensor_static_corrections", step_start)
-
-        step_start = start_timing()
-        probe_list_prefix = list_prefix[probe_cids]
-        probe_list_count = list_count[probe_cids]
-        record_timing("lookup_probe_lists", step_start)
-
-        step_start = start_timing()
-        max_candidates = int(probe_list_count.sum(dim=1).max().item())
-        record_timing("max_candidates", step_start)
-        if max_candidates > 0:
-            selected_topk = min(search_topk, max_candidates)
-            step_start = start_timing()
-            candidate_offsets = torch.arange(
-                max_candidates,
-                device=search_device,
-                dtype=torch.int64,
-            )
-            record_timing("expand_query_candidates", step_start)
-
-            step_start = start_timing()
-            if detailed_tensor_topk_profile and profile is not None:
-                stage_start = start_timing()
-                candidate_map = _get_tensor_topk_pq_candidate_map_fn()
-                safe_candidate_positions, probe_idx, valid_mask = candidate_map(
-                    list_codes,
-                    probe_list_prefix,
-                    probe_list_count,
-                    candidate_offsets,
-                )
-                record_timing("tensor_topk_candidate_map", stage_start)
-
-                stage_start = start_timing()
-                code_gather = _get_tensor_topk_pq_code_gather_fn()
-                candidate_codes = code_gather(list_codes, safe_candidate_positions)
-                record_timing("tensor_topk_code_gather", stage_start)
-
-                stage_start = start_timing()
-                lut_reduce = _get_tensor_topk_pq_lut_reduce_fn()
-                pair_distances = lut_reduce(
-                    tensor_global_query_luts,
-                    candidate_codes,
-                    row_major_static_corrections,
-                    probe_distance_bias,
-                    safe_candidate_positions,
-                    probe_idx,
-                    valid_mask,
-                )
-                record_timing("tensor_topk_lut_reduce", stage_start)
-
-                stage_start = start_timing()
-                tensor_select = _get_tensor_topk_pq_select_fn()
-                topk_distances, topk_positions = tensor_select(pair_distances, selected_topk)
-                record_timing("tensor_topk_select_only", stage_start)
-
-                stage_start = start_timing()
-                id_lookup = _get_tensor_topk_pq_id_lookup_fn()
-                topk_ids = id_lookup(
-                    list_ids_flat,
-                    safe_candidate_positions,
-                    valid_mask,
-                    topk_positions,
-                )
-                record_timing("tensor_topk_id_lookup", stage_start)
-            else:
-                tensor_topk = _get_tensor_topk_pq_distance_fn()
-                topk_distances, topk_ids = tensor_topk(
-                    tensor_global_query_luts,
-                    list_codes,
-                    list_ids_flat,
-                    row_major_static_corrections,
-                    probe_distance_bias,
-                    probe_list_prefix,
-                    probe_list_count,
-                    candidate_offsets,
-                    selected_topk,
-                )
-
-            stage_start = start_timing()
-            result_distances[:, :selected_topk] = topk_distances
-            result_ids[:, :selected_topk] = topk_ids
-            record_timing("tensor_topk_writeback", stage_start)
-            record_timing("tensor_topk_select", step_start)
 
     if refine_vectors is not None:
         step_start = start_timing()
@@ -2057,6 +1461,188 @@ def search_ivfpq_index(
     return result_distances, result_ids
 
 
+def search_ivfpq_index(
+    index: IVFPQIndex,
+    queries: torch.Tensor,
+    topk: int = 10,
+    nprobe: int = 10,
+    device: torch.device | str | None = None,
+    selection_mode: str = "triton_topk",
+    profile: dict[str, float] | None = None,
+    use_packed_16b_codes: bool = True,
+    triton_autotune: bool = False,
+    triton_autotune_cache_nprobe: int | None = None,
+    refine_vectors: torch.Tensor | None = None,
+    refine_factor: int = 1,
+    lut_dtype: str = "fp32",
+    use_preallocated_workspace: bool = False,
+    use_cuda_graph: bool = False,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Search IVF-PQ with optional fixed-shape workspace and CUDA Graph replay.
+
+    CUDA Graph mode implies workspace reuse and requires a resident CUDA
+    index, fixed query shape, and no exact-refine or per-stage profiling. The
+    returned tensors are workspace-backed and are overwritten by the next
+    workspace/graph search on this index. Call ``clone()`` if they must outlive
+    the next search.
+
+    ``use_preallocated_workspace`` provides the same output and Triton scratch
+    reuse without graph capture. It has the same output-lifetime rule.
+    """
+    graph_eligible = (
+        use_cuda_graph
+        and profile is None
+        and refine_vectors is None
+        # A wide packed-only resident index has no persistent unpacked code
+        # pointer for CUDA Graph capture. Explicit unpacked fallback remains
+        # eager so its temporary upload cannot outlive the search call.
+        and (
+            use_packed_16b_codes
+            or int(index.metadata["m"]) <= 16
+            or index.list_codes_interleaved_by_subspace is not None
+        )
+    )
+    if not use_preallocated_workspace and not graph_eligible:
+        return _search_ivfpq_index_eager(
+            index=index,
+            queries=queries,
+            topk=topk,
+            nprobe=nprobe,
+            device=device,
+            selection_mode=selection_mode,
+            profile=profile,
+            use_packed_16b_codes=use_packed_16b_codes,
+            triton_autotune=triton_autotune,
+            triton_autotune_cache_nprobe=triton_autotune_cache_nprobe,
+            refine_vectors=refine_vectors,
+            refine_factor=refine_factor,
+            lut_dtype=lut_dtype,
+        )
+
+    if queries.ndim != 2:
+        raise ValueError(
+            f"Query tensor must have shape (num_queries, dim), got {tuple(queries.shape)}"
+        )
+    if queries.shape[1] != index.centroids.shape[1]:
+        raise ValueError(
+            f"Query dimension {queries.shape[1]} does not match index dimension "
+            f"{index.centroids.shape[1]}"
+        )
+    if device is None:
+        if queries.is_cuda:
+            search_device = queries.device
+        elif torch.cuda.is_available():
+            search_device = torch.device("cuda:0")
+        else:
+            search_device = torch.device("cpu")
+    else:
+        search_device = torch.device(device)
+    q = queries.to(dtype=torch.float32, device=search_device, copy=False).contiguous()
+
+    normalized_topk = max(1, int(topk))
+    normalized_refine_factor = int(refine_factor)
+    if normalized_refine_factor < 1:
+        raise ValueError(
+            f"refine_factor must be >= 1, got {normalized_refine_factor}"
+        )
+    search_topk = (
+        normalized_topk * normalized_refine_factor
+        if refine_vectors is not None
+        else normalized_topk
+    )
+    search_topk = min(
+        search_topk,
+        int(index.metadata.get("num_vectors", search_topk)),
+    )
+    search_topk = max(search_topk, normalized_topk)
+    normalized_nprobe = max(1, min(int(nprobe), int(index.centroids.shape[0])))
+
+    # Graph capture is only safe when all index pointers are persistent. For
+    # CPU or a non-resident index, retain workspace reuse but execute eagerly.
+    graph_eligible = (
+        graph_eligible
+        and search_device.type == "cuda"
+        and index.resident_device == search_device
+    )
+    workspace_key: tuple[object, ...] = (
+        str(search_device),
+        tuple(q.shape),
+        normalized_topk,
+        search_topk,
+        normalized_nprobe,
+        selection_mode,
+        bool(use_packed_16b_codes),
+        str(lut_dtype).lower(),
+        triton_autotune_cache_nprobe,
+        bool(triton_autotune),
+        bool(graph_eligible),
+    )
+    if index.search_workspace_key != workspace_key or index.search_workspace is None:
+        index.search_workspace_key = workspace_key
+        index.search_workspace = _IVFPQSearchWorkspace(
+            static_queries=torch.empty_like(q),
+            result_distances=torch.empty(
+                (q.shape[0], search_topk),
+                dtype=torch.float32,
+                device=search_device,
+            ),
+            result_ids=torch.empty(
+                (q.shape[0], search_topk),
+                dtype=torch.int64,
+                device=search_device,
+            ),
+        )
+    workspace = index.search_workspace
+
+    def run_eager(
+        search_queries: torch.Tensor,
+        *,
+        autotune: bool,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        return _search_ivfpq_index_eager(
+            index=index,
+            queries=search_queries,
+            topk=normalized_topk,
+            nprobe=normalized_nprobe,
+            device=search_device,
+            selection_mode=selection_mode,
+            profile=profile,
+            use_packed_16b_codes=use_packed_16b_codes,
+            triton_autotune=autotune,
+            triton_autotune_cache_nprobe=triton_autotune_cache_nprobe,
+            refine_vectors=refine_vectors,
+            refine_factor=normalized_refine_factor,
+            lut_dtype=lut_dtype,
+            _workspace=workspace,
+        )
+
+    if not graph_eligible:
+        return run_eager(q, autotune=triton_autotune)
+
+    workspace.static_queries.copy_(q)
+    if workspace.graph is None:
+        capture_stream = torch.cuda.Stream(device=search_device)
+        workspace.capture_stream = capture_stream
+        capture_stream.wait_stream(torch.cuda.current_stream(search_device))
+        # Warm every library/Triton path and finish autotuning before capture;
+        # synchronization and compilation are illegal inside a CUDA Graph.
+        with torch.cuda.stream(capture_stream):
+            run_eager(workspace.static_queries, autotune=triton_autotune)
+            run_eager(workspace.static_queries, autotune=False)
+        torch.cuda.current_stream(search_device).wait_stream(capture_stream)
+        torch.cuda.synchronize(search_device)
+
+        graph = torch.cuda.CUDAGraph()
+        with torch.cuda.graph(graph, stream=capture_stream):
+            graph_outputs = run_eager(workspace.static_queries, autotune=False)
+        workspace.graph = graph
+        workspace.graph_outputs = graph_outputs
+
+    workspace.graph.replay()
+    assert workspace.graph_outputs is not None
+    return workspace.graph_outputs
+
+
 def build_ivfpq_index(
     vectors: torch.Tensor,
     nlist: int,
@@ -2065,16 +1651,72 @@ def build_ivfpq_index(
     device: torch.device | str,
     m: int,
     nbits: int,
-    seed: int = 0,
-    n_init: int = 2,
+    seed: int = FAISS_DEFAULT_SEED,
+    n_init: int = FAISS_DEFAULT_NREDO,
+    *,
+    coarse_niter: int | None = None,
+    pq_niter: int | None = None,
+    coarse_n_init: int | None = None,
+    pq_n_init: int | None = None,
+    coarse_max_points_per_centroid: int | None = None,
+    coarse_trainset_fraction: float | None = None,
+    pq_max_points_per_centroid: int | None = None,
+    coarse_min_points_per_centroid: int | None = None,
+    pq_min_points_per_centroid: int | None = None,
+    coarse_init_method: str = "kmeans++",
+    coarse_kmeans_method: str = "balanced",
+    pq_init_method: str = "kmeans++",
+    pq_kmeans_method: str = "balanced",
+    max_points_per_centroid: int | None = FAISS_DEFAULT_MAX_POINTS_PER_CENTROID,
+    min_points_per_centroid: int = FAISS_DEFAULT_MIN_POINTS_PER_CENTROID,
 ) -> IVFPQBuildResult:
-    """Cluster a dataset with IVF and train residual PQ codebooks."""
+    """Cluster a dataset with IVF and train residual PQ codebooks.
+
+    The coarse IVF quantizer and the PQ codebooks have independent KMeans
+    settings. ``coarse_trainset_fraction`` is an alternative to the coarse
+    per-centroid cap and takes precedence when provided. It only controls the
+    coarse quantizer; PQ samples its larger training set independently for
+    each subspace. The legacy ``niter``, ``n_init``,
+    ``max_points_per_centroid`` and ``min_points_per_centroid`` arguments are
+    used as fallbacks when their corresponding coarse/PQ-specific argument is
+    omitted. ``coarse_kmeans_method`` and ``pq_kmeans_method`` select the
+    KMeans implementation independently for IVF and PQ. ``balanced`` selects
+    the cuVS-style balancing loop. Labels and PQ codes are still generated for
+    the complete input dataset.
+    """
     if vectors.ndim != 2:
         raise ValueError(f"Dataset tensor must have shape (num_vectors, dim), got {tuple(vectors.shape)}")
     if m <= 0:
         raise ValueError(f"m must be positive, got {m}")
     if nbits <= 0:
         raise ValueError(f"nbits must be positive, got {nbits}")
+
+    resolved_coarse_niter = int(niter if coarse_niter is None else coarse_niter)
+    resolved_pq_niter = int(niter if pq_niter is None else pq_niter)
+    resolved_coarse_n_init = int(n_init if coarse_n_init is None else coarse_n_init)
+    resolved_pq_n_init = int(n_init if pq_n_init is None else pq_n_init)
+    resolved_coarse_max_points = (
+        None
+        if coarse_trainset_fraction is not None
+        else max_points_per_centroid
+        if coarse_max_points_per_centroid is None
+        else coarse_max_points_per_centroid
+    )
+    resolved_pq_max_points = (
+        max_points_per_centroid
+        if pq_max_points_per_centroid is None
+        else pq_max_points_per_centroid
+    )
+    resolved_coarse_min_points = (
+        min_points_per_centroid
+        if coarse_min_points_per_centroid is None
+        else coarse_min_points_per_centroid
+    )
+    resolved_pq_min_points = (
+        min_points_per_centroid
+        if pq_min_points_per_centroid is None
+        else pq_min_points_per_centroid
+    )
 
     vectors = vectors.to(dtype=torch.float32, copy=False).contiguous()
     num_vectors, dim = vectors.shape
@@ -2086,21 +1728,47 @@ def build_ivfpq_index(
         raise ValueError(f"Dataset size {num_vectors} must be >= 2**nbits ({ksub}) for PQ training")
 
     target_device = torch.device(device)
+    # Sample the coarse trainset once. PQ deliberately does not reuse this
+    # sample: each PQ subspace gets its own independent training sample.
+    shared_train_indices: torch.Tensor | None = None
+    coarse_training_data: torch.Tensor | None = None
+    if coarse_trainset_fraction is not None:
+        shared_train_indices = select_training_indices(
+            int(num_vectors),
+            k=nlist,
+            max_points_per_centroid=None,
+            trainset_fraction=coarse_trainset_fraction,
+            seed=seed,
+            stage=0,
+            device=vectors.device,
+        )
+        coarse_training_data = vectors.index_select(0, shared_train_indices)
+
     coarse = fit_best_kmeans(
         vectors,
         d=dim,
         k=nlist,
-        niter=niter,
+        niter=resolved_coarse_niter,
         use_triton=use_triton,
         device=target_device,
         seed=seed,
-        n_init=n_init,
+        n_init=resolved_coarse_n_init,
         stage=0,
+        max_points_per_centroid=resolved_coarse_max_points,
+        min_points_per_centroid=resolved_coarse_min_points,
+        trainset_fraction=coarse_trainset_fraction,
+        init_method=coarse_init_method,
+        algorithm=coarse_kmeans_method,
+        training_data=coarse_training_data,
+        training_indices=shared_train_indices,
+        # cuVS uses its hierarchical balanced builder for the IVF coarse
+        # quantizer.  The flag is ignored for Lloyd and PQ uses the flat
+        # balanced builder below.
+        balanced_hierarchical=True,
     )
     centroids = coarse.centroids
     labels = coarse.labels
 
-    vectors_device = vectors.to(dtype=torch.float32, device=target_device, copy=False)
     labels_device = labels.to(dtype=torch.int64, device=target_device, copy=False)
     # cuVS applies a random orthogonal transform whenever ``dim`` is not a
     # multiple of ``pq_dim``.  Its tall matrix preserves original-space L2
@@ -2112,10 +1780,30 @@ def build_ivfpq_index(
         seed=int(seed) + 104729,
     )
     pq_centroids = _apply_pq_rotation(centroids, pq_rotation_matrix)
-    residual_vectors = _apply_pq_rotation(
-        (vectors_device - centroids[labels_device]).contiguous(),
-        pq_rotation_matrix,
-    )
+
+    # A high-dimensional base set can be several GiB in FP32.  PQ training
+    # only needs each residual subspace in turn, so keep the full residual
+    # working set on the host when it would create a large device allocation;
+    # ``fit_best_kmeans`` still moves its bounded training sample to the target
+    # device and streams final labels for the complete dataset.
+    pq_working_device = target_device
+    if target_device.type == "cuda" and vectors.numel() * torch.float32.itemsize > (1 << 30):
+        pq_working_device = torch.device("cpu")
+    if pq_working_device.type == "cpu":
+        residual_base = vectors.to(device="cpu", dtype=torch.float32, copy=False)
+        residual_centroids = centroids.to(device="cpu", dtype=torch.float32, copy=True)
+        residual_labels = labels_device.to(device="cpu", dtype=torch.int64, copy=True)
+        residual_vectors = (residual_base - residual_centroids[residual_labels]).contiguous()
+        pq_rotation = (
+            pq_rotation_matrix.to(device="cpu", dtype=torch.float32, copy=True)
+            if pq_rotation_matrix is not None
+            else None
+        )
+    else:
+        vectors_device = vectors.to(dtype=torch.float32, device=target_device, copy=False)
+        residual_vectors = (vectors_device - centroids[labels_device]).contiguous()
+        pq_rotation = pq_rotation_matrix
+    residual_vectors = _apply_pq_rotation(residual_vectors, pq_rotation)
 
     pq_code_dtype = _pq_code_dtype(nbits)
     pq_codebooks = torch.empty((m, ksub, subdim), dtype=torch.float32, device=target_device)
@@ -2128,12 +1816,16 @@ def build_ivfpq_index(
             residual_view[:, subspace_idx, :],
             d=subdim,
             k=ksub,
-            niter=niter,
+            niter=resolved_pq_niter,
             use_triton=use_triton,
             device=target_device,
             seed=seed,
-            n_init=n_init,
+            n_init=resolved_pq_n_init,
             stage=subspace_idx + 1,
+            max_points_per_centroid=resolved_pq_max_points,
+            min_points_per_centroid=resolved_pq_min_points,
+            init_method=pq_init_method,
+            algorithm=pq_kmeans_method,
         )
         pq_codebooks[subspace_idx] = trained_subspace.centroids
         pq_codes[:, subspace_idx] = trained_subspace.labels.to(pq_code_dtype)
@@ -2157,4 +1849,21 @@ def build_ivfpq_index(
         coarse_seed=coarse.seed,
         pq_inertias=pq_inertias,
         pq_seeds=pq_seeds,
+        coarse_niter=resolved_coarse_niter,
+        pq_niter=resolved_pq_niter,
+        coarse_n_init=resolved_coarse_n_init,
+        pq_n_init=resolved_pq_n_init,
+        coarse_max_points_per_centroid=resolved_coarse_max_points,
+        coarse_trainset_fraction=(
+            None
+            if coarse_trainset_fraction is None
+            else float(coarse_trainset_fraction)
+        ),
+        pq_max_points_per_centroid=resolved_pq_max_points,
+        coarse_init_method=str(coarse_init_method),
+        coarse_kmeans_method=str(coarse_kmeans_method),
+        pq_init_method=str(pq_init_method),
+        pq_kmeans_method=str(pq_kmeans_method),
+        pq_training_rows=None,
+        pq_reuses_coarse_trainset=False,
     )

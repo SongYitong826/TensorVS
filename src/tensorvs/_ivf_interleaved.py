@@ -1,9 +1,9 @@
-"""cuVS-style 32-row interleaved caches for IVF list scans.
+"""cuVS-style 32-row interleaved caches for Triton IVF list scans.
 
-The persisted TensorVS indexes deliberately retain their simple row-major
-layout.  These helpers build an optional resident-only cache where every IVF
-list is padded to groups of 32 rows and stored in a layout suited to a warp
-scanning the same dimension chunk across 32 candidates.
+Every IVF list is padded to groups of 32 rows and stored in a layout suited to
+a warp scanning the same dimension chunk across 32 candidates.  IVF-Flat
+persists this layout directly; row-major list storage is only a temporary
+construction representation.
 """
 
 from __future__ import annotations

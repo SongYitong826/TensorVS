@@ -24,7 +24,13 @@ QUERY_PATH = DIR_PATH / f"{DATASET_NAME}_query.fvecs"
 GROUNDTRUTH_PATH = DIR_PATH / f"{DATASET_NAME}_groundtruth.ivecs"
 OUTPUT_DIR = DIR_PATH / "GPUIndex"
 NLIST = 1024
-NITER = 25
+IVF_NITER = 25
+IVF_N_INIT = 1
+IVF_MAX_POINTS_PER_CENTROID = 256
+PQ_NITER = 25
+PQ_N_INIT = 1
+PQ_MAX_POINTS_PER_CENTROID = 256
+KMEANS_INIT_METHOD = "kmeans++"
 USE_TRITON = True
 DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 # ``M`` need not divide the input dimension. For example GloVe D=200,M=32
@@ -34,18 +40,9 @@ NBITS = 8
 TOPK = 10
 NPROBE = 50
 SELECTION_MODE = "triton_topk"
-# triton_topk / triton_list_major / tensor_topk
-# ``triton_list_major`` sorts (query, probe-list) edges by IVF list, then evaluates
-# visiting queries in a small register-bounded tile. The global [M,Q,Ksub]
-# LUT is transposed to a temporary [Ksub,QueryTile] Vector LUT per task, so
-# candidate codes and corrections are shared across the visiting queries.
-# It automatically falls back to triton_topk when list overlap is sparse.
-# ``triton_autotune`` can measure the query-tile candidates.
-# Enable only when inspecting per-stage timing. For ``tensor_topk`` this also
-# splits its normal fused graph, so leave it False for QPS measurements.
+# The public IVFPQ search API only supports this Triton TopK path.
 ENABLE_DETAILED_TIMING = False
-# Compare packed 16-byte code scanning against the subspace-major scanner by
-# setting this to False.
+# Set this to False to use the unpacked subspace-major code loads.
 USE_PACKED_16B_CODES = True
 # Measure a small CTA scan sweep and persist the fastest configuration under
 # ~/.cache/tensorvs. Later runs reuse it automatically, so enable this only
@@ -55,15 +52,14 @@ ENABLE_TRITON_AUTOTUNE = True
 # FP32 LUT storage/ADC accumulation; ``"fp16"`` uses fused residual/LUT
 # construction with FP16 Tensor Core dot operands.
 LUT_DTYPE = "fp32"  # fp32 / fp16
-# Both Triton IVF-PQ modes use static-vector correction. FP16 stores G
-# compactly but accumulates ADC values together with gamma in FP32.
+# Triton TopK uses a static-vector correction. FP16 stores G compactly but
+# accumulates ADC values together with gamma in FP32.
 REFINE_FACTOR = 1
 NQ = 1024
 Q_BATCH = 256
 WARMUP_ITERATIONS = 3
 # 聚类参数
 SEED = 0
-N_INIT = 2
 SEARCH_RESULT_PATH = OUTPUT_DIR / (
     f"IVFPQ_{DATASET_NAME}_nlist{NLIST}_m{M}_nbits{NBITS}"
     f"_K{TOPK}_nprobe{NPROBE}.csv"
@@ -99,20 +95,31 @@ def main() -> None:
             f"with shape {tuple(base_vectors.shape)} and dtype {base_vectors.dtype}"
         )
         print(
-            f"Starting clustering with nlist={NLIST}, niter={NITER}, "
+            f"Starting clustering with nlist={NLIST}, "
+            f"ivf_niter={IVF_NITER}, pq_niter={PQ_NITER}, "
             f"m={M}, nbits={NBITS}, device={DEVICE}..."
         )
         build_start_time = time.perf_counter()
         build_result = build_ivfpq_index(
             vectors=base_vectors,
             nlist=NLIST,
-            niter=NITER,
+            niter=IVF_NITER,
             use_triton=USE_TRITON,
             device=DEVICE,
             m=M,
             nbits=NBITS,
             seed=SEED,
-            n_init=N_INIT,
+            n_init=IVF_N_INIT,
+            coarse_niter=IVF_NITER,
+            pq_niter=PQ_NITER,
+            coarse_n_init=IVF_N_INIT,
+            pq_n_init=PQ_N_INIT,
+            coarse_max_points_per_centroid=IVF_MAX_POINTS_PER_CENTROID,
+            pq_max_points_per_centroid=PQ_MAX_POINTS_PER_CENTROID,
+            coarse_init_method=KMEANS_INIT_METHOD,
+            coarse_kmeans_method="balanced",
+            pq_init_method=KMEANS_INIT_METHOD,
+            pq_kmeans_method="balanced",
         )
         build_time_seconds = round(time.perf_counter() - build_start_time, 4)
         print("Clustering finished.")
@@ -141,7 +148,7 @@ def main() -> None:
     q_batch = max(1, int(Q_BATCH))
     queries = queries[:nq]
     groundtruth = groundtruth[:nq]
-    code_bytes_per_vector = int(index.list_codes.shape[1]) * index.list_codes.element_size()
+    code_bytes_per_vector = int(index.metadata["m"]) * index.persisted_list_codes_interleaved_by_subspace.element_size()
     visit_stats = probe_visit_statistics(
         index=index,
         queries=queries,
@@ -206,7 +213,6 @@ def main() -> None:
                     profile=warmup_profile,
                     use_packed_16b_codes=USE_PACKED_16B_CODES,
                     triton_autotune=ENABLE_TRITON_AUTOTUNE,
-                    detailed_tensor_topk_profile=ENABLE_DETAILED_TIMING,
                     lut_dtype=LUT_DTYPE,
                 )
             if DEVICE.type == "cuda":
@@ -230,7 +236,6 @@ def main() -> None:
             profile=batch_profile,
             use_packed_16b_codes=USE_PACKED_16B_CODES,
             triton_autotune=ENABLE_TRITON_AUTOTUNE,
-            detailed_tensor_topk_profile=ENABLE_DETAILED_TIMING,
             lut_dtype=LUT_DTYPE,
         )
         batch_search_elapsed = time.perf_counter() - batch_search_start_time

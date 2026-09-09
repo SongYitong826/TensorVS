@@ -14,7 +14,13 @@ from ._ivf_interleaved import (
     build_interleaved_pq_lists,
     build_interleaved_pq_scalar_cache,
 )
-from ._kmeans import fit_best_kmeans
+from flash_kmeans import (
+    FAISS_DEFAULT_MAX_POINTS_PER_CENTROID,
+    FAISS_DEFAULT_MIN_POINTS_PER_CENTROID,
+    FAISS_DEFAULT_NREDO,
+    FAISS_DEFAULT_SEED,
+    fit_best_kmeans,
+)
 from .refine import refine_search_results
 from ._ivfsq_triton import (
     can_run_query_major_topk as can_run_ivfsq_query_major_topk,
@@ -302,10 +308,12 @@ def build_ivfsq_index(
     use_triton: bool,
     device: torch.device | str,
     bits: int = 8,
-    seed: int = 0,
-    n_init: int = 2,
+    seed: int = FAISS_DEFAULT_SEED,
+    n_init: int = FAISS_DEFAULT_NREDO,
     *,
     nbits: int | None = None,
+    max_points_per_centroid: int | None = FAISS_DEFAULT_MAX_POINTS_PER_CENTROID,
+    min_points_per_centroid: int = FAISS_DEFAULT_MIN_POINTS_PER_CENTROID,
 ) -> IVFSQBuildResult:
     """Build a residual IVF-SQ index with 4-bit or 8-bit scalar codes.
 
@@ -334,6 +342,8 @@ def build_ivfsq_index(
         seed=seed,
         n_init=n_init,
         stage=0,
+        max_points_per_centroid=max_points_per_centroid,
+        min_points_per_centroid=min_points_per_centroid,
     )
     labels = trained.labels.to(dtype=torch.int64, device=target_device, copy=False)
     centroids = trained.centroids.to(dtype=torch.float32, device=target_device, copy=False)

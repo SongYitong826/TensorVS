@@ -10,6 +10,7 @@ TensorVS is a tensor-based IVF-Flat, residual IVF-PQ, and residual IVF-SQ vector
 - `examples/ivfsq_search.py`: residual IVF-SQ 建索引、搜索和可选重排示例
 - `tests/test_index.py`: 训练一致性、元数据和精确重排测试
 - `flash-kmeans/`: 本地 `flash-kmeans` 库目录
+  - `flash_kmeans/training.py`: 普通 Lloyd KMeans、Balanced KMeans 以及训练采样/初始化
 
 ## 安装
 
@@ -62,8 +63,9 @@ build_result = build_ivfflat_index(
     niter=25,
     use_triton=False,
     device="cpu",
-    seed=0,
-    n_init=2,
+    seed=1234,
+    n_init=1,
+    max_points_per_centroid=256,
 )
 save_ivfflat_index(build_result, "/storage/vector_data/sift1m/GPUIndex/ivfflat.bin")
 ```
@@ -92,9 +94,19 @@ shape 会回退到 `tensor_topk`。也可以使用 `selection_mode="query_major"
 cuVS 风格的 query-major 扫描。原始向量不保存在索引中，可像 IVF-PQ 一样通过
 `refine_vectors` 和 `refine_factor` 做精确重排。
 
-`load_dataset` 支持 `.fvecs`、`.pt/.pth` 和 `.npy`。`seed` 控制可复现性，
-`n_init` 控制独立 KMeans 初始化次数；每个 coarse/PQ 训练阶段会使用独立派生 seed，
-并保留 training inertia 最低的量化器。默认 `n_init=2`。
+`load_dataset` 支持 `.fvecs`、`.pt/.pth` 和 `.npy`。KMeans 默认参数对齐 Faiss：
+`niter=25`、`seed=1234`、`n_init=1`（对应 Faiss 的 `nredo`）、
+`max_points_per_centroid=256`，并使用 KMeans++ 初始化。普通 Lloyd KMeans 和
+cuVS 风格 Balanced KMeans 都由本地 `flash_kmeans` 包提供；IVF-PQ 默认对 IVF
+和 PQ 两部分都使用 Balanced KMeans，也可通过
+`coarse_kmeans_method` 和 `pq_kmeans_method` 分别选择实现。`n_init` 控制独立
+KMeans 初始化次数；每个 coarse/PQ 训练阶段会使用独立派生 seed，并保留 training
+inertia 最低的量化器。对于较大的数据集，
+`build_ivfflat_index` 和 `build_ivfpq_index` 还支持 Faiss 风格的
+`max_points_per_centroid` 参数：每个 KMeans 阶段最多使用
+`k * max_points_per_centroid` 个随机采样向量训练，但最终仍会为全量数据生成
+IVF labels 和 PQ codes。例如 `max_points_per_centroid=256` 时，coarse 阶段最多使用
+`nlist * 256` 个向量，每个 PQ 子空间最多使用 `2**nbits * 256` 个向量。
 
 IVF-PQ 可以从更大的近似候选集合中，用外部原始向量进行精确重排：
 
@@ -112,18 +124,11 @@ distances, ids = search_ivfpq_index(
 这会先检索 40 个 PQ 候选，再按原始向量的精确平方 L2 距离返回 top10；
 原始向量不会重复存进 PQ 索引。
 
-IVF-PQ 的 CUDA 搜索还支持 `selection_mode="triton_list_major"`。它先把所有
-`(query, probe-list)` 边按 List 排序，
-再把访问同一 List 的 Query 按小 tile 一起扫描；同一个 32-vector code tile
-会被这个 Query tile 共享访问。Global LUT 以构建友好的 `[M, Q, Ksub]` 布局保存，
-kernel 内会把当前 Query tile 临时重排成 `[Ksub, QueryTile]` 的 Vector LUT，
-让一份 PQ code 和 candidate correction 同时服务这个 Query tile；
-Query tile 和 32/64/128 candidate tile 默认按局部 key/LUT 寄存器占用估计选择，
-传入 `triton_autotune=True` 时还会在两种 tile 和 warp 配置中实测并缓存最快配置；
-启用前会统计当前 Query batch 实际访问的每个 List：
-`sum(max(query_count[list] - 1, 0)) / (Q * nprobe)` 至少达到 50% 时才使用
-List-Major；否则自动复用 `triton_topk`，避免 List-Major 的分组开销。
-不满足 CUDA/Triton 形状限制时会回退到 `tensor_topk`。
+IVF-PQ 的 CUDA 搜索只保留 `selection_mode="triton_topk"`。不满足 CUDA/Triton
+形状限制时直接报错，不会回退到 Tensor 或 List-Major 路径。
+
+IVF-Flat 的 CUDA 搜索只使用 `selection_mode="triton_topk"`；CPU 或不支持的
+Triton shape 会直接报错，不再回退到 Tensor TopK。
 
 生成的 IVF-Flat 索引目录会包含：
 
@@ -131,19 +136,17 @@ List-Major；否则自动复用 `triton_topk`，避免 List-Major 的分组开�
 - `assignments.pt`
 - `ids.pt`
 - `metadata.json`
-- `list_vectors.pt`
-- `list_vector_norms.pt`
-- `list_ids_flat.pt`
-- `list_prefix.pt`
 - `list_count.pt`
+- `list_vectors_interleaved.pt`
+- `list_ids_interleaved.pt`
+- `list_group_prefix.pt`
+- `list_vector_norms_interleaved.pt`
 
-为减少磁盘占用，不会额外落盘一份 `vectors.pt`；向量只在按 cluster 排序后的
-`list_vectors.pt` 中保存一次。IVF-PQ 索引只保存 PQ codes，不保存原始向量；它会同时
-落盘两种 list 布局：`list_codes.pt`、`list_ids_flat.pt`、`list_prefix.pt`、
-`list_count.pt` 以及行主序的 `list_pq_static_corrections.pt` 供
-`tensor_topk` 使用；后者让 Tensor 路线以 query-global LUT 在查表时重建
-残差 ADC 值，而无需物化每个 probe 的完整 LUT。另有
+IVF-Flat 只保存 Triton TopK 使用的 interleaved list 布局；按 cluster 排序的
+row-major list 张量只在构建过程中临时存在，不会落盘。不会额外落盘一份
+`vectors.pt`。IVF-PQ 索引只保存 PQ codes，不保存原始向量；它只落盘
+Triton TopK 使用的 interleaved list 布局：`list_count.pt`、
 `list_codes_interleaved_by_subspace.pt`、`list_ids_interleaved.pt`、
 `list_group_prefix.pt`、`list_pq_static_corrections_interleaved.pt` 供
-`triton_topk` 使用。调用
-`index.reside_on_device("cuda:0")` 时，两种布局都会常驻到该 GPU。
+`triton_topk` 使用。按 cluster 排序的 row-major list 张量只在构建过程中临时存在，
+不会落盘。调用 `index.reside_on_device("cuda:0")` 时，这一套布局会常驻到该 GPU。
