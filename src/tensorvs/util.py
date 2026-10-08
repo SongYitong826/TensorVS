@@ -6,6 +6,15 @@ import numpy as np
 import torch
 
 
+def get_default_device() -> torch.device:
+    """Prefer CUDA, then an available Apple MPS device, otherwise CPU."""
+    if torch.cuda.is_available():
+        return torch.device("cuda:0")
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
 def load_fvecs(dataset_path: str | Path) -> torch.Tensor:
     """Load a Faiss-style .fvecs file into a 2D float32 tensor."""
     path = Path(dataset_path)

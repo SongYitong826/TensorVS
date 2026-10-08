@@ -12,9 +12,13 @@ dist/
 .ipynb_checkpoints/
 
 # Local benchmark scripts and generated result files.
-/bench/
+/bench/*
+!/bench/
+!/bench/*.py
 /result/
 /results/
 
 # Local plotting scripts and generated figures.
-/plot/
+/plot/*
+!/plot/
+!/plot/*.py

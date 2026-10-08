@@ -6,24 +6,18 @@ import torch
 
 import tensorvs._ivfflat_triton as _ivfflat_triton
 import tensorvs._ivfpq_triton as _ivfpq_triton
-import tensorvs._ivfsq_triton as _ivfsq_triton
 from flash_kmeans.training import _assigned_inertia, _kmeans_cpu_chunk_rows
 from tensorvs import (
     build_ivfflat_index,
     build_ivfpq_index,
-    build_ivfsq_index,
     compute_recall_at_k,
     load_ivfflat_index,
     load_ivfpq_index,
-    load_ivfsq_index,
     save_ivfflat_index,
     save_ivfpq_index,
-    save_ivfsq_index,
     search_ivfflat_index,
     search_ivfpq_index,
-    search_ivfsq_index,
 )
-from tensorvs.index_ivfsq import _pack_sq_codes, _unpack_sq_codes
 from tensorvs.distance import squared_l2_distance
 from tensorvs._ivf_interleaved import (
     INTERLEAVED_GROUP_SIZE,
@@ -400,16 +394,6 @@ def test_ivfpq_fused_metadata_matches_expanded_oversized_list():
     )
     torch.testing.assert_close(fused_distances, legacy_distances)
     torch.testing.assert_close(fused_ids, legacy_ids)
-
-
-def test_ivfsq_triton_plan_bounds_local_and_chunk_topk():
-    assert _ivfsq_triton._task_plan(topk=10, nprobe=50, max_list_group_count=40) == (
-        16,
-        5,
-        128,
-    )
-    assert _ivfsq_triton._task_plan(topk=33, nprobe=50, max_list_group_count=40) is None
-    assert _ivfsq_triton._task_plan(topk=10, nprobe=129, max_list_group_count=40) is None
 
 
 def test_ivfpq_list_cta_plan_supports_two_probe_lists_per_cta(monkeypatch):
@@ -845,7 +829,7 @@ def test_ivfpq_seed_metadata_and_exact_refinement(tmp_path):
             assert "Unsupported IVFPQ selection_mode" in str(error)
         else:  # pragma: no cover - guards the removed public API
             raise AssertionError(f"Removed IVFPQ mode was accepted: {removed_mode}")
-    with pytest.raises(RuntimeError, match="requires the Triton TopK path"):
+    with pytest.raises(RuntimeError, match="Triton IVF-PQ backend"):
         search_ivfpq_index(
             index,
             queries,
@@ -853,6 +837,7 @@ def test_ivfpq_seed_metadata_and_exact_refinement(tmp_path):
             nprobe=4,
             device="cpu",
             selection_mode="triton_topk",
+            backend="triton",
         )
 
 
@@ -1356,83 +1341,3 @@ def test_interleaved_layout_preserves_ivf_list_values():
     packed_rows = packed_codes.view(torch.uint8).permute(0, 2, 1, 3).reshape(-1, 32)
     torch.testing.assert_close(packed_rows[physical_positions, :25], wide_codes)
     assert torch.count_nonzero(packed_rows[:, 25:]) == 0
-
-
-def test_ivfsq_nibble_pack_roundtrip_odd_dimension():
-    codes = torch.tensor(
-        [[0, 1, 2, 3, 4], [15, 14, 13, 12, 11]],
-        dtype=torch.uint8,
-    )
-    packed = _pack_sq_codes(codes)
-    assert packed.dtype == torch.uint8
-    assert packed.shape == (2, 3)
-    torch.testing.assert_close(_unpack_sq_codes(packed, dim=5), codes)
-
-
-@pytest.mark.parametrize("bits", [8, 4])
-def test_ivfsq_build_save_load_search_and_refine(tmp_path, bits):
-    generator = torch.Generator().manual_seed(321)
-    vectors = torch.randn(96, 7, generator=generator)
-    queries = vectors[:8] + 0.01 * torch.randn(8, 7, generator=generator)
-    result = build_ivfsq_index(
-        vectors=vectors,
-        nlist=4,
-        niter=4,
-        use_triton=False,
-        device="cpu",
-        bits=bits,
-        seed=17,
-        n_init=1,
-    )
-
-    assert result.bits == bits
-    assert result.sq_codes.dtype == torch.uint8
-    assert result.sq_codes.shape == (96, 7 if bits == 8 else 4)
-    output_path = tmp_path / f"ivfsq_{bits}"
-    save_ivfsq_index(result, output_path, dataset_path="in-memory")
-    index = load_ivfsq_index(output_path)
-    assert index.metadata["sq_bits"] == bits
-    assert index.metadata["sq_mode"] == "residual_per_list_affine"
-    assert index.list_codes is not None
-    assert index.list_codes.shape == result.sq_codes.shape
-
-    profile: dict[str, float] = {}
-    distances, ids = search_ivfsq_index(
-        index,
-        queries,
-        topk=4,
-        nprobe=4,
-        device="cpu",
-        profile=profile,
-    )
-    assert distances.shape == (8, 4)
-    assert ids.shape == (8, 4)
-    assert distances.dtype == torch.float32
-    assert ids.dtype == torch.int64
-    assert torch.all(ids >= 0)
-    assert torch.all(ids < vectors.shape[0])
-    assert "sq_distance_topk" in profile
-
-    refined_distances, refined_ids = search_ivfsq_index(
-        index,
-        queries,
-        topk=3,
-        nprobe=4,
-        device="cpu",
-        refine_vectors=vectors,
-        refine_factor=2,
-    )
-    expected = ((queries[:, None, :] - vectors[refined_ids]) ** 2).sum(dim=2)
-    torch.testing.assert_close(refined_distances, expected, rtol=1e-5, atol=1e-5)
-
-    single_file = tmp_path / f"ivfsq_{bits}.bin"
-    save_ivfsq_index(result, single_file)
-    single_file_index = load_ivfsq_index(single_file)
-    torch.testing.assert_close(single_file_index.sq_min, index.sq_min)
-    torch.testing.assert_close(single_file_index.sq_scale, index.sq_scale)
-
-
-def test_ivfsq_rejects_unsupported_bits_and_selection_mode():
-    vectors = torch.randn(16, 4)
-    with pytest.raises(ValueError, match="bits must be 4 or 8"):
-        build_ivfsq_index(vectors, 2, 2, False, "cpu", bits=3)

@@ -10,6 +10,7 @@ from bench._benchmark_utils import probe_visit_statistics
 from tensorvs import (
     build_ivfpq_index,
     compute_recall_at_k,
+    get_default_device,
     load_dataset,
     load_ivecs,
     load_ivfpq_index,
@@ -31,8 +32,11 @@ PQ_NITER = 25
 PQ_N_INIT = 1
 PQ_MAX_POINTS_PER_CENTROID = 256
 KMEANS_INIT_METHOD = "kmeans++"
-USE_TRITON = True
-DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+DEVICE = get_default_device()
+# Training currently requires operations unavailable on MPS; search uses MPS.
+TRAIN_DEVICE = torch.device("cpu") if DEVICE.type == "mps" else DEVICE
+USE_TRITON = TRAIN_DEVICE.type == "cuda"
+BACKEND = "auto"
 # ``M`` need not divide the input dimension. For example GloVe D=200,M=32
 # uses a cuVS-style 224-dimensional orthogonal PQ working space (32 x 7).
 M = 32
@@ -40,7 +44,7 @@ NBITS = 8
 TOPK = 10
 NPROBE = 50
 SELECTION_MODE = "triton_topk"
-# The public IVFPQ search API only supports this Triton TopK path.
+# Legacy selection_mode is retained; BACKEND chooses the implementation.
 ENABLE_DETAILED_TIMING = False
 # Set this to False to use the unpacked subspace-major code loads.
 USE_PACKED_16B_CODES = True
@@ -97,7 +101,7 @@ def main() -> None:
         print(
             f"Starting clustering with nlist={NLIST}, "
             f"ivf_niter={IVF_NITER}, pq_niter={PQ_NITER}, "
-            f"m={M}, nbits={NBITS}, device={DEVICE}..."
+            f"m={M}, nbits={NBITS}, device={TRAIN_DEVICE}..."
         )
         build_start_time = time.perf_counter()
         build_result = build_ivfpq_index(
@@ -105,7 +109,7 @@ def main() -> None:
             nlist=NLIST,
             niter=IVF_NITER,
             use_triton=USE_TRITON,
-            device=DEVICE,
+            device=TRAIN_DEVICE,
             m=M,
             nbits=NBITS,
             seed=SEED,
@@ -134,7 +138,7 @@ def main() -> None:
     index = load_ivfpq_index(index_dir, load_lists=True)
     print(f"Loaded IVF-PQ index from: {index.index_dir}")
     print(f"Moving IVF-PQ index to resident device: {DEVICE}")
-    index.reside_on_device(DEVICE)
+    index.reside_on_device(DEVICE, backend=BACKEND)
 
     base_vectors = load_dataset(DATASET_PATH)
     queries = load_dataset(QUERY_PATH)
@@ -196,6 +200,10 @@ def main() -> None:
             sync_start_time = time.perf_counter()
             torch.cuda.synchronize(DEVICE)
             batch_timings["pre_search_sync"] += time.perf_counter() - sync_start_time
+        elif DEVICE.type == "mps":
+            sync_start_time = time.perf_counter()
+            torch.mps.synchronize()
+            batch_timings["pre_search_sync"] += time.perf_counter() - sync_start_time
 
         if not warmup_done:
             warmup_start_time = time.perf_counter()
@@ -208,6 +216,7 @@ def main() -> None:
                     topk=TOPK,
                     nprobe=NPROBE,
                     selection_mode=SELECTION_MODE,
+                    backend=BACKEND,
                     refine_vectors=base_vectors if REFINE_FACTOR > 1 else None,
                     refine_factor=REFINE_FACTOR,
                     profile=warmup_profile,
@@ -218,6 +227,8 @@ def main() -> None:
             if DEVICE.type == "cuda":
                 torch.cuda.synchronize(DEVICE)
                 torch.cuda.reset_peak_memory_stats(DEVICE)
+            elif DEVICE.type == "mps":
+                torch.mps.synchronize()
             batch_timings["warmup"] += time.perf_counter() - warmup_start_time
             warmup_done = True
             if warmup_profile is not None:
@@ -231,6 +242,7 @@ def main() -> None:
             topk=TOPK,
             nprobe=NPROBE,
             selection_mode=SELECTION_MODE,
+            backend=BACKEND,
             refine_vectors=base_vectors if REFINE_FACTOR > 1 else None,
             refine_factor=REFINE_FACTOR,
             profile=batch_profile,
@@ -243,6 +255,10 @@ def main() -> None:
         if DEVICE.type == "cuda":
             sync_start_time = time.perf_counter()
             torch.cuda.synchronize(DEVICE)
+            batch_timings["post_search_sync"] += time.perf_counter() - sync_start_time
+        elif DEVICE.type == "mps":
+            sync_start_time = time.perf_counter()
+            torch.mps.synchronize()
             batch_timings["post_search_sync"] += time.perf_counter() - sync_start_time
         if batch_profile is not None:
             for name, value in batch_profile.items():

@@ -22,13 +22,18 @@ from ._ivf_interleaved import (
     build_interleaved_pq_lists,
     build_interleaved_pq_scalar_cache,
 )
+from ._coarse_triton import restore_selected_squared_l2
 from ._ivfpq_triton import (
     can_run_topk as can_run_ivfpq_triton_topk,
     plan_probe_chunks,
 )
 from ._ivfpq_triton import triton_topk as triton_ivfpq_topk
+from ._ivfpq_triton import triton as _triton
 from .distance import squared_l2_distance
 from .refine import refine_search_results
+from ._layout_cache import (LayoutCache, logical_lists, normalize_device, packed_pq_layout,
+                            prepare_torch_layout, record_triton_layout)
+from ._torch_search import search_torch, search_device, validate_backend
 
 
 _LUT_STORAGE_DTYPES = {
@@ -411,20 +416,17 @@ def _build_global_query_luts_bmm(
     return values
 
 
-def _coarse_squared_l2_distance_addmm(
+def _coarse_centroid_scores_addmm(
     queries: torch.Tensor,
     centroids: torch.Tensor,
     centroid_norms: torch.Tensor,
 ) -> torch.Tensor:
-    """Compute ``||q-c||^2`` with a cached centroid-norm table.
+    """Compute ``||c||^2 - 2 q^T c`` for coarse-list selection.
 
-    ``centroid_norms`` is static index data.  Feeding it as the broadcast C
-    operand of ``addmm`` avoids recomputing a `[nlist, dim]` reduction for
-    every query batch.  Coarse top-k selection is deliberately strict FP32:
-    small TF32 dot-product perturbations can change the nprobe boundary and
-    therefore the candidate lists searched.
+    Query norms are row-wise constants and therefore do not affect which
+    centroids are selected. They are added only to the selected distances,
+    avoiding pointwise work over the full ``[nq, nlist]`` matrix.
     """
-    query_norms = (queries * queries).sum(dim=1, keepdim=True)
     centroid_norm_base = centroid_norms.unsqueeze(0)
     if not queries.is_cuda:
         distances = torch.addmm(
@@ -447,6 +449,17 @@ def _coarse_squared_l2_distance_addmm(
             )
         finally:
             torch.backends.cuda.matmul.allow_tf32 = previous_allow_tf32
+    return distances
+
+
+def _coarse_squared_l2_distance_addmm(
+    queries: torch.Tensor,
+    centroids: torch.Tensor,
+    centroid_norms: torch.Tensor,
+) -> torch.Tensor:
+    """Compute all coarse ``||q-c||^2`` distances with cached norms."""
+    query_norms = (queries * queries).sum(dim=1, keepdim=True)
+    distances = _coarse_centroid_scores_addmm(queries, centroids, centroid_norms)
     return distances.add_(query_norms).clamp_min_(0.0)
 
 
@@ -506,9 +519,22 @@ class IVFPQIndex:
     # nprobe changes.
     search_workspace_key: tuple[object, ...] | None = field(default=None, repr=False)
     search_workspace: _IVFPQSearchWorkspace | None = field(default=None, repr=False)
+    layout_cache: LayoutCache = field(default_factory=LayoutCache, repr=False)
 
-    def reside_on_device(self, device: torch.device | str) -> IVFPQIndex:
+    @property
+    def logical_lists(self):
+        """Unpadded, device-independent list-major codes and corrections."""
+        return logical_lists(self, "pq")
+
+    def reside_on_device(self, device: torch.device | str, *, backend: str = "triton",
+                         persist_layout: bool = True) -> IVFPQIndex:
         """Move search-critical tensors onto a target device and keep them resident."""
+        validate_backend(backend)
+        target_device = normalize_device(device)
+        if backend == "torch" or (backend == "auto" and (target_device.type != "cuda" or _triton is None)):
+            prepare_torch_layout(self, "pq", target_device, persist=persist_layout)
+            return self
+        self.layout_cache.torch_layout = None
         if self.list_count is None:
             raise ValueError("Index PQ lists are not loaded. Call load_ivfpq_index(..., load_lists=True).")
         if (
@@ -519,7 +545,8 @@ class IVFPQIndex:
         ):
             raise ValueError("Triton IVF-PQ layout is incomplete. Rebuild the index.")
 
-        target_device = torch.device(device)
+        if persist_layout:
+            record_triton_layout(self, target_device)
         if (
             self.resident_device == target_device
             and self.list_ids_interleaved is not None
@@ -566,7 +593,8 @@ class IVFPQIndex:
             and int(persisted_codes.shape[0]) > 16
             and persisted_codes.dtype == torch.uint8
         ):
-            packed_codes = _pack_interleaved_pq_code_chunks(persisted_codes)
+            packed_codes = (packed_pq_layout(self, target_device, _pack_interleaved_pq_code_chunks)
+                            if persist_layout else _pack_interleaved_pq_code_chunks(persisted_codes))
             assert packed_codes is not None
             self.list_codes_interleaved_packed_16b = packed_codes.to(
                 device=target_device,
@@ -631,6 +659,8 @@ class IVFPQIndex:
         self.search_workspace_key = None
         self.search_workspace = None
         self.resident_device = None
+        self.layout_cache.torch_layout = None
+        self.layout_cache.triton_fingerprint = None
         return self
 
 
@@ -799,6 +829,8 @@ def save_ivfpq_index(
         "pq_mode": "residual",
         "has_pq_static_vector_corrections": True,
         "stores_full_vectors": False,
+        "logical_index_schema": 1,
+        "default_runtime_layout": "interleaved",
         "cluster_sizes": cluster_sizes,
         "storage_format": "single_file" if is_single_file else "directory_interleaved",
         "interleaved_layout": {
@@ -1274,17 +1306,20 @@ def _search_ivfpq_index_eager(
         result_ids.fill_(-1)
     record_timing("init_outputs", step_start)
 
-    # Step 1: compute the full query-centroid squared L2 distance matrix, then
-    # keep only the nearest `nprobe` coarse centroids for each query.
+    # Step 1: select from the query-invariant centroid scores, then restore
+    # exact squared-L2 values only for the nearest `nprobe` centroids.
     step_start = start_timing()
-    dist_qc = _coarse_squared_l2_distance_addmm(
+    coarse_scores = _coarse_centroid_scores_addmm(
         q,
         centroids,
         centroid_norms,
     )
     record_timing("centroid_distance", step_start)
     step_start = start_timing()
-    probe_distances, probe_cids = torch.topk(dist_qc, k=nprobe, dim=1, largest=False)
+    probe_distances, probe_cids = torch.topk(
+        coarse_scores, k=nprobe, dim=1, largest=False, sorted=False
+    )
+    restore_selected_squared_l2(q, probe_distances)
     record_timing("centroid_topk", step_start)
 
     m = int(index.metadata["m"])
@@ -1461,7 +1496,7 @@ def _search_ivfpq_index_eager(
     return result_distances, result_ids
 
 
-def search_ivfpq_index(
+def _search_ivfpq_index_triton(
     index: IVFPQIndex,
     queries: torch.Tensor,
     topk: int = 10,
@@ -1641,6 +1676,87 @@ def search_ivfpq_index(
     workspace.graph.replay()
     assert workspace.graph_outputs is not None
     return workspace.graph_outputs
+
+
+def search_ivfpq_index(
+    index: IVFPQIndex,
+    queries: torch.Tensor,
+    topk: int = 10,
+    nprobe: int = 10,
+    device: torch.device | str | None = None,
+    selection_mode: str = "triton_topk",
+    profile: dict[str, float] | None = None,
+    use_packed_16b_codes: bool = True,
+    triton_autotune: bool = False,
+    triton_autotune_cache_nprobe: int | None = None,
+    refine_vectors: torch.Tensor | None = None,
+    refine_factor: int = 1,
+    lut_dtype: str = "fp32",
+    use_preallocated_workspace: bool = False,
+    use_cuda_graph: bool = False,
+    *,
+    backend: str = "auto",
+    torch_query_batch_size: int = 128,
+    torch_candidate_chunk_size: int = 2048,
+    torch_memory_budget_mb: float = 128,
+    use_compile: bool = False,
+    persist_layout: bool = True,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Search residual IVF-PQ with fused Triton or bounded PyTorch ADC.
+
+    ``auto`` prefers supported Triton devices/shapes. ``use_compile`` compiles
+    PyTorch scan/merge blocks. Large GPU batches scan virtual contiguous
+    per-query candidate streams; small batches use list-grouped blocks.
+    Without ``device``, non-CPU queries keep their device; CPU queries use
+    CUDA, then MPS, then CPU according to availability.
+    Packed codes, autotuning, reusable outputs and
+    CUDA Graph options apply to the Triton path; torch returns owned outputs.
+    Layout conversions are cached separately from the source index.
+    """
+    validate_backend(backend)
+    if selection_mode != "triton_topk":
+        raise ValueError(
+            f"Unsupported IVFPQ selection_mode: {selection_mode!r}; "
+            "expected 'triton_topk'; choose a backend with backend="
+        )
+    if queries.ndim != 2 or queries.shape[1] != index.centroids.shape[1]:
+        raise ValueError("Queries must have shape [num_queries, index dimension]")
+    if index.list_count is None:
+        raise ValueError("IVF lists are not loaded; load the index with load_lists=True")
+    target = search_device(queries, device)
+    probe_count = max(1, min(int(nprobe), index.centroids.shape[0]))
+    requested_k = max(1, int(topk))
+    if int(refine_factor) < 1 or (refine_vectors is None and int(refine_factor) != 1):
+        raise ValueError("refine_factor must be >= 1 and requires refine_vectors when greater than 1")
+    scan_k = max(requested_k, min(requested_k * int(refine_factor), int(index.metadata["num_vectors"]))) if refine_vectors is not None else requested_k
+    if index.triton_list_count_stats is None:
+        counts = index.list_count.detach().cpu().to(torch.float32)
+        index.triton_list_count_stats = (int(counts.mean()), int(torch.quantile(counts, .95)), int(counts.max()))
+    _, max_chunks = plan_probe_chunks(nprobe=probe_count, max_list_count=index.triton_list_count_stats[2])
+    codes = index.persisted_list_codes_interleaved_by_subspace
+    supported = can_run_ivfpq_triton_topk(
+        device=target, topk=scan_k, m=int(index.metadata["m"]), ksub=int(index.metadata["ksub"]),
+        nprobe=probe_count * max_chunks,
+        num_code_vectors=(index.persisted_list_ids_interleaved.numel() if index.persisted_list_ids_interleaved is not None else 0),
+        code_dtype=codes.dtype if codes is not None else torch.uint8,
+        use_packed_16b_codes=use_packed_16b_codes and int(index.metadata["m"]) > 16)
+    selected = "triton" if backend == "auto" and supported else ("torch" if backend == "auto" else backend)
+    if selected == "torch":
+        return search_torch(index, queries, kind="pq", topk=topk, nprobe=nprobe,
+                            device=target, profile=profile, query_batch_size=torch_query_batch_size,
+                            candidate_chunk_size=torch_candidate_chunk_size,
+                            memory_budget_mb=torch_memory_budget_mb, use_compile=use_compile,
+                            persist_layout=persist_layout, lut_dtype=lut_dtype,
+                            refine_vectors=refine_vectors, refine_factor=refine_factor)
+    if not supported:
+        raise RuntimeError("The requested Triton IVF-PQ backend does not support this device or shape")
+    index.reside_on_device(target, persist_layout=persist_layout)
+    return _search_ivfpq_index_triton(
+        index, queries, topk=topk, nprobe=nprobe, device=target, selection_mode=selection_mode,
+        profile=profile, use_packed_16b_codes=use_packed_16b_codes, triton_autotune=triton_autotune,
+        triton_autotune_cache_nprobe=triton_autotune_cache_nprobe, refine_vectors=refine_vectors,
+        refine_factor=refine_factor, lut_dtype=lut_dtype, use_preallocated_workspace=use_preallocated_workspace,
+        use_cuda_graph=use_cuda_graph)
 
 
 def build_ivfpq_index(

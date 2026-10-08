@@ -10,6 +10,7 @@ import torch
 from tensorvs import (
     build_ivfflat_index,
     compute_recall_at_k,
+    get_default_device,
     load_dataset,
     load_ivecs,
     load_ivfflat_index,
@@ -25,15 +26,17 @@ GROUNDTRUTH_PATH = DIR_PATH / f"{DATASET_NAME}_groundtruth.ivecs"
 OUTPUT_DIR = DIR_PATH / "GPUIndex"
 NLIST = 1024
 NITER = 25
-USE_TRITON = True
-DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+DEVICE = get_default_device()
+# Training currently requires operations unavailable on MPS; search uses MPS.
+TRAIN_DEVICE = torch.device("cpu") if DEVICE.type == "mps" else DEVICE
+USE_TRITON = TRAIN_DEVICE.type == "cuda"
+BACKEND = "auto"
 TOPK = 10
 NPROBE = 50
 NQ = 1024
 Q_BATCH = 64
 SELECTION_MODE = "triton_topk"
-# IVF-Flat currently uses the Triton TopK implementation exclusively.
-# triton_topk 的batch越高越好？？为什么？
+# Legacy selection_mode is retained; BACKEND chooses the implementation.
 # Enable only when inspecting per-stage timing. It adds CUDA timing events and
 # a per-search synchronization, so leave it False for QPS measurements.
 ENABLE_DETAILED_TIMING = False
@@ -94,14 +97,14 @@ def main() -> None:
             f"Successfully prepared dataset from {DATASET_PATH} "
             f"with shape {tuple(base_vectors.shape)} and dtype {base_vectors.dtype}"
         )
-        print(f"Starting clustering with nlist={NLIST}, niter={NITER}, device={DEVICE}...")
+        print(f"Starting clustering with nlist={NLIST}, niter={NITER}, device={TRAIN_DEVICE}...")
         build_start_time = time.perf_counter()
         build_result = build_ivfflat_index(
             vectors=base_vectors,
             nlist=NLIST,
             niter=NITER,
             use_triton=USE_TRITON,
-            device=DEVICE,
+            device=TRAIN_DEVICE,
             seed=SEED,
             n_init=N_INIT,
         )
@@ -125,7 +128,7 @@ def main() -> None:
     index = load_ivfflat_index(index_dir, load_lists=True)
     print(f"Loaded IVF-Flat index from: {index.index_dir}")
     print(f"Moving IVF-Flat index to resident device: {DEVICE}")
-    index.reside_on_device(DEVICE)
+    index.reside_on_device(DEVICE, backend=BACKEND)
 
     queries = load_dataset(QUERY_PATH)
     groundtruth = load_ivecs(GROUNDTRUTH_PATH)
@@ -174,6 +177,10 @@ def main() -> None:
             sync_start_time = time.perf_counter()
             torch.cuda.synchronize(DEVICE)
             batch_timings["pre_search_sync"] += time.perf_counter() - sync_start_time
+        elif DEVICE.type == "mps":
+            sync_start_time = time.perf_counter()
+            torch.mps.synchronize()
+            batch_timings["pre_search_sync"] += time.perf_counter() - sync_start_time
         if not warmup_done:
             warmup_profile: dict[str, float] | None = {} if ENABLE_DETAILED_TIMING else None
             warmup_start_time = time.perf_counter()
@@ -183,10 +190,13 @@ def main() -> None:
                 topk=TOPK,
                 nprobe=NPROBE,
                 selection_mode=SELECTION_MODE,
+                backend=BACKEND,
                 profile=warmup_profile,
             )
             if DEVICE.type == "cuda":
                 torch.cuda.synchronize(DEVICE)
+            elif DEVICE.type == "mps":
+                torch.mps.synchronize()
             batch_timings["warmup"] += time.perf_counter() - warmup_start_time
             warmup_done = True
             if warmup_profile is not None:
@@ -199,6 +209,7 @@ def main() -> None:
             topk=TOPK,
             nprobe=NPROBE,
             selection_mode=SELECTION_MODE,
+            backend=BACKEND,
             profile=batch_profile,
         )
         batch_search_elapsed = time.perf_counter() - batch_search_start_time
@@ -206,6 +217,10 @@ def main() -> None:
         if DEVICE.type == "cuda":
             sync_start_time = time.perf_counter()
             torch.cuda.synchronize(DEVICE)
+            batch_timings["post_search_sync"] += time.perf_counter() - sync_start_time
+        elif DEVICE.type == "mps":
+            sync_start_time = time.perf_counter()
+            torch.mps.synchronize()
             batch_timings["post_search_sync"] += time.perf_counter() - sync_start_time
         if batch_profile is not None:
             for name, value in batch_profile.items():
