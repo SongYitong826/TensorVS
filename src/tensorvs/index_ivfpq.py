@@ -1701,12 +1701,20 @@ def search_ivfpq_index(
     torch_memory_budget_mb: float = 128,
     use_compile: bool = False,
     persist_layout: bool = True,
+    torch_pq_scan: str = "auto",
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Search residual IVF-PQ with fused Triton or bounded PyTorch ADC.
 
     ``auto`` prefers supported Triton devices/shapes. ``use_compile`` compiles
     PyTorch scan/merge blocks. Large GPU batches scan virtual contiguous
     per-query candidate streams; small batches use list-grouped blocks.
+    ``torch_pq_scan="gpu"`` forces a tensor-only candidate stream, without
+    query-dependent host scheduling or scalar readback. Its scan length uses
+    an index-only upper bound; Python still submits fixed tensor operations.
+    ``"grouped"`` forces list grouping; ``"auto"`` retains device heuristics.
+    ``"bucketed"`` downloads actual candidate counts once per query batch,
+    groups similarly sized queries on the CPU, and scans on the selected
+    Torch device. This reduces padding but permits query-dependent CPU work.
     Without ``device``, non-CPU queries keep their device; CPU queries use
     CUDA, then MPS, then CPU according to availability.
     Packed codes, autotuning, reusable outputs and
@@ -1747,7 +1755,8 @@ def search_ivfpq_index(
                             candidate_chunk_size=torch_candidate_chunk_size,
                             memory_budget_mb=torch_memory_budget_mb, use_compile=use_compile,
                             persist_layout=persist_layout, lut_dtype=lut_dtype,
-                            refine_vectors=refine_vectors, refine_factor=refine_factor)
+                            refine_vectors=refine_vectors, refine_factor=refine_factor,
+                            pq_scan=torch_pq_scan)
     if not supported:
         raise RuntimeError("The requested Triton IVF-PQ backend does not support this device or shape")
     index.reside_on_device(target, persist_layout=persist_layout)

@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import pickle
+import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -63,6 +64,10 @@ class TorchLayout:
     tensors: dict[str, torch.Tensor]
     fingerprint: dict[str, Any]
     row_list_ids: torch.Tensor | None = None
+    pq_scan_upper_bounds: tuple[int, ...] = ()
+    pq_anchor_grain: int = 0
+    pq_has_empty_lists: bool = False
+    pq_adc_words: torch.Tensor | None = None
 
 
 @dataclass
@@ -196,6 +201,22 @@ def prepare_torch_layout(index: Any, kind: str, device: torch.device | str,
                if getattr(index, name, None) is not None}
     layout = TorchLayout(logical.to(device), tuple(logical.counts.tolist()),
                          tuple(logical.offsets.tolist()), tensors, fingerprint)
+    if kind == "pq":
+        # Query-independent bounds: any nprobe distinct lists contain at most
+        # the sum of the nprobe longest lists. Build once from host metadata,
+        # so a query never needs to read its GPU prefix sums back to the CPU.
+        bounds, total = [0], 0
+        for count in sorted(layout.host_counts, reverse=True):
+            total += count
+            bounds.append(total)
+        layout.pq_scan_upper_bounds = tuple(bounds)
+        positive = [count for count in layout.host_counts if count]
+        minimum = min(positive, default=0)
+        # One grain can cross at most one positive-length list boundary.
+        # Very short lists retain general binary-search positioning.
+        layout.pq_anchor_grain = (1 << min(10, minimum.bit_length() - 1)
+                                  if minimum >= 32 else 0)
+        layout.pq_has_empty_lists = 0 in layout.host_counts
     cache.torch_layout = layout  # Keep only the most recent torch device resident.
     return layout
 
@@ -213,6 +234,33 @@ def record_triton_layout(index: Any, device: torch.device | str) -> None:
             _store(path, signature, {"encoding": "archive_interleaved", "group_size": 32})
         cache.persisted_keys.add(key)
     cache.triton_fingerprint = fingerprint
+
+
+def prepare_pq_adc_words(layout: TorchLayout) -> torch.Tensor | None:
+    """Read four byte codes per int32 word; retain logical rows for other scans.
+
+    Divisible, contiguous rows on little-endian hosts can alias the original
+    bytes. Other row widths use explicit, portable shifts once per layout.
+    Signed words are decoded with a byte mask, including the high byte.
+    """
+    data = layout.lists.data
+    if data.dtype != torch.uint8 or data.shape[1] < 4:
+        return None
+    if layout.pq_adc_words is None:
+        if data.is_contiguous() and data.shape[1] % 4 == 0 and sys.byteorder == "little":
+            try:
+                layout.pq_adc_words = data.view(torch.int32)
+            except RuntimeError:
+                pass  # A backend without dtype views can still pack tensors.
+        if layout.pq_adc_words is None:
+            words = []
+            for start in range(0, data.shape[1], 4):
+                word = data[:, start].to(torch.int32)
+                for byte in range(1, min(4, data.shape[1] - start)):
+                    word = word | (data[:, start + byte].to(torch.int32) << (8 * byte))
+                words.append(word)
+            layout.pq_adc_words = torch.stack(words, 1).contiguous()
+    return layout.pq_adc_words
 
 
 def packed_pq_layout(index: Any, device: torch.device, pack: Any) -> torch.Tensor:

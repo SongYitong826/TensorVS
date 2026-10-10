@@ -71,10 +71,324 @@ def test_fixed_flat_scan_matches_selected_candidate_oracle(indexes, scan, device
         assert ("dense_vector_distance_topk" in profile) == (scan == "dense")
 
 
-def test_invalid_flat_scan_rejected(indexes):
+@pytest.mark.parametrize("scan", ["invalid", "metal"])
+def test_invalid_flat_scan_rejected(indexes, scan):
     with pytest.raises(ValueError, match="flat_scan"):
         search_ivfflat_index(indexes[0], indexes[4], backend="torch", device="cpu",
-                             torch_flat_scan="invalid")
+                             torch_flat_scan=scan)
+
+
+@pytest.mark.parametrize("device", ["cpu", "mps", "cuda:0"])
+@pytest.mark.parametrize("k,budget", [(10, .0625), (100, 8), (300, .25)])
+def test_tensor_native_flat_ragged_chunks_match_oracle(tmp_path, monkeypatch, device, k, budget):
+    if device == "mps" and not torch.backends.mps.is_available():
+        pytest.skip("requires Apple MPS")
+    if device.startswith("cuda") and not torch.cuda.is_available():
+        pytest.skip("requires CUDA")
+    def reject_custom_shader(*args, **kwargs):
+        raise AssertionError("TensorNative search must use standard tensor operators")
+    monkeypatch.setattr(torch.mps, "compile_shader", reject_custom_shader, raising=False)
+    generator = torch.Generator().manual_seed(907)
+    vectors = torch.randn(871, 31, generator=generator)
+    centers = torch.randn(6, 31, generator=generator)
+    labels = torch.randint(1, 5, (871,), generator=generator)
+    labels[:730] = 0  # A long list split into multiple candidate blocks.
+    queries = torch.randn(9, 62, generator=generator)[:, ::2]
+    queries[-1] = centers[5]  # The nearest list is empty at nprobe=1.
+    path = save_ivfflat_index(IVFFlatBuildResult(vectors, labels, centers, torch.device("cpu")),
+                             tmp_path / "native.bin")
+    index = load_ivfflat_index(path)
+    for probe in (1, 3, 6):
+        values, ids = search_ivfflat_index(index, queries, device=device, backend="torch",
+            topk=k, nprobe=probe, torch_query_batch_size=4, torch_candidate_chunk_size=128,
+            torch_memory_budget_mb=budget, torch_flat_scan="grouped", persist_layout=False)
+        expected, expected_ids = reference(queries, vectors, labels, centers, probe, k)
+        torch.testing.assert_close(values.cpu(), expected, atol=2e-4, rtol=2e-5)
+        # Norm/addmm and direct subtraction can order near-ties differently.
+        # Verify the selected set and every returned ID's independent distance.
+        torch.testing.assert_close(ids.cpu().sort(1).values, expected_ids.sort(1).values)
+        actual = (queries[:, None] - vectors[ids.cpu().clamp_min(0)]).square().sum(-1)
+        valid = ids.cpu() >= 0
+        torch.testing.assert_close(values.cpu()[valid], actual[valid], atol=2e-4, rtol=2e-5)
+        assert torch.equal(ids.cpu() < 0, ~torch.isfinite(values.cpu()))
+
+
+@pytest.mark.parametrize("device", ["cpu", "mps", "cuda:0"])
+@pytest.mark.parametrize("lut_dtype", ["fp32", "fp16"])
+@pytest.mark.parametrize("scan", ["auto", "gpu", "bucketed"])
+@pytest.mark.parametrize("k,budget", [(5, .0625), (100, 8), (300, .25)])
+def test_tensor_native_pq_ragged_chunks_match_decoded_oracle(indexes, monkeypatch,
+                                                           device, lut_dtype, scan, k, budget):
+    if device == "mps" and not torch.backends.mps.is_available():
+        pytest.skip("requires Apple MPS")
+    if device.startswith("cuda") and not torch.cuda.is_available():
+        pytest.skip("requires CUDA")
+    def reject_custom_shader(*args, **kwargs):
+        raise AssertionError("TensorNative search must use standard tensor operators")
+    monkeypatch.setattr(torch.mps, "compile_shader", reject_custom_shader, raising=False)
+    _, index, _, decoded, queries, labels, centers, rotation = indexes
+    queries = queries[:9].clone()
+    queries[-1] = centers[5]  # Empty nearest list at nprobe=1.
+    tolerance = .05 if lut_dtype == "fp16" else 2e-4
+    for probe in (1, 3, 6):
+        values, ids = search_ivfpq_index(index, queries, device=device, backend="torch",
+            topk=k, nprobe=probe, lut_dtype=lut_dtype, torch_query_batch_size=4,
+            torch_candidate_chunk_size=16, torch_memory_budget_mb=budget, persist_layout=False,
+            torch_pq_scan=scan)
+        expected, _ = reference(queries, decoded, labels, centers, probe, k, rotation)
+        torch.testing.assert_close(values.cpu(), expected, atol=tolerance, rtol=2e-5)
+        valid = ids.cpu() >= 0
+        actual = ((queries @ rotation.T)[:, None] - decoded[ids.cpu().clamp_min(0)]).square().sum(-1)
+        torch.testing.assert_close(values.cpu()[valid], actual[valid], atol=tolerance, rtol=2e-5)
+        assert torch.equal(valid, torch.isfinite(values.cpu()))
+        for row in ids.cpu():
+            selected = row[row >= 0]
+            assert selected.unique().numel() == selected.numel()
+
+
+@pytest.mark.parametrize("device", ["cpu", "mps"])
+@pytest.mark.parametrize("lut_dtype", ["fp32", "fp16"])
+@pytest.mark.parametrize("scan", ["auto", "gpu", "bucketed"])
+def test_tensor_native_pq_many_subspaces_match_decoded_oracle(tmp_path, device, lut_dtype, scan):
+    if device == "mps" and not torch.backends.mps.is_available():
+        pytest.skip("requires Apple MPS")
+    gen = torch.Generator().manual_seed(992)
+    vectors = torch.randn(211, 19, generator=gen)
+    centers = torch.randn(3, 19, generator=gen)
+    labels = torch.randint(0, 2, (211,), generator=gen)
+    labels[:170] = 0
+    books = torch.randn(19, 16, 1, generator=gen)
+    codes = torch.randint(0, 16, (211, 19), generator=gen, dtype=torch.uint8)
+    decoded = centers[labels] + torch.stack([books[m, codes[:, m].long(), 0] for m in range(19)], 1)
+    build = IVFPQBuildResult(vectors, labels, centers, books, codes, torch.device("cpu"), 19, 4)
+    index = load_ivfpq_index(save_ivfpq_index(build, tmp_path / "wide_pq.bin"))
+    queries = torch.randn(7, 19, generator=gen)
+    queries[-1] = centers[2]
+    tolerance = .08 if lut_dtype == "fp16" else 2e-4
+    for probe, k in ((1, 7), (3, 240)):
+        values, ids = search_ivfpq_index(index, queries, device=device, backend="torch",
+            topk=k, nprobe=probe, lut_dtype=lut_dtype, torch_query_batch_size=4,
+            torch_candidate_chunk_size=32, torch_memory_budget_mb=.25, persist_layout=False,
+            torch_pq_scan=scan)
+        expected, _ = reference(queries, decoded, labels, centers, probe, k)
+        torch.testing.assert_close(values.cpu(), expected, atol=tolerance, rtol=2e-5)
+        valid = ids.cpu() >= 0
+        actual = (queries[:, None] - decoded[ids.cpu().clamp_min(0)]).square().sum(-1)
+        torch.testing.assert_close(values.cpu()[valid], actual[valid], atol=tolerance, rtol=2e-5)
+        assert torch.equal(valid, torch.isfinite(values.cpu()))
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires Apple MPS")
+@pytest.mark.parametrize("use_compile", [False, True])
+def test_gpu_pq_schedule_has_no_query_readback(indexes, monkeypatch, use_compile):
+    import tensorvs._torch_search as native
+    _, index, _, decoded, q, labels, centers, rotation = indexes
+    q = q.clone()
+    q[-1] = centers[5]  # Includes an empty nearest list.
+    expected = [reference(q, decoded, labels, centers, p, 15, rotation)[0] for p in (1, 3, 6)]
+    index.reside_on_device("mps", backend="torch", persist_layout=False)
+    gpu_q = q.to("mps")
+    options = dict(device="mps", backend="torch", topk=15, torch_pq_scan="gpu",
+        torch_query_batch_size=4, torch_candidate_chunk_size=16,
+        torch_memory_budget_mb=.0625, persist_layout=False, use_compile=use_compile)
+    if use_compile:
+        # Framework tracing/code generation may use host metadata. Guard the
+        # warmed execution itself against query-dependent tensor readbacks.
+        with torch.inference_mode():
+            for probe in (1, 3, 6):
+                search_ivfpq_index(index, gpu_q, nprobe=probe, **options)
+    def reject_schedule(*args, **kwargs):
+        raise AssertionError("GPU scanning must not construct host query tasks")
+    def guard(original):
+        def checked(tensor, *args, **kwargs):
+            if tensor.device.type == "mps":
+                raise AssertionError("GPU scanning must not read a query tensor on the host")
+            return original(tensor, *args, **kwargs)
+        return checked
+    actual = []
+    with monkeypatch.context() as patch:
+        patch.setattr(native, "_schedule", reject_schedule)
+        patch.setattr(native, "_task_tensors", reject_schedule)
+        if not use_compile:
+            patch.setattr(torch.mps, "compile_shader", reject_schedule, raising=False)
+        for name in ("cpu", "item", "tolist", "numpy", "__int__", "__float__", "__bool__"):
+            patch.setattr(torch.Tensor, name, guard(getattr(torch.Tensor, name)))
+        original_to = torch.Tensor.to
+        def checked_to(tensor, *args, **kwargs):
+            target = kwargs.get("device", args[0] if args else None)
+            if isinstance(target, torch.Tensor):
+                target = target.device
+            if tensor.device.type == "mps" and isinstance(target, (str, torch.device)) and torch.device(target).type == "cpu":
+                raise AssertionError("GPU scanning must not transfer query data to the host")
+            return original_to(tensor, *args, **kwargs)
+        patch.setattr(torch.Tensor, "to", checked_to)
+        with torch.inference_mode():
+            for probe in (1, 3, 6):
+                actual.append(search_ivfpq_index(index, gpu_q, nprobe=probe, **options))
+    for (values, ids), oracle in zip(actual, expected):
+        assert values.device.type == ids.device.type == "mps"
+        torch.testing.assert_close(values.cpu(), oracle, atol=2e-4, rtol=2e-5)
+        assert torch.equal(ids.cpu() < 0, ~torch.isfinite(values.cpu()))
+
+
+def test_invalid_pq_scan_rejected(indexes):
+    with pytest.raises(ValueError, match="pq_scan"):
+        search_ivfpq_index(indexes[1], indexes[4], device="cpu", backend="torch", torch_pq_scan="invalid")
+
+
+@pytest.mark.parametrize("device", ["cpu", "mps"])
+@pytest.mark.parametrize("mode", ["row", "blocked"])
+def test_experimental_compact_pq_matches_decoded_oracle(indexes, monkeypatch, device, mode):
+    if device == "mps" and not torch.backends.mps.is_available():
+        pytest.skip("requires Apple MPS")
+    import tensorvs._torch_search as native
+    from bench._pq_compact_candidate import compact_search
+    monkeypatch.setattr(native, "_packed_pq_search", lambda *a, **kw: compact_search(*a, **kw, mode=mode))
+    _, index, _, decoded, queries, labels, centers, rotation = indexes
+    queries = queries.clone()
+    queries[-1] = centers[5]
+    for probe, k in ((1, 15), (3, 15), (6, 300)):
+        values, ids = search_ivfpq_index(index, queries, device=device, backend="torch",
+            nprobe=probe, topk=k, torch_pq_scan="gpu", torch_query_batch_size=4,
+            torch_candidate_chunk_size=32, torch_memory_budget_mb=2, lut_dtype="fp32", persist_layout=False)
+        expected, _ = reference(queries, decoded, labels, centers, probe, k, rotation)
+        torch.testing.assert_close(values.cpu(), expected, atol=2e-4, rtol=2e-5)
+        valid = ids.cpu() >= 0
+        actual = ((queries @ rotation.T)[:, None] - decoded[ids.cpu().clamp_min(0)]).square().sum(-1)
+        torch.testing.assert_close(values.cpu()[valid], actual[valid], atol=2e-4, rtol=2e-5)
+        assert torch.equal(valid, torch.isfinite(values.cpu()))
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires Apple MPS")
+@pytest.mark.parametrize("use_compile", [False, True])
+def test_bucketed_pq_downloads_only_counts_once_per_batch(indexes, monkeypatch, use_compile):
+    _, index, _, decoded, q, labels, centers, rotation = indexes
+    index.reside_on_device("mps", backend="torch", persist_layout=False)
+    q_gpu = q.to("mps")
+    options = dict(device="mps", backend="torch", nprobe=3, topk=9, torch_pq_scan="bucketed",
+        torch_query_batch_size=4, use_compile=use_compile, persist_layout=False)
+    with torch.inference_mode():
+        search_ivfpq_index(index, q_gpu, **options)  # prepare caches / compiler
+    transfers = []
+    original_cpu = torch.Tensor.cpu
+    def checked_cpu(tensor, *args, **kwargs):
+        if tensor.device.type == "mps":
+            assert tensor.dtype == torch.int64 and tensor.ndim == 1
+            transfers.append(tensor.shape[0])
+        return original_cpu(tensor, *args, **kwargs)
+    def guard(original):
+        def checked(tensor, *args, **kwargs):
+            assert tensor.device.type != "mps", "only the explicit count-vector transfer is allowed"
+            return original(tensor, *args, **kwargs)
+        return checked
+    with monkeypatch.context() as patch, torch.inference_mode():
+        patch.setattr(torch.Tensor, "cpu", checked_cpu)
+        for name in ("item", "tolist", "numpy", "__int__", "__float__", "__bool__"):
+            patch.setattr(torch.Tensor, name, guard(getattr(torch.Tensor, name)))
+        values, ids = search_ivfpq_index(index, q_gpu, **options)
+    assert transfers == [4, 4, 3]
+    expected, _ = reference(q, decoded, labels, centers, 3, 9, rotation)
+    torch.testing.assert_close(values.cpu(), expected, atol=2e-4, rtol=2e-5)
+    assert values.device.type == ids.device.type == "mps"
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires Apple MPS")
+def test_compiled_gpu_pq_schedule_matches_decoded_oracle(indexes):
+    _, index, _, decoded, q, labels, centers, rotation = indexes
+    # MPS Inductor support is runtime-dependent; an explicitly requested
+    # compiled search must succeed rather than silently change its backend.
+    with torch.inference_mode():
+        values, ids = search_ivfpq_index(index, q, device="mps", backend="torch",
+            nprobe=3, topk=15, torch_pq_scan="gpu", use_compile=True,
+            torch_query_batch_size=4, torch_candidate_chunk_size=32,
+            torch_memory_budget_mb=.25, persist_layout=False)
+    expected, _ = reference(q, decoded, labels, centers, 3, 15, rotation)
+    torch.testing.assert_close(values.cpu(), expected, atol=2e-4, rtol=2e-5)
+    actual = ((q @ rotation.T)[:, None] - decoded[ids.cpu().clamp_min(0)]).square().sum(-1)
+    valid = ids.cpu() >= 0
+    torch.testing.assert_close(values.cpu()[valid], actual[valid], atol=2e-4, rtol=2e-5)
+
+
+@pytest.mark.parametrize("device", ["cpu", "mps"])
+@pytest.mark.parametrize("counts", [(64,) * 6, (1, 3, 7, 11, 0, 0),
+                                     (2049, 33, 65, 0, 0, 0), (2049, 1, 3, 0, 0, 0)])
+@pytest.mark.parametrize("budget", [.015625, 2])
+def test_adaptive_pq_distributions_match_decoded_oracle(tmp_path, monkeypatch, device, counts, budget):
+    """Exercise adaptive tensor expressions independently of compiler support."""
+    if device == "mps" and not torch.backends.mps.is_available():
+        pytest.skip("requires Apple MPS")
+    import tensorvs._torch_search as native
+    monkeypatch.setattr(native, "_compute", lambda fn, use_compile, specialization=(): fn)
+    gen = torch.Generator().manual_seed(1209)
+    labels = torch.repeat_interleave(torch.arange(len(counts)), torch.tensor(counts))
+    vectors = torch.randn(len(labels), 12, generator=gen)
+    centers = torch.randn(len(counts), 12, generator=gen)
+    books = torch.randn(3, 16, 4, generator=gen)
+    codes = torch.randint(0, 16, (len(labels), 3), generator=gen, dtype=torch.uint8)
+    decoded = centers[labels] + torch.stack([books[m, codes[:, m].long()] for m in range(3)], 1).flatten(1)
+    build = IVFPQBuildResult(vectors, labels, centers, books, codes, torch.device("cpu"), 3, 4)
+    index = load_ivfpq_index(save_ivfpq_index(build, tmp_path / "adaptive.bin"))
+    queries = torch.randn(7, 12, generator=gen)
+    queries[-1] = centers[-1]
+    for probe, k in ((1, 7), (3, 7), (6, 7), (6, len(labels) + 9)):
+        values, ids = search_ivfpq_index(index, queries, device=device, backend="torch",
+            nprobe=probe, topk=k, torch_pq_scan="gpu", use_compile=True,
+            torch_query_batch_size=4, torch_candidate_chunk_size=64,
+            torch_memory_budget_mb=max(budget, 384 * k / (1 << 20)),
+            lut_dtype="fp32", persist_layout=False)
+        expected, _ = reference(queries, decoded, labels, centers, probe, k)
+        torch.testing.assert_close(values.cpu(), expected, atol=2e-4, rtol=2e-5)
+        valid = ids.cpu() >= 0
+        actual = (queries[:, None] - decoded[ids.cpu().clamp_min(0)]).square().sum(-1)
+        torch.testing.assert_close(values.cpu()[valid], actual[valid], atol=2e-4, rtol=2e-5)
+        assert torch.equal(valid, torch.isfinite(values.cpu()))
+        for row in ids.cpu():
+            assert row[row >= 0].unique().numel() == (row >= 0).sum()
+
+
+def test_adaptive_pq_plan_respects_budget_and_uses_index_statistics():
+    from tensorvs._torch_search import _pq_scan_plan
+    uniform = SimpleNamespace(pq_scan_upper_bounds=(0, 1000, 2000, 3000), pq_anchor_grain=512)
+    short = SimpleNamespace(pq_scan_upper_bounds=(0, 1000, 1002, 1003), pq_anchor_grain=0)
+    large = _pq_scan_plan(uniform, 64, 3, 10, 16 << 20, 1024, True, 64)
+    assert large["mapping"] == "anchors" and large["anchor_grain"] == 512
+    assert large["selection"] == "regions"
+    assert large["estimated_workspace_bytes"] <= 16 << 20
+    generic = _pq_scan_plan(short, 64, 3, 10, 16 << 20, 1024, True, 64)
+    assert generic["mapping"] == "binary" and generic["selection"] == "global"
+    single = _pq_scan_plan(short, 64, 1, 10, 16 << 20, 1024, True, 64)
+    assert single["selection"] == "global" and single["anchor_grain"] == 0
+    tiny = _pq_scan_plan(uniform, 64, 3, 10, 64 << 10, 64, True, 4)
+    assert tiny["selection"] == "stream"
+
+
+@pytest.mark.skipif(not torch.backends.mps.is_available(), reason="requires Apple MPS")
+@pytest.mark.parametrize("counts", [(64, 65, 67, 70, 0, 0), (1, 3, 7, 11, 0, 0)])
+@pytest.mark.parametrize("scan", ["gpu", "bucketed"])
+def test_compiled_adaptive_pq_empty_lists_and_mapping(tmp_path, counts, scan):
+    gen = torch.Generator().manual_seed(313)
+    labels = torch.repeat_interleave(torch.arange(len(counts)), torch.tensor(counts))
+    vectors = torch.randn(len(labels), 8, generator=gen)
+    centers = torch.randn(len(counts), 8, generator=gen)
+    books = torch.randn(2, 16, 4, generator=gen)
+    codes = torch.randint(0, 16, (len(labels), 2), generator=gen, dtype=torch.uint8)
+    decoded = centers[labels] + torch.stack([books[m, codes[:, m].long()] for m in range(2)], 1).flatten(1)
+    build = IVFPQBuildResult(vectors, labels, centers, books, codes, torch.device("cpu"), 2, 4)
+    index = load_ivfpq_index(save_ivfpq_index(build, tmp_path / "compiled_adaptive.bin"))
+    queries = torch.randn(5, 8, generator=gen)
+    queries[-1] = centers[-1]
+    with torch.inference_mode():
+        for probe in (1, 3, 6):
+            values, ids = search_ivfpq_index(index, queries, device="mps", backend="torch",
+                nprobe=probe, topk=9, torch_pq_scan=scan, use_compile=True,
+                torch_query_batch_size=4, torch_candidate_chunk_size=32,
+                torch_memory_budget_mb=2, lut_dtype="fp32", persist_layout=False)
+            expected, _ = reference(queries, decoded, labels, centers, probe, 9)
+            torch.testing.assert_close(values.cpu(), expected, atol=2e-4, rtol=2e-5)
+            valid = ids.cpu() >= 0
+            assert torch.equal(valid, torch.isfinite(values.cpu()))
+            actual = (queries[:, None] - decoded[ids.cpu().clamp_min(0)]).square().sum(-1)
+            torch.testing.assert_close(values.cpu()[valid], actual[valid], atol=2e-4, rtol=2e-5)
 
 
 @pytest.mark.parametrize("cuda,mps,expected", [
@@ -493,7 +807,11 @@ def test_tiny_budget_uses_online_merge(indexes, kind, monkeypatch):
     torch.testing.assert_close(actual[0], expected[0], atol=3e-5, rtol=3e-5)
 
 
-def test_unsigned_16bit_pq_codes_use_portable_backend(tmp_path, monkeypatch):
+@pytest.mark.parametrize("device", ["cpu", "mps"])
+@pytest.mark.parametrize("scan", ["auto", "gpu", "bucketed"])
+def test_unsigned_16bit_pq_codes_use_portable_backend(tmp_path, monkeypatch, device, scan):
+    if device == "mps" and not torch.backends.mps.is_available():
+        pytest.skip("requires Apple MPS")
     monkeypatch.setenv("TENSORVS_LAYOUT_CACHE_DIR", str(tmp_path / "cache"))
     gen = torch.Generator().manual_seed(145)
     x = torch.randn(65, 2, generator=gen)
@@ -506,11 +824,11 @@ def test_unsigned_16bit_pq_codes_use_portable_backend(tmp_path, monkeypatch):
     index = load_ivfpq_index(save_ivfpq_index(build, tmp_path / "pq16.bin"))
     q = torch.randn(3, 2, generator=gen)
     decoded = centers[labels] + torch.stack([books[m, unsigned_codes[:, m], 0] for m in range(2)], 1)
-    actual = search_ivfpq_index(index, q, device="cpu", backend="auto", nprobe=2, topk=5)
+    actual = search_ivfpq_index(index, q, device=device, backend="auto", nprobe=2, topk=5, torch_pq_scan=scan)
     expected = reference(q, decoded, labels, centers, 2, 5)
-    torch.testing.assert_close(actual[0], expected[0], atol=3e-5, rtol=3e-5)
-    torch.testing.assert_close(actual[1], expected[1])
-    if torch.cuda.is_available():
+    torch.testing.assert_close(actual[0].cpu(), expected[0], atol=3e-5, rtol=3e-5)
+    torch.testing.assert_close(actual[1].cpu(), expected[1])
+    if device == "cpu" and torch.cuda.is_available():
         repeated = q.repeat(11, 1)
         profile = {}
         actual = search_ivfpq_index(index, repeated, device="cuda:0", backend="torch",

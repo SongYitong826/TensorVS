@@ -16,9 +16,17 @@ dist/
 !/bench/
 !/bench/*.py
 /result/
-/results/
+/results/*
+!/results/glove1.2m_ivfflat.csv
+!/results/glove1.2m_ivfpq.csv
+!/results/sift1m_ivfflat.csv
+!/results/sift1m_ivfpq.csv
 
 # Local plotting scripts and generated figures.
 /plot/*
 !/plot/
 !/plot/*.py
+!/plot/Figures/
+/plot/Figures/*
+!/plot/Figures/*_QBatch128_256_512_K10.png
+!/plot/Figures/*_QBatch128_256_512_K10.pdf
