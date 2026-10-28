@@ -1008,8 +1008,7 @@ def _autotune_topk_launch_config(
 
     m, num_queries, ksub = global_query_luts.shape
     device = global_query_luts.device
-    best_config: _MAdaptiveLaunchConfig | None = None
-    best_ms = float("inf")
+    candidates: list[tuple[_MAdaptiveLaunchConfig, int, int]] = []
     for config in _candidate_launch_configs():
         plan = _resolve_topk_launch_plan(
             m=m,
@@ -1020,10 +1019,30 @@ def _autotune_topk_launch_config(
         if plan is None:
             continue
         local_k, cta_probe_groups, _, _ = plan
-        scratch = torch.empty(
-            (num_queries, cta_probe_groups, local_k),
-            dtype=torch.int64,
-            device=device,
+        candidates.append((config, local_k, cta_probe_groups))
+    if not candidates:  # pragma: no cover - standard validation precedes tuning
+        raise ValueError("No supported IVFPQ Triton autotune launch configuration")
+
+    # All candidates share one maximum scratch allocation. Repeatedly creating
+    # differently sized tensors makes the CUDA caching allocator retain
+    # multiple bins and inflates first-search peak memory without benefiting
+    # the selected launch configuration.
+    max_scratch_elements = max(
+        num_queries * cta_probe_groups * local_k
+        for _, local_k, cta_probe_groups in candidates
+    )
+    scratch_storage = torch.empty(
+        (max_scratch_elements,),
+        dtype=torch.int64,
+        device=device,
+    )
+
+    best_config: _MAdaptiveLaunchConfig | None = None
+    best_ms = float("inf")
+    for config, local_k, cta_probe_groups in candidates:
+        scratch_elements = num_queries * cta_probe_groups * local_k
+        scratch = scratch_storage[:scratch_elements].view(
+            num_queries, cta_probe_groups, local_k
         )
         for _ in range(_AUTOTUNE_WARMUP_RUNS):
             _launch_topk_scan(
@@ -1088,8 +1107,8 @@ def _autotune_topk_launch_config(
             best_ms = average_ms
             best_config = config
 
-    if best_config is None:  # pragma: no cover - standard validation precedes tuning
-        raise ValueError("No supported IVFPQ Triton autotune launch configuration")
+    if best_config is None:  # pragma: no cover - candidates is non-empty
+        raise ValueError("IVFPQ Triton autotuning did not select a configuration")
     _AUTOTUNE_CONFIG_CACHE[cache_key] = best_config
     _persist_autotune_config(cache_key, best_config)
     return best_config
@@ -1252,19 +1271,6 @@ def triton_topk(
         raise ValueError("Unsupported IVFPQ Triton CTA-list top-k plan")
     local_k, cta_probe_groups, launch_config, final_width = plan
 
-    list_partial_shape = (num_queries, cta_probe_groups, local_k)
-    if (
-        list_partial_keys is None
-        or list_partial_keys.shape != list_partial_shape
-        or list_partial_keys.dtype != torch.int64
-        or list_partial_keys.device != global_query_luts.device
-    ):
-        list_partial_keys = torch.empty(
-            list_partial_shape,
-            device=global_query_luts.device,
-            dtype=torch.int64,
-        )
-
     global_query_luts = global_query_luts.contiguous()
     static_vector_corrections = static_vector_corrections.contiguous()
     probe_distance_bias = probe_distance_bias.contiguous()
@@ -1325,9 +1331,20 @@ def triton_topk(
         )
         assert tuned_plan is not None
         local_k, cta_probe_groups, launch_config, final_width = tuned_plan
-        tuned_shape = (num_queries, cta_probe_groups, local_k)
-        if list_partial_keys.shape != tuned_shape:
-            list_partial_keys = torch.empty(tuned_shape, dtype=torch.int64, device=global_query_luts.device)
+    # Allocate only after the cached/autotuned launch shape is final.  The old
+    # order allocated the default shape first and a second tuned shape later.
+    list_partial_shape = (num_queries, cta_probe_groups, local_k)
+    if (
+        list_partial_keys is None
+        or list_partial_keys.shape != list_partial_shape
+        or list_partial_keys.dtype != torch.int64
+        or list_partial_keys.device != global_query_luts.device
+    ):
+        list_partial_keys = torch.empty(
+            list_partial_shape,
+            device=global_query_luts.device,
+            dtype=torch.int64,
+        )
 
     _launch_topk_scan(
         global_query_luts=global_query_luts,

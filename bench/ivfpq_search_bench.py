@@ -27,12 +27,14 @@ from tensorvs._ivfpq_triton import can_run_topk as can_run_triton_topk
 
 try:
     from ._benchmark_utils import (
+        process_gpu_memory_bytes,
         probe_visit_statistics,
         print_result,
         run_one_nprobe,
     )
 except ImportError:  # Direct execution: ``python bench/ivfpq_search_bench.py``.
     from _benchmark_utils import (
+        process_gpu_memory_bytes,
         probe_visit_statistics,
         print_result,
         run_one_nprobe,
@@ -55,6 +57,11 @@ DATASET_PROFILES = {
         "pq_dim": 16,
         "nprobes": (5, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150),
     },
+    "sift10m": {
+        "nlist": 1024,
+        "pq_dim": 16,
+        "nprobes": (5, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150),
+    },
     "glove1.2m": {
         "nlist": 1024,
         "pq_dim": 25,
@@ -69,6 +76,11 @@ DATASET_PROFILES = {
         "nlist": 2048,
         "pq_dim": 64,
         "nprobes": (10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 350, 400, 450, 500),
+    },
+    "hunyuan": {
+        "nlist": 1024,
+        "pq_dim": 384,
+        "nprobes": (350, 380, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000),
     },
     "gist": {
         "nlist": 1024,
@@ -144,9 +156,11 @@ INDEX_PATH = (
 
 RESULT_TRAIN_LABELS = {
     "sift1m": 256,
+    "sift10m": 256,
     "glove1.2m": 512,
     "deep1m": 256,
     "tiny5m": 256,
+    "hunyuan": 256,
     "gist": 256,
     "openai1536": 256,
 }
@@ -326,6 +340,8 @@ def main() -> None:
             f"loaded={actual_coarse_kmeans_method!r}, path={INDEX_PATH}"
         )
     index.reside_on_device(DEVICE)
+    torch.cuda.synchronize(DEVICE)
+    memory_baseline_process_mb = process_gpu_memory_bytes(DEVICE) / (1 << 20)
     queries = load_dataset(QUERY_PATH)
     groundtruth = load_ivecs(GROUNDTRUTH_PATH)
     if queries.shape[0] != groundtruth.shape[0]:
@@ -371,7 +387,7 @@ def main() -> None:
         f"nprobes={list(requested_nprobes)}, "
         f"preallocated_workspace={USE_PREALLOCATED_WORKSPACE}, "
         f"cuda_graph={USE_CUDA_GRAPH}, "
-        "memory_metric=nvml_process_resident_mib, "
+        "memory_metric=peak_process_gpu_memory_mib, "
         f"autotune_representatives={list(autotune_representatives)}"
     )
     for requested_nprobe in execution_nprobes:
@@ -406,6 +422,13 @@ def main() -> None:
             device=DEVICE,
             data_bytes_per_vector=code_bytes_per_vector,
         )
+        # Do not let a previous nprobe's cached workspace inflate this run's
+        # query-time memory above the common resident-index baseline.
+        index.search_workspace = None
+        index.search_workspace_key = None
+        index.triton_partial_keys = None
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize(DEVICE)
         row = run_one_nprobe(
             queries=queries,
             groundtruth=groundtruth,
@@ -433,6 +456,7 @@ def main() -> None:
             ),
             visit_stats=visit_stats,
             recall_fn=compute_recall_at_k,
+            memory_baseline_process_mb=memory_baseline_process_mb,
         )
         if ENABLE_TRITON_AUTOTUNE:
             autotuned_representatives.add(autotune_cache_nprobe)
@@ -485,8 +509,8 @@ def main() -> None:
             "qps": row["qps"],
             "recall": row["recall"],
             "visited_vectors_per_query": row["visited_vectors_per_query"],
-            # Peak resident GPU memory owned by this benchmark process (MiB).
-            "peak_gpu_memory": row["peak_gpu_memory_process_mb"],
+            # Peak logical query allocation above the resident index (MiB).
+            "peak_gpu_memory": row["peak_gpu_memory"],
         }
         for row in rows
     ]

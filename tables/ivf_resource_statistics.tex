@@ -1,0 +1,75 @@
+\documentclass[sigconf,nonacm]{acmart}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage[table]{xcolor}
+\usepackage{multirow}
+\usepackage{pifont}
+
+\definecolor{tablemax}{HTML}{FADBD8} % light red
+\definecolor{tablemin}{HTML}{D6EAF8} % light blue
+
+% Replace these labels when the remaining kernel names are decided.
+\newcommand{\KernelTwo}{Kernel 2}
+\newcommand{\KernelThree}{Kernel 3}
+\newcommand{\KernelFour}{Kernel 4}
+
+\begin{document}
+\begin{table*}[t]
+  \centering
+  \caption{IVF index and GPU resource statistics ($K=10$,
+  $\mathrm{QBatch}=128$). ``--'' means not yet available. CUDA peak
+  memory is the absolute peak process GPU memory, including the resident
+  index, maximized over nprobe values shared by methods with successful GPU
+  runs. \ding{55} indicates that the index was built, but GPU search could
+  not run because of GPU resource limits. Within each dataset and index type,
+  \colorbox{tablemax}{maximum} and
+  \colorbox{tablemin}{minimum} values are highlighted.}
+  \label{tab:ivf-resource-statistics}
+  \scriptsize
+  \setlength{\tabcolsep}{2.2pt}
+  \renewcommand{\arraystretch}{1.00}
+  \resizebox{\textwidth}{!}{%
+  \begin{tabular}{>{\centering\arraybackslash}p{1.45cm}l*{2}{cc*{4}{c}}}
+    \toprule
+    \multirow{3}{*}{Dataset} & \multirow{3}{*}{Method}
+      & \multicolumn{6}{c}{IVF-Flat}
+      & \multicolumn{6}{c}{IVF-PQ} \\
+    \cmidrule(lr){3-8} \cmidrule(lr){9-14}
+      & & \multirow{2}{*}{\shortstack{Index Size\\(GiB)}}
+      & \multirow{2}{*}{\shortstack{Build Time\\(s)}}
+      & \multicolumn{4}{c}{Peak GPU Memory (GiB)}
+      & \multirow{2}{*}{\shortstack{Index Size\\(GiB)}}
+      & \multirow{2}{*}{\shortstack{Build Time\\(s)}}
+      & \multicolumn{4}{c}{Peak GPU Memory (GiB)} \\
+    \cmidrule(lr){5-8} \cmidrule(lr){11-14}
+      & & & & CUDA & \KernelTwo & \KernelThree & \KernelFour
+      & & & CUDA & \KernelTwo & \KernelThree & \KernelFour \\
+    \midrule
+    \multirow{3}{*}{\texttt{SIFT}} & cuVS & 4.85 & 9.40 & \cellcolor{tablemin}6.43 & -- & -- & -- & 0.23 & \cellcolor{tablemin}7.32 & \cellcolor{tablemin}0.63 & -- & -- & -- \\
+     & Faiss GPU & \cellcolor{tablemin}4.84 & \cellcolor{tablemax}11.93 & \cellcolor{tablemax}7.74 & -- & -- & -- & \cellcolor{tablemin}0.22 & 9.31 & \cellcolor{tablemax}2.12 & -- & -- & -- \\
+     & TensorVS & \cellcolor{tablemax}5.04 & \cellcolor{tablemin}4.60 & 7.63 & -- & -- & -- & \cellcolor{tablemax}0.56 & \cellcolor{tablemax}16.53 & 0.81 & -- & -- & -- \\
+    \midrule
+    \multirow{3}{*}{\texttt{GloVe}} & cuVS & 0.91 & \cellcolor{tablemin}3.47 & 3.64 & -- & -- & -- & 0.05 & \cellcolor{tablemin}1.36 & \cellcolor{tablemin}0.45 & -- & -- & -- \\
+     & Faiss GPU & \cellcolor{tablemin}0.90 & \cellcolor{tablemax}6.96 & \cellcolor{tablemax}4.49 & -- & -- & -- & \cellcolor{tablemin}0.04 & \cellcolor{tablemax}6.59 & \cellcolor{tablemax}1.93 & -- & -- & -- \\
+     & TensorVS & \cellcolor{tablemax}0.94 & 4.14 & \cellcolor{tablemin}3.06 & -- & -- & -- & \cellcolor{tablemax}0.09 & 2.95 & 0.61 & -- & -- & -- \\
+    \midrule
+    \multirow{3}{*}{\texttt{Tiny}} & cuVS & 7.21 & 7.48 & 10.42 & -- & -- & -- & 0.34 & \cellcolor{tablemin}9.69 & \cellcolor{tablemin}0.80 & -- & -- & -- \\
+     & Faiss GPU & \cellcolor{tablemin}7.19 & \cellcolor{tablemax}14.64 & \cellcolor{tablemax}11.49 & -- & -- & -- & \cellcolor{tablemin}0.34 & \cellcolor{tablemax}35.78 & \cellcolor{tablemax}2.23 & -- & -- & -- \\
+     & TensorVS & \cellcolor{tablemax}7.31 & \cellcolor{tablemin}6.06 & \cellcolor{tablemin}10.05 & -- & -- & -- & \cellcolor{tablemax}0.73 & 28.24 & 0.91 & -- & -- & -- \\
+    \midrule
+    \multirow{3}{*}{\texttt{Hunyuan}} & cuVS & 2.92 & \cellcolor{tablemin}3.30 & \cellcolor{tablemin}4.63 & -- & -- & -- & 0.38 & \cellcolor{tablemin}7.40 & \cellcolor{tablemin}0.84 & -- & -- & -- \\
+     & Faiss GPU & \cellcolor{tablemin}2.87 & 17.89 & \cellcolor{tablemax}5.37 & -- & -- & -- & \cellcolor{tablemin}0.37 & 38.63 & \ding{55} & -- & -- & -- \\
+     & TensorVS & \cellcolor{tablemax}2.95 & \cellcolor{tablemax}18.41 & 5.08 & -- & -- & -- & \cellcolor{tablemax}0.75 & \cellcolor{tablemax}47.72 & \cellcolor{tablemax}0.94 & -- & -- & -- \\
+    \midrule
+    \multirow{3}{*}{\texttt{GIST}} & cuVS & 3.64 & \cellcolor{tablemin}4.00 & 7.39 & -- & -- & -- & 0.14 & \cellcolor{tablemin}5.12 & \cellcolor{tablemin}0.59 & -- & -- & -- \\
+     & Faiss GPU & \cellcolor{tablemin}3.59 & \cellcolor{tablemax}18.62 & \cellcolor{tablemax}7.80 & -- & -- & -- & \cellcolor{tablemin}0.10 & \cellcolor{tablemax}22.67 & \cellcolor{tablemax}1.99 & -- & -- & -- \\
+     & TensorVS & \cellcolor{tablemax}3.66 & 7.28 & \cellcolor{tablemin}6.50 & -- & -- & -- & \cellcolor{tablemax}0.26 & 18.80 & 0.71 & -- & -- & -- \\
+    \midrule
+    \multirow{3}{*}{\texttt{OpenAI}} & cuVS & 5.82 & \cellcolor{tablemin}6.02 & \cellcolor{tablemax}10.12 & -- & -- & -- & 0.21 & \cellcolor{tablemin}7.69 & \cellcolor{tablemin}0.68 & -- & -- & -- \\
+     & Faiss GPU & \cellcolor{tablemin}5.73 & \cellcolor{tablemax}27.29 & 10.10 & -- & -- & -- & \cellcolor{tablemin}0.10 & \cellcolor{tablemax}50.10 & \cellcolor{tablemax}2.00 & -- & -- & -- \\
+     & TensorVS & \cellcolor{tablemax}5.84 & 9.61 & \cellcolor{tablemin}8.68 & -- & -- & -- & \cellcolor{tablemax}0.39 & 20.49 & 0.74 & -- & -- & -- \\
+    \bottomrule
+  \end{tabular}}
+\end{table*}
+\end{document}

@@ -8,6 +8,7 @@ import ctypes.util
 import json
 import os
 import re
+import threading
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -129,6 +130,43 @@ def process_gpu_memory_bytes(device: torch.device) -> int:
     return sum(memory_values)
 
 
+class ProcessGpuMemorySampler:
+    """Continuously sample this process's NVML memory on one CUDA device."""
+
+    def __init__(self, device: torch.device, interval_seconds: float = 0.001) -> None:
+        self.device = device
+        self.interval_seconds = interval_seconds
+        self.peak_bytes = 0
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._error: BaseException | None = None
+
+    def _sample(self) -> None:
+        try:
+            self.peak_bytes = max(self.peak_bytes, process_gpu_memory_bytes(self.device))
+        except BaseException as error:
+            self._error = error
+            self._stop.set()
+
+    def _run(self) -> None:
+        while not self._stop.wait(self.interval_seconds):
+            self._sample()
+
+    def start(self) -> None:
+        self._sample()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def stop(self) -> int:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join()
+        self._sample()
+        if self._error is not None:
+            raise RuntimeError("NVML GPU-memory sampling failed") from self._error
+        return self.peak_bytes
+
+
 def _squared_l2_query_centroid_distances(
     queries: torch.Tensor,
     centroids: torch.Tensor,
@@ -242,12 +280,22 @@ def run_one_nprobe(
     search_one: Callable[[torch.Tensor, int], tuple[torch.Tensor, torch.Tensor]],
     visit_stats: dict[str, float | int],
     recall_fn: Callable[[torch.Tensor, torch.Tensor, int], float],
+    memory_baseline_process_mb: float | None = None,
 ) -> dict[str, float | int | None]:
     """Warm up and measure all query batches for one nprobe value."""
     if queries.shape[0] == 0:
         raise ValueError("At least one query is required")
     if q_batch <= 0:
         raise ValueError(f"Q_BATCH must be positive, got {q_batch}")
+
+    baseline_allocated: int | None = None
+    baseline_reserved: int | None = None
+    if device.type == "cuda" and memory_baseline_process_mb is not None:
+        # IVFPQ reports logical query working memory.  Reset before warmup so
+        # persistent LUT/workspace allocations made by warmup are included.
+        torch.cuda.reset_peak_memory_stats(device)
+        baseline_allocated = int(torch.cuda.memory_allocated(device))
+        baseline_reserved = int(torch.cuda.memory_reserved(device))
 
     first_batch, _ = _make_padded_batch(queries, 0, q_batch, device)
     for _ in range(max(1, int(warmup_iterations))):
@@ -257,16 +305,20 @@ def run_one_nprobe(
     if device.type == "cuda":
         torch.cuda.synchronize(device)
 
-    baseline_allocated: int | None = None
-    baseline_reserved: int | None = None
     baseline_process: int | None = None
     peak_process: int | None = None
     if device.type == "cuda":
-        torch.cuda.reset_peak_memory_stats(device)
-        baseline_allocated = int(torch.cuda.memory_allocated(device))
-        baseline_reserved = int(torch.cuda.memory_reserved(device))
+        if baseline_allocated is None:
+            torch.cuda.reset_peak_memory_stats(device)
+            baseline_allocated = int(torch.cuda.memory_allocated(device))
+            baseline_reserved = int(torch.cuda.memory_reserved(device))
         baseline_process = process_gpu_memory_bytes(device)
         peak_process = baseline_process
+
+    memory_sampler: ProcessGpuMemorySampler | None = None
+    if device.type == "cuda":
+        memory_sampler = ProcessGpuMemorySampler(device)
+        memory_sampler.start()
 
     result_ids: list[torch.Tensor] = []
     search_seconds = 0.0
@@ -284,6 +336,9 @@ def run_one_nprobe(
             )
         result_ids.append(batch_ids[:batch_size].cpu())
         del query_batch, batch_distances, batch_ids
+
+    if memory_sampler is not None:
+        peak_process = max(peak_process or 0, memory_sampler.stop())
 
     ids = torch.cat(result_ids, dim=0)
     q_count = int(queries.shape[0])
@@ -314,7 +369,9 @@ def run_one_nprobe(
             peak_process / MEBIBYTE if peak_process is not None else None
         ),
         "search_gpu_memory_delta_process_mb": (
-            (peak_process - baseline_process) / MEBIBYTE
+            max(0.0, peak_process / MEBIBYTE - memory_baseline_process_mb)
+            if peak_process is not None and memory_baseline_process_mb is not None
+            else (peak_process - baseline_process) / MEBIBYTE
             if peak_process is not None and baseline_process is not None
             else None
         ),
@@ -337,6 +394,9 @@ def run_one_nprobe(
             (peak_reserved - baseline_reserved) / MEBIBYTE
             if peak_reserved is not None and baseline_reserved is not None
             else None
+        ),
+        "peak_gpu_memory": (
+            peak_process / MEBIBYTE if peak_process is not None else None
         ),
     }
     row.update(visit_stats)
@@ -386,7 +446,7 @@ def safe_filename(value: str) -> str:
 
 def print_result(row: dict[str, Any]) -> None:
     peak_memory = row.get(
-        "peak_gpu_memory_process_mb",
+        "peak_gpu_memory",
         row.get("peak_gpu_memory_driver_mb", row.get("peak_gpu_memory_allocated_mb")),
     )
     print(
@@ -394,5 +454,5 @@ def print_result(row: dict[str, Any]) -> None:
         f"QP/QPS={row['qps']:.4f}  "
         f"Recall@K={row['recall']:.6f}  "
         f"visited={row['visited_vectors_per_query']:.2f} vectors/query  "
-        f"peak_device_memory={peak_memory} MiB"
+        f"peak_query_memory={peak_memory} MiB"
     )

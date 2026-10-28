@@ -30,3 +30,14 @@ dist/
 /plot/Figures/*
 !/plot/Figures/*_QBatch128_256_512_K10.png
 !/plot/Figures/*_QBatch128_256_512_K10.pdf
+!/plot/Figures/IVFFlat_CUDA_QBatch32_128_512_K10.png
+!/plot/Figures/IVFFlat_CUDA_QBatch32_128_512_K10.pdf
+!/plot/Figures/IVFFlat_SensitiveToK_QBatch128_Recall0p99.png
+!/plot/Figures/IVFFlat_SensitiveToK_QBatch128_Recall0p99.pdf
+
+# LaTeX build intermediates; keep source and final PDF artifacts.
+/tables/*.aux
+/tables/*.fdb_latexmk
+/tables/*.fls
+/tables/*.log
+/tables/*.out

@@ -365,6 +365,9 @@ def _build_global_query_luts_bmm(
     m: int,
     subdim: int,
     use_tf32: bool,
+    storage_dtype: torch.dtype | None = None,
+    max_m_chunk: int = 128,
+    max_fp32_scratch_bytes: int = 32 << 20,
 ) -> torch.Tensor:
     """Build ``||p_mk||^2 - 2 q_m^T p_mk`` as a global LUT.
 
@@ -389,20 +392,37 @@ def _build_global_query_luts_bmm(
     codebooks = pq_codebooks.transpose(1, 2)
     norm_base = pq_codebook_norms.unsqueeze(1)
 
-    # baddbmm broadcasts the static codeword-norm table across the Query
-    # dimension, without materializing a separate query-norm tensor.
-    if not use_tf32 or not queries.is_cuda:
-        values = torch.baddbmm(
-            norm_base,
-            q_sub_by_m,
-            codebooks,
-            beta=1.0,
-            alpha=-2.0,
+    output_dtype = torch.float32 if storage_dtype is None else storage_dtype
+    if output_dtype not in (torch.float32, torch.float16):
+        raise ValueError(
+            f"Global LUT storage must be FP32 or FP16, got {output_dtype}"
         )
-    else:
-        previous_allow_tf32 = torch.backends.cuda.matmul.allow_tf32
-        try:
-            torch.backends.cuda.matmul.allow_tf32 = True
+
+    # FP16 is the benchmark/search storage format, but BMM accumulation stays
+    # in FP32.  Materializing the complete FP32 table and then converting it
+    # keeps both full tables alive at once.  Fill the sole FP16 table from a
+    # bounded FP32 subspace scratch instead.  Every entry uses the same FP32
+    # baddbmm expression as the unchunked path, so this changes only tensor
+    # lifetime, not the ADC formula or storage precision.
+    chunk_m = int(m)
+    if output_dtype == torch.float16:
+        if max_m_chunk <= 0 or max_fp32_scratch_bytes <= 0:
+            raise ValueError("Global LUT chunk limits must be positive")
+        bytes_per_subspace = max(
+            1,
+            int(num_queries) * int(pq_codebooks.shape[1]) * torch.float32.itemsize,
+        )
+        chunk_m = min(
+            int(m),
+            int(max_m_chunk),
+            max(1, int(max_fp32_scratch_bytes) // bytes_per_subspace),
+        )
+
+    if output_dtype == torch.float32 or chunk_m >= int(m):
+        # Keep the original single-BMM path for FP32 and for small FP16 LUTs.
+        # The latter still uses a full FP32 temporary, but avoids unnecessary
+        # launch fragmentation when the table is already small.
+        if not use_tf32 or not queries.is_cuda:
             values = torch.baddbmm(
                 norm_base,
                 q_sub_by_m,
@@ -410,7 +430,51 @@ def _build_global_query_luts_bmm(
                 beta=1.0,
                 alpha=-2.0,
             )
-        finally:
+        else:
+            previous_allow_tf32 = torch.backends.cuda.matmul.allow_tf32
+            try:
+                torch.backends.cuda.matmul.allow_tf32 = True
+                values = torch.baddbmm(
+                    norm_base,
+                    q_sub_by_m,
+                    codebooks,
+                    beta=1.0,
+                    alpha=-2.0,
+                )
+            finally:
+                torch.backends.cuda.matmul.allow_tf32 = previous_allow_tf32
+        return values if output_dtype == torch.float32 else values.to(output_dtype)
+
+    ksub = int(pq_codebooks.shape[1])
+    values = torch.empty(
+        (int(m), int(num_queries), ksub),
+        dtype=output_dtype,
+        device=queries.device,
+    )
+    fp32_scratch = torch.empty(
+        (chunk_m, int(num_queries), ksub),
+        dtype=torch.float32,
+        device=queries.device,
+    )
+
+    previous_allow_tf32 = torch.backends.cuda.matmul.allow_tf32 if queries.is_cuda else None
+    try:
+        if queries.is_cuda:
+            torch.backends.cuda.matmul.allow_tf32 = bool(use_tf32)
+        for start in range(0, int(m), chunk_m):
+            end = min(start + chunk_m, int(m))
+            scratch_view = fp32_scratch[: end - start]
+            torch.baddbmm(
+                norm_base[start:end],
+                q_sub_by_m[start:end],
+                codebooks[start:end],
+                beta=1.0,
+                alpha=-2.0,
+                out=scratch_view,
+            )
+            values[start:end].copy_(scratch_view)
+    finally:
+        if previous_allow_tf32 is not None:
             torch.backends.cuda.matmul.allow_tf32 = previous_allow_tf32
 
     return values
@@ -1362,9 +1426,8 @@ def _search_ivfpq_index_eager(
         m=m,
         subdim=subdim,
         use_tf32=True,
+        storage_dtype=(torch.float16 if lut_dtype == "fp16" else torch.float32),
     )
-    if lut_dtype == "fp16":
-        global_query_luts = global_query_luts.to(torch.float16)
     probe_distance_bias = probe_distances
     record_timing("LUT_prepare", step_start)
 
