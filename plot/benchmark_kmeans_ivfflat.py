@@ -31,6 +31,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 import numpy as np
 import torch
 
@@ -296,29 +297,61 @@ def evaluate_index(
 
 
 def plot_dataset_result(result: dict[str, Any], output_path: Path, nprobes: tuple[int, ...]) -> None:
-    """Create panel A (list-size boxplots) and panel B (Recall bars)."""
+    """Create a single-column figure with embedded Arial TrueType text."""
+    # Fail explicitly rather than silently substituting a different typeface.
+    font_manager.findfont(font_manager.FontProperties(family="Arial"), fallback_to_default=False)
+    with plt.rc_context(
+        {
+            "font.family": "Arial",
+            "font.size": 8,
+            "axes.labelsize": 8,
+            "axes.titlesize": 8,
+            "xtick.labelsize": 8,
+            "ytick.labelsize": 8,
+            "legend.fontsize": 8,
+            "axes.linewidth": 0.6,
+            "pdf.fonttype": 42,
+            "ps.fonttype": 42,
+            "text.usetex": False,
+        }
+    ):
+        _plot_dataset_result(result, output_path, nprobes)
+
+
+def _plot_dataset_result(result: dict[str, Any], output_path: Path, nprobes: tuple[int, ...]) -> None:
     methods = ("traditional_kmeans", "balanced_kmeans")
     display_names = {"traditional_kmeans": "Traditional KMeans", "balanced_kmeans": "Balanced KMeans"}
     colors = {"traditional_kmeans": "#4C78A8", "balanced_kmeans": "#F58518"}
 
-    # A wide, shallow layout is easier to place in a paper and leaves room
-    # below each panel for the requested subfigure captions.
-    fig, (ax_box, ax_bar) = plt.subplots(1, 2, figsize=(14, 3.8))
+    # Use the final printed size so \includegraphics[width=\columnwidth]
+    # preserves readable text, with both panels in one compact row.
+    fig, (ax_box, ax_bar) = plt.subplots(1, 2, figsize=(3.33, 1.5))
     fig.subplots_adjust(
-        left=0.055,
-        right=0.995,
-        bottom=0.27,
-        top=0.84,
-        wspace=0.18,
+        left=0.15,
+        right=0.98,
+        bottom=0.40,
+        top=0.82,
+        wspace=0.38,
     )
+    for ax in (ax_box, ax_bar):
+        ax.set_axisbelow(True)
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.tick_params(width=0.6, length=3, pad=2)
+        ax.grid(axis="y", color="#DDDDDD", linewidth=0.5)
 
     box_data = [result["indexes"][method]["list_stats"]["list_lengths"] for method in methods]
     box = ax_box.boxplot(
         box_data,
-        tick_labels=[display_names[method] for method in methods],
+        tick_labels=["Trad.", "Bal."],
+        widths=0.42,
         patch_artist=True,
         showmeans=True,
-        meanprops={"marker": "D", "markerfacecolor": "black", "markeredgecolor": "black", "markersize": 4},
+        meanprops={"marker": "D", "markerfacecolor": "black", "markeredgecolor": "black", "markersize": 3},
+        medianprops={"color": "black", "linewidth": 0.8},
+        flierprops={"markersize": 2.5, "markeredgewidth": 0.4},
+        boxprops={"linewidth": 0.6},
+        whiskerprops={"linewidth": 0.6},
+        capprops={"linewidth": 0.6},
     )
     for patch, method in zip(box["boxes"], methods):
         patch.set_facecolor(colors[method])
@@ -331,8 +364,8 @@ def plot_dataset_result(result: dict[str, Any], output_path: Path, nprobes: tupl
             marker="v",
             color="#E41A1C",
             edgecolors="#111111",
-            linewidths=0.8,
-            s=100,
+            linewidths=0.5,
+            s=25,
             zorder=3,
             label="min" if x == 1 else None,
         )
@@ -342,30 +375,20 @@ def plot_dataset_result(result: dict[str, Any], output_path: Path, nprobes: tupl
             marker="^",
             color="#E41A1C",
             edgecolors="#111111",
-            linewidths=0.8,
-            s=100,
+            linewidths=0.5,
+            s=25,
             zorder=3,
             label="max" if x == 1 else None,
         )
-        ax_box.annotate(
-            f"mean={stats['mean']:.1f}",
-            (x, stats["mean"]),
-            xytext=(7, 0),
-            textcoords="offset points",
-            fontsize=10,
-            va="center",
-        )
     ax_box.set_ylabel("List length")
-    ax_box.grid(axis="y", alpha=0.25)
-    ax_box.legend(loc="upper right", fontsize=8)
-    ax_box.text(
-        0.5,
-        -0.24,
-        "(a) Distribution of IVF List Lengths",
-        transform=ax_box.transAxes,
-        ha="center",
-        va="top",
-        fontsize=10,
+    ax_box.margins(y=0.12)
+    ax_box.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=3, steps=[1, 2, 4, 5, 10]))
+    ax_box.yaxis.set_major_formatter(
+        matplotlib.ticker.FuncFormatter(lambda value, _: f"{value / 1000:g}k" if value else "0")
+    )
+    ax_box.legend(
+        loc="upper right", frameon=False, fontsize=7.5,
+        handletextpad=0.1, handlelength=0.9, labelspacing=0.2, borderaxespad=0,
     )
 
     x = np.arange(len(nprobes))
@@ -380,46 +403,44 @@ def plot_dataset_result(result: dict[str, Any], output_path: Path, nprobes: tupl
             color=colors[method],
         )
         for bar, value in zip(bars, values):
-            # Keep labels for near-perfect Recall inside the axes and inside
-            # the bar, so they do not cross the y=1.0 upper border.
-            if value >= 0.985:
-                # There is not enough room above values this close to one
-                # when the y-axis maximum is fixed at 1.0.
-                label_y = value - 0.015
-                vertical_alignment = "top"
-            else:
-                label_y = value + 0.005
-                vertical_alignment = "bottom"
-            ax_bar.text(
-                bar.get_x() + bar.get_width() / 2,
-                label_y,
-                f"{value:.4f}",
+            ax_bar.annotate(
+                f"{value:.2f}",
+                (bar.get_x() + bar.get_width() / 2, value),
+                xytext=(0, 2),
+                textcoords="offset points",
                 ha="center",
-                va=vertical_alignment,
-                fontsize=7,
+                va="bottom",
+                fontsize=8,
             )
-    ax_bar.set_xlabel("nprobe")
-    ax_bar.set_ylabel(f"Recall@{TOPK}")
+    ax_bar.set_xlabel("nprobe", labelpad=-1, fontsize=7)
+    ax_bar.set_ylabel(f"Recall@{TOPK}", labelpad=1)
     ax_bar.set_xticks(x, [str(value) for value in nprobes])
-    # Recall is bounded by one. Starting at 0.4 makes the differences between
-    # the methods easier to read without changing the actual values.
-    ax_bar.set_ylim(0.6, 1.0)
+    # Preserve the original truncated axis and leave room for value labels.
+    ax_bar.set_ylim(0.6, 1.055)
     ax_bar.set_yticks((0.6, 0.8, 1.0))
-    ax_bar.grid(axis="y", alpha=0.25)
-    # Keep the method legend inside panel B.
-    ax_bar.legend(fontsize=8, loc="upper left", ncol=1)
-    ax_bar.text(
-        0.5,
-        -0.24,
-        "(b) Comparison of Achievable Recalls",
-        transform=ax_bar.transAxes,
-        ha="center",
-        va="top",
-        fontsize=10,
+    handles, labels = ax_bar.get_legend_handles_labels()
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        bbox_to_anchor=(0.52, 0.995),
+        ncol=2,
+        frameon=False,
+        handlelength=1.1,
+        handletextpad=0.4,
+        columnspacing=1.0,
     )
+    # Figure coordinates align the captions despite different x-axis labels.
+    for ax, caption in (
+        (ax_box, "(a) IVF list lengths"),
+        (ax_bar, "(b) Effect on recall"),
+    ):
+        bounds = ax.get_position()
+        fig.text(bounds.x0 + bounds.width / 2, 0.14, caption, ha="center", va="bottom", fontsize=8)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=180)
+    # Keep the exact page size instead of letting a tight crop rescale fonts.
+    fig.savefig(output_path, dpi=300)
     plt.close(fig)
 
 

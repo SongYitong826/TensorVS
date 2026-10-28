@@ -183,7 +183,7 @@ STAGE_COLORS = {
     "vector_read_distance_topk_fused": "#59A14F",
     "topk_selection": "#E15759",
     "topk_final_merge": "#E15759",
-    "query_transform": "#F28E2B",
+    "query_transform": "#59A14F",
     "lut_computation": "#B279A2",
     "lut_build_lookup_accumulation": "#76B7B2",
     "lut_lookup_accumulation": "#76B7B2",
@@ -972,12 +972,31 @@ def plot_breakdown(result: dict[str, Any], output_path: Path) -> None:
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib import font_manager
+
+    font_manager.findfont(font_manager.FontProperties(family="Arial"), fallback_to_default=False)
+    with plt.rc_context({
+        "font.family": "Arial", "font.size": 6.5,
+        "axes.labelsize": 6.5, "xtick.labelsize": 6.5, "ytick.labelsize": 6.5,
+        "axes.linewidth": 0.6, "pdf.fonttype": 42, "ps.fonttype": 42,
+        "text.usetex": False,
+    }):
+        _plot_breakdown(result, output_path)
+
+
+def _plot_breakdown(result: dict[str, Any], output_path: Path) -> None:
+    import matplotlib
+    import matplotlib.pyplot as plt
+    from matplotlib import font_manager
     import numpy as np
 
     ms_to_us = 1000.0
     algorithms = (("IVFFlat", FLAT_STAGES), ("IVFPQ", PQ_STAGES))
-    fig, axes = plt.subplots(1, 2, figsize=(11.2, 3.65), sharey=True)
-    fig.subplots_adjust(left=0.13, right=0.98, bottom=0.25, top=0.77, wspace=0.16)
+    # Keep the final column width and use two compact legend rows.
+    fig, axes = plt.subplots(1, 2, figsize=(3.33, 1.5), sharey=True)
+    fig.subplots_adjust(left=0.21, right=0.98, bottom=0.32, top=0.73, wspace=0.10)
+    numeric_font = font_manager.FontProperties(family="Arial", size=6.5, weight="bold")
+    renderer = fig.canvas.get_renderer()
 
     legend_stages: set[str] = set()
     for axis, (algorithm, stages_order) in zip(axes, algorithms):
@@ -986,49 +1005,82 @@ def plot_breakdown(result: dict[str, Any], output_path: Path) -> None:
             * ms_to_us
             for method in PLOT_METHODS
         )
-        max_total = 0.0
+        axis.set_xlim(0.0, panel_max_total * 1.08 if panel_max_total > 0.0 else 1.0)
+        axis.set_ylim(-0.65, len(PLOT_METHODS) - 0.35)
         for y_position, method in enumerate(PLOT_METHODS):
             method_result = result["methods"][method][algorithm]
             stage_values = method_result.get("stages_ms_per_query", {})
             total = (
                 float(method_result.get("total_ms_per_query", 0.0)) * ms_to_us
             )
-            max_total = max(max_total, total)
             left = 0.0
             has_real_stage_values = bool(stage_values)
+            value_labels = []
             for stage in stages_order:
                 value = float(stage_values.get(stage, 0.0)) * ms_to_us
                 if value <= 0.0:
                     continue
                 legend_stages.add(stage)
                 axis.barh(
-                    y_position, value, left=left, height=0.54,
-                    color=STAGE_COLORS[stage], edgecolor="white", linewidth=0.65,
+                    y_position, value, left=left, height=0.74,
+                    color=STAGE_COLORS[stage], edgecolor="white", linewidth=0.4,
                 )
-                # Avoid printing a value wider than a narrow segment. The
-                # color and legend still identify every such segment, while
-                # the exact value remains available in the JSON output.
+                # Preserve the original selection of significant values.
+                # Lay them out together below so bold labels stay on the
+                # bar even when individual segments are narrow.
                 if value >= max(total * 0.10, panel_max_total * 0.055, 0.001):
-                    axis.text(left + value / 2.0, y_position, f"{value:.1f}",
-                              ha="center", va="center", fontsize=7.2, color="white")
+                    label = f"{value:.1f}"
+                    label_width, _, _ = renderer.get_text_width_height_descent(
+                        label, numeric_font, ismath=False,
+                    )
+                    value_labels.append((left + value / 2.0, label, label_width, stage))
                 left += value
+            if value_labels:
+                # Adjust horizontal positions to prevent adjacent numbers
+                # from overlapping. Very short bars may have a small label
+                # overhang, but all values remain vertically on their bars.
+                pixels_per_unit = axis.get_window_extent().width / axis.get_xlim()[1]
+                gap = 1.5 * fig.dpi / 72
+                widths = [item[2] for item in value_labels]
+                occupied_width = sum(widths) + gap * (len(widths) - 1)
+                right_limit = max(total * pixels_per_unit, occupied_width + gap)
+                centers = []
+                previous_right = 0.0
+                for (center, _, label_width, _) in value_labels:
+                    position = max(center * pixels_per_unit, previous_right + gap + label_width / 2)
+                    centers.append(position)
+                    previous_right = position + label_width / 2
+                next_left = right_limit
+                for index in range(len(centers) - 1, -1, -1):
+                    centers[index] = min(centers[index], next_left - widths[index] / 2)
+                    next_left = centers[index] - widths[index] / 2 - gap
+                for position, (_, label, _, stage) in zip(centers, value_labels):
+                    rgb = matplotlib.colors.to_rgb(STAGE_COLORS[stage])
+                    linear = [v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in rgb]
+                    luminance = sum(v * w for v, w in zip(linear, (0.2126, 0.7152, 0.0722)))
+                    axis.text(
+                        position / pixels_per_unit, y_position, label,
+                        ha="center", va="center", fontproperties=numeric_font,
+                        color="black" if luminance > 0.179 else "white",
+                    )
             if not has_real_stage_values and total > 0.0:
                 legend_stages.add("unsplit_library_search")
                 axis.barh(
-                    y_position, total, left=0.0, height=0.54,
+                    y_position, total, left=0.0, height=0.74,
                     color=STAGE_COLORS["unsplit_library_search"],
-                    edgecolor="white", linewidth=0.65, hatch="//",
+                    edgecolor="white", linewidth=0.4, hatch="//",
                 )
                 axis.text(total / 2.0, y_position, f"{total:.1f}",
-                          ha="center", va="center", fontsize=7.2, color="black")
+                          ha="center", va="center", fontproperties=numeric_font, color="black")
 
-        axis.set_xlabel("Average query time (μs)", fontsize=9)
-        axis.set_xlim(0.0, max_total * 1.16 if max_total > 0.0 else 1.0)
+        axis.set_xlabel("Query time (μs)", labelpad=0, fontsize=6)
+        axis.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=3, min_n_ticks=3))
         axis.set_yticks(
             np.arange(len(PLOT_METHODS)),
             [METHOD_LABELS[method] for method in PLOT_METHODS],
         )
-        axis.grid(axis="x", alpha=0.25)
+        axis.tick_params(width=0.6, length=3, pad=2)
+        axis.grid(axis="x", color="#DDDDDD", linewidth=0.5)
         axis.set_axisbelow(True)
         axis.spines["top"].set_visible(False)
         axis.spines["right"].set_visible(False)
@@ -1039,20 +1091,43 @@ def plot_breakdown(result: dict[str, Any], output_path: Path) -> None:
     all_stages = tuple(
         dict.fromkeys((*FLAT_STAGES, *PQ_STAGES, "unsplit_library_search"))
     )
-    handles = [
-        plt.Rectangle((0, 0), 1, 1, color=STAGE_COLORS[stage],
-                      hatch="//" if stage == "unsplit_library_search" else None)
-        for stage in all_stages if stage in legend_stages
-    ]
-    labels = [STAGE_LABELS[stage] for stage in all_stages if stage in legend_stages]
-    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.55, 0.91),
-               ncol=4, fontsize=7.1, frameon=False)
-    axes[0].text(0.5, -0.28, "(a) IVF-Flat query-time breakdown",
-                 transform=axes[0].transAxes, ha="center", va="top", fontsize=9)
-    axes[1].text(0.5, -0.28, "(b) IVF-PQ query-time breakdown",
-                 transform=axes[1].transAxes, ha="center", va="top", fontsize=9)
+    legend_labels = {
+        "coarse_ivf_selection": "Coarse Selection",
+        "list_scheduling_preparation": "Data preparation",
+        "query_transform": "Data preparation",
+        "vector_read_distance": "Vector Read + Distance Comp.",
+    }
+    # Read across each row: keep the LUT stages adjacent and Top-K last.
+    legend_order = (
+        "coarse_ivf_selection", "list_scheduling_preparation", "vector_read_distance",
+        "lut_computation", "lut_lookup_accumulation", "topk_selection",
+    )
+    handles, labels = [], []
+    for stage in dict.fromkeys((*legend_order, *all_stages)):
+        if stage not in legend_stages or stage == "l2_epilogue_distance_writeback":
+            continue
+        label = legend_labels.get(stage, STAGE_LABELS[stage]).capitalize()
+        if label in labels:
+            continue
+        labels.append(label)
+        handles.append(plt.Rectangle(
+            (0, 0), 1, 1, color=STAGE_COLORS[stage],
+            hatch="//" if stage == "unsplit_library_search" else None,
+        ))
+    # Center the two rows independently so long names do not force excess
+    # column widths while preserving the requested reading order.
+    for start in range(0, len(handles), 3):
+        fig.legend(
+            handles[start:start + 3], labels[start:start + 3],
+            loc="upper center", bbox_to_anchor=(0.5, 0.90 - (start // 3) * 0.08),
+            ncol=3, fontsize=6.5, frameon=False, handlelength=0.6,
+            handletextpad=0.2, columnspacing=1.2, borderpad=0, borderaxespad=0,
+        )
+    for axis, caption in zip(axes, ("(a) IVF-Flat", "(b) IVF-PQ")):
+        bounds = axis.get_position()
+        fig.text(bounds.x0 + bounds.width / 2, 0.085, caption, ha="center", va="bottom", fontsize=6.5)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=180, bbox_inches="tight")
+    fig.savefig(output_path, dpi=300)
     plt.close(fig)
 
 

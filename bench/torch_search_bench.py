@@ -1,4 +1,4 @@
-"""Replay a reference CSV with repeated, warmed eager PyTorch searches.
+"""Replay a reference CSV with repeated, warmed Torch or Triton searches.
 
 Flat defaults to fixed list-grouped scanning. Measurements retain every
 sample and report median elapsed time; optional retesting extends noisy cases.
@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+from datetime import datetime, timezone
 import fcntl
 import hashlib
 import json
@@ -38,6 +39,13 @@ FIELDS = ("nprobes", "q_batch", "K", "qps", "recall",
           "visited_vectors_per_query", "peak_gpu_memory")
 
 
+def source_hashes():
+    root = Path(__file__).resolve().parents[1]
+    paths = sorted((root / "src" / "tensorvs").glob("*.py")) + [Path(__file__).resolve()]
+    return {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in paths}
+
+
 def measure_repeated(*, batches, query_count, groundtruth, device, search_one,
                      topk, nprobe, visits, warmup, warmup_seconds, repetitions):
     """Warm every query batch, then report a median of synchronized sweeps."""
@@ -49,7 +57,9 @@ def measure_repeated(*, batches, query_count, groundtruth, device, search_one,
             torch.cuda.synchronize(device)
             elapsed += time.perf_counter() - started
             if retain:
-                saved.append(ids[:valid])
+                # Triton workspace/graph outputs are overwritten by the next
+                # search. Copy each batch outside timing before reusing them.
+                saved.append(ids[:valid].cpu())
             del values, ids
         return elapsed, saved
 
@@ -90,6 +100,7 @@ def main() -> None:
     parser.add_argument("--data-root", type=Path, default=Path("/storage/vector_data"))
     parser.add_argument("--output-dir", type=Path, default=Path("result"))
     parser.add_argument("--device", default="cuda:1")
+    parser.add_argument("--backend", choices=("torch", "triton"), default="torch")
     parser.add_argument("--q-batch", type=int, default=128)
     parser.add_argument("--nq", type=int, default=1024)
     parser.add_argument("--warmup", type=int, default=2)
@@ -132,10 +143,14 @@ def main() -> None:
     index_path = root / "GPUIndex" / index_name
     if not index_path.exists():
         raise FileNotFoundError(f"Existing index required: {index_path}")
-    name = "torch_" + args.reference.name.replace("IVFFLAT_", "IVFFlat_", 1)
+    name = ("torch_" + args.reference.name.replace("IVFFLAT_", "IVFFlat_", 1)
+            if args.backend == "torch" else args.reference.name)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     csv_path = args.output_dir / name
     json_path = csv_path.with_suffix(".json")
+    if csv_path.resolve() == args.reference.resolve():
+        raise ValueError("Measure into a staging directory before replacing the reference CSV")
+    sources = source_hashes()
     # Serialize writers and make resume safe across queues on different GPUs.
     lock_file = csv_path.with_suffix(".lock").open("a")
     fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
@@ -158,12 +173,13 @@ def main() -> None:
         previous = json.loads(json_path.read_text())
         needs_measurement = (args.retest_unstable or len(completed) != len(reference_rows)
                              or previous["status"] != "complete")
-        if (previous["reference_sha256"] != reference_hash
+        if (previous.get("backend") != args.backend or previous.get("source_sha256") != sources
+                or previous["reference_sha256"] != reference_hash
                 or previous["use_compile"] or previous["nq_limit"] != args.nq
                 or previous.get("repetitions") != args.repetitions
                 or previous.get("warmup_seconds") != args.warmup_seconds
                 or previous.get("warmup_iterations") != args.warmup
-                or previous.get("flat_scan") != (args.flat_scan if algorithm == "IVFFLAT" else None)
+                or previous.get("flat_scan") != (args.flat_scan if algorithm == "IVFFLAT" and args.backend == "torch" else None)
                 or (needs_measurement and (previous.get("device") != str(device)
                     or previous.get("cuda_visible_devices") != os.environ.get("CUDA_VISIBLE_DEVICES")))):
             raise ValueError("Resume metadata does not match the requested experiment")
@@ -209,12 +225,13 @@ def main() -> None:
                 raise ValueError(f"Reference list visits differ for {dataset}, nprobe={probe}: "
                                  f"reference={row['visited_vectors_per_query']}, "
                                  f"current={visits[probe]['visited_vectors_per_query']}")
-        index.reside_on_device(device, backend="torch")
+        index.reside_on_device(device, backend=args.backend)
         batches = [_make_padded_batch(queries, start, args.q_batch, device)
                    for start in range(0, nq, args.q_batch)]
         torch.cuda.synchronize(device)
         metadata = {
-            "status": "running", "backend": "torch", "use_compile": False,
+            "status": "running", "backend": args.backend, "use_compile": False,
+            "source_sha256": sources, "measured_at_utc": datetime.now(timezone.utc).isoformat(),
             "reference": str(args.reference.resolve()), "reference_sha256": reference_hash,
             "output": str(csv_path.resolve()), "index": str(index_path),
             "index_size_bytes": index_path.stat().st_size,
@@ -222,11 +239,13 @@ def main() -> None:
             "dataset": dataset, "algorithm": algorithm, "device": str(device),
             "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
             "gpu": torch.cuda.get_device_name(device), "torch": str(torch.__version__),
+            "torch_num_threads": torch.get_num_threads(),
+            "torch_num_interop_threads": torch.get_num_interop_threads(),
             "process_id": os.getpid(),
             "cuda": torch.version.cuda, "query_count": nq, "nq_limit": args.nq,
             "q_batch": args.q_batch, "warmup_iterations": args.warmup,
             "warmup_seconds": args.warmup_seconds, "repetitions": args.repetitions,
-            "flat_scan": args.flat_scan if algorithm == "IVFFLAT" else None,
+            "flat_scan": args.flat_scan if algorithm == "IVFFLAT" and args.backend == "torch" else None,
             "lut_dtype": "fp16" if algorithm == "IVFPQ" else None,
             "refine_factor": 1, "torch_candidate_chunk_size": 2048,
             "torch_memory_budget_mb": 128,
@@ -240,16 +259,35 @@ def main() -> None:
                             if (r["K"], r["nprobe"]) in completed} if completed else {}
         metadata["results"] = [measured_results[key] for key in reference_rows if key in measured_results]
         json_path.write_text(json.dumps(metadata, indent=2) + "\n")
-        kwargs = dict(device=device, backend="torch", use_compile=False,
+        kwargs = dict(device=device, backend=args.backend, use_compile=False,
                       torch_query_batch_size=args.q_batch)
         if algorithm == "IVFPQ":
             kwargs["lut_dtype"] = "fp16"
-        else:
+            if args.backend == "triton":
+                kwargs.update(use_packed_16b_codes=True, use_preallocated_workspace=True,
+                              use_cuda_graph=True)
+        elif args.backend == "torch":
             kwargs["torch_flat_scan"] = args.flat_scan
+        metadata["search_options"] = {key: str(value) if isinstance(value, torch.device) else value
+                                      for key, value in kwargs.items()}
+        metadata["triton_autotune"] = args.backend == "triton" and algorithm == "IVFPQ"
+        tuned = set()
+        def search_one(batch, current_probe, current_k):
+            options = dict(kwargs)
+            if args.backend == "triton" and algorithm == "IVFPQ":
+                anchors = (5, 50, 150, 300, 500, 1000)
+                anchor = min(anchors, key=lambda value: abs(value - current_probe))
+                key = current_k, anchor
+                options.update(triton_autotune=key not in tuned,
+                               triton_autotune_cache_nprobe=anchor)
+                output = search(index, batch, topk=current_k, nprobe=current_probe, **options)
+                tuned.add(key)
+                return output
+            return search(index, batch, topk=current_k, nprobe=current_probe, **options)
         verification_profile = {}
         search(index, batches[0][0], topk=min(k for k, _ in reference_rows),
                nprobe=max(probe for _, probe in reference_rows), profile=verification_profile, **kwargs)
-        if algorithm == "IVFFLAT" and args.flat_scan == "grouped":
+        if args.backend == "torch" and algorithm == "IVFFLAT" and args.flat_scan == "grouped":
             if "dense_vector_distance_topk" in verification_profile:
                 raise RuntimeError("Grouped benchmark unexpectedly selected dense scanning")
         metadata["verified_scan_profile"] = verification_profile
@@ -268,8 +306,8 @@ def main() -> None:
                 batches=batches, query_count=nq, groundtruth=groundtruth, nprobe=probe, topk=k,
                 warmup=args.warmup, warmup_seconds=args.warmup_seconds,
                 repetitions=args.repetitions, device=device,
-                search_one=lambda batch, current_probe, current_k=k: search(
-                    index, batch, topk=current_k, nprobe=current_probe, **kwargs),
+                search_one=lambda batch, current_probe, current_k=k: search_one(
+                    batch, current_probe, current_k),
                 visits=visits[probe],
             )
             if (k, probe) in retiming_previous:
@@ -297,12 +335,14 @@ def main() -> None:
             metadata["results"] = [measured_results[key] for key in reference_rows if key in measured_results]
             metadata["completed_rows"] = len(completed)
             json_path.write_text(json.dumps(metadata, indent=2) + "\n")
-            print(f"{dataset} {algorithm} {len(completed)}/{len(reference_rows)} "
+            print(f"{args.backend} {dataset} {algorithm} {len(completed)}/{len(reference_rows)} "
                   f"K={k} nprobe={probe} QPS={result['qps']:.2f} "
                   f"recall={result['recall']:.6f} "
                   f"memory={row['peak_gpu_memory']:.1f} MiB", flush=True)
     if hashlib.sha256(args.reference.read_bytes()).hexdigest() != reference_hash:
         raise RuntimeError("The reference CSV changed during the run")
+    if source_hashes() != sources:
+        raise RuntimeError("The implementation changed during the run")
     metadata.update(status="complete", wall_seconds=time.perf_counter() - started)
     json_path.write_text(json.dumps(metadata, indent=2) + "\n")
     print(f"Saved {len(completed)} rows: {csv_path}", flush=True)

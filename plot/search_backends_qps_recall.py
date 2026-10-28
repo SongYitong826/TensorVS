@@ -82,15 +82,18 @@ def collect_groups(result_dir: Path, index_type: str, k_filter: int | None):
             continue
         reference = result_dir / f"{algorithm}_{dataset}_nlist{nlist}{suffix}.csv"
         triton, torch = read_results(reference), read_results(torch_path)
-        metadata_path = torch_path.with_suffix(".json")
-        metadata = json.loads(metadata_path.read_text()) if metadata_path.exists() else {}
-        for measured in metadata.get("results", []):
-            key = measured.get("K"), measured.get("nprobe")
-            samples = measured.get("samples_seconds", [])
-            if key in torch and len(samples) >= 2:
-                rates = [metadata["query_count"] / elapsed for elapsed in samples]
-                quartiles = statistics.quantiles(rates, n=4, method="inclusive")
-                torch[key]["qps_interval_low"], torch[key]["qps_interval_high"] = quartiles[0], quartiles[2]
+        for path, points in ((reference, triton), (torch_path, torch)):
+            metadata_path = path.with_suffix(".json")
+            metadata = json.loads(metadata_path.read_text()) if metadata_path.exists() else {}
+            for measured in metadata.get("results", []):
+                key = measured.get("K"), measured.get("nprobe")
+                samples = measured.get("samples_seconds", [])
+                if key in points and len(samples) >= 2:
+                    if any(not math.isfinite(elapsed) or elapsed <= 0 for elapsed in samples):
+                        raise ValueError(f"Invalid timing samples: {metadata_path}")
+                    rates = [metadata["query_count"] / elapsed for elapsed in samples]
+                    quartiles = statistics.quantiles(rates, n=4, method="inclusive")
+                    points[key]["qps_interval_low"], points[key]["qps_interval_high"] = quartiles[0], quartiles[2]
         if triton.keys() != torch.keys():
             raise ValueError(f"Triton/Torch parameter sets differ: {reference}, {torch_path}")
         for k in sorted({key[0] for key in torch}):
@@ -107,10 +110,11 @@ def collect_groups(result_dir: Path, index_type: str, k_filter: int | None):
                           path=str(path), sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
                           selected_rows=sum(k_filter is None or key[0] == k_filter for key in rows))
             metadata_path = path.with_suffix(".json")
-            if method == "Torch" and metadata_path.exists():
+            if metadata_path.exists():
                 metadata = json.loads(metadata_path.read_text())
                 source["measurement"] = {key: metadata.get(key) for key in
-                                         ("flat_scan", "repetitions", "timing", "device", "cuda_visible_devices")}
+                                         ("backend", "flat_scan", "repetitions", "timing", "device",
+                                          "cuda_visible_devices", "measured_at_utc", "source_sha256", "search_options")}
                 source["metadata_sha256"] = hashlib.sha256(metadata_path.read_bytes()).hexdigest()
             sources.append(source)
     if not groups:
@@ -182,7 +186,7 @@ def plot_group(algorithm, k, datasets, output_dir, torch_label="Torch (eager)"):
     has_intervals = any("qps_interval_low" in point for dataset in datasets.values()
                         for points in dataset.values() for point in points)
     if has_intervals:
-        figure.text(0.5, 0.01, "Torch shaded band: 25th–75th percentile of measured QPS",
+        figure.text(0.5, 0.01, "Shaded bands: 25th–75th percentile of measured QPS",
                     ha="center", fontsize=9, color="#666666")
     figure.tight_layout(rect=(0.005, 0.04 if has_intervals else 0.005, 0.995, 0.89), h_pad=2.2, w_pad=2.5)
     stem = f"{'IVFFlat' if algorithm == 'IVFFLAT' else 'IVFPQ'}_Triton_vs_Torch_QPSRecall_QBatch{Q_BATCH}_K{k}"
@@ -222,7 +226,7 @@ def main():
               f"{report['plotted_points']} measured points; PDF + PNG", flush=True)
     manifest = dict(q_batch=Q_BATCH, x_axis="Recall@K", y_axis="QPS (log scale)",
                     curve_order="Increasing measured nprobe; no interpolation or point filtering",
-                    torch_uncertainty="25th–75th percentile of measured sweep QPS; all samples retained",
+                    uncertainty="25th–75th percentile of measured sweep QPS; all samples retained",
                     figures=reports, sources=sources)
     (args.output_dir / f"Triton_vs_Torch_QPSRecall_QBatch{Q_BATCH}_manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n")
