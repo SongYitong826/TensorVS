@@ -79,7 +79,7 @@ DEFAULT_RESULT_DIRS = {
 }
 
 FILENAME_PATTERN = re.compile(
-    r"^IVFPQ_(?P<dataset>.+?)_nlist\d+.*?(?:_K(?P<topk>\d+))?\.csv$",
+    r"^(?:TensorVS_Tensor_)?IVFPQ_(?P<dataset>.+?)_nlist\d+.*?(?:_K(?P<topk>\d+))?\.csv$",
     re.IGNORECASE,
 )
 
@@ -100,7 +100,7 @@ def discover_result_files(
         for result_dir in result_dirs[method]:
             if not result_dir.is_dir():
                 continue
-            for path in sorted(result_dir.glob("IVFPQ_*.csv")):
+            for path in sorted(result_dir.glob("*.csv")):
                 match = FILENAME_PATTERN.match(path.name)
                 if match is None:
                     continue

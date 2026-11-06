@@ -84,7 +84,7 @@ DEFAULT_RESULT_DIRS = {
 }
 
 FILENAME_PATTERN = re.compile(
-    r"^IVFFLAT_(?P<dataset>.+?)_nlist(?P<nlist>\d+)"
+    r"^(?:TensorVS_Tensor_)?IVFFLAT_(?P<dataset>.+?)_nlist(?P<nlist>\d+)"
     r"(?:_K(?P<topk>\d+))?\.csv$",
     re.IGNORECASE,
 )

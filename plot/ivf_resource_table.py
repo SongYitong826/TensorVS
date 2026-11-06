@@ -116,9 +116,9 @@ PQ_SPECS: dict[str, dict[str, PQSpec]] = {
             "IVFPQ_glove1.2m_nlist1024_M25_nbits8.csv",
         ),
         "TensorVS": PQSpec(
-            1024, 25, 8,
-            "TenVS_IVFPQResidual_nlist1024_m25_nbits8_train256.bin",
-            "IVFPQ_glove1.2m_nlist1024_M25_nbits8_train512.csv",
+            1024, 32, 8,
+            "TenVS_IVFPQResidual_nlist1024_m32_nbits8_train256.bin",
+            "TensorVS_Tensor_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train512.csv",
         ),
     },
     "tiny5m": {
@@ -155,7 +155,7 @@ PQ_SPECS: dict[str, dict[str, PQSpec]] = {
         "TensorVS": PQSpec(
             1024, 384, 8,
             "TenVS_IVFPQResidual_nlist1024_m384_nbits8_train256.bin",
-            "IVFPQ_hunyuan_nlist1024_M384_nbits8_train256.csv",
+            "TensorVS_Tensor_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256.csv",
         ),
     },
     "gist": {
@@ -271,7 +271,8 @@ def collect_records(
     for method in METHODS:
         if kind == "IVF-Flat":
             path = index_path(dataset, method.flat_index_name)
-            result_path = method.result_root / f"IVFFLAT_{dataset.key}_nlist1024.csv"
+            prefix = "TensorVS_Tensor_" if method.label == "TensorVS" and dataset.key in ("glove1.2m", "hunyuan") else ""
+            result_path = method.result_root / f"{prefix}IVFFLAT_{dataset.key}_nlist1024.csv"
             configs[method.label] = (1024, None, None)
             config_texts[method.label] = "1024/--/--"
         else:
