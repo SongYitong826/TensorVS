@@ -1,0 +1,2 @@
+dataset,method,nlist,n_vectors,dim,build_seconds,save_seconds,index_size_bytes,index_size_mib,peak_build_gpu_memory_mib
+hunyuan,hipvs,1024,1000000,768,1.8027581290000398,1.4171575989998928,3181521311,3034.1351613998413,7477.531433105469

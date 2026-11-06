@@ -42,8 +42,8 @@ the same options. Use `--overwrite` to replace results or
 
 Saved indexes and their metadata are in each dataset's `GPUIndex/hipVS/`
 directory. Results are in `/root/TensorVS/result/` as
-`hipVS_IVFFLAT_<dataset>_nlist1024.csv` or
-`hipVS_IVFPQ_<dataset>_nlist1024_M<M>_nbits8_train<label>.csv`, plus a JSON sidecar.
+`AMD_hipVS_IVFFLAT_<dataset>_nlist1024.csv` or
+`AMD_hipVS_IVFPQ_<dataset>_nlist1024_M<M>_nbits8_train<label>.csv`, plus a JSON sidecar.
 The CSV has exactly the same seven columns and order as the TensorVS AMD
 results:
 

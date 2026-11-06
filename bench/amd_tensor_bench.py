@@ -136,15 +136,16 @@ def index_path_for(dataset_dir: Path, kind: str) -> Path:
     return matches[0]
 
 
-def output_name(dataset: str, kind: str, index: object, route: str) -> str:
+def output_name(dataset: str, kind: str, index: object, route: str,
+                *, platform: str = "AMD") -> str:
     nlist = int(index.centroids.shape[0])
     prefix = "TensorVS_Tensor" if route == "tensor" else "TensorVS_Triton"
     if kind == "ivfflat":
-        return f"{prefix}_IVFFLAT_{dataset}_nlist{nlist}.csv"
+        return f"{platform}_{prefix}_IVFFLAT_{dataset}_nlist{nlist}.csv"
     m = int(index.metadata["m"])
     nbits = int(index.metadata["nbits"])
     train_label = RESULT_TRAIN_LABEL[dataset]
-    return f"{prefix}_IVFPQ_{dataset}_nlist{nlist}_M{m}_nbits{nbits}_train{train_label}.csv"
+    return f"{platform}_{prefix}_IVFPQ_{dataset}_nlist{nlist}_M{m}_nbits{nbits}_train{train_label}.csv"
 
 
 def validate_args(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:

@@ -19,8 +19,8 @@ repetitions, and the dataset's predefined nprobe values. For a short check,
 append `--nq 8 --q-batches 4 --nprobes 50 --warmup 0 --repetitions 1`
 (use nprobe 350 for Hunyuan) and specify a separate `--output-dir`.
 
-Results are written to `result/` as `TensorVS_Tensor_IVFFLAT_<dataset>_nlist1024.csv` or
-`TensorVS_Tensor_IVFPQ_<dataset>_nlist1024_M<m>_nbits8_train<label>.csv`, with a JSON file
+Results are written to `result/` as `AMD_TensorVS_Tensor_IVFFLAT_<dataset>_nlist1024.csv` or
+`AMD_TensorVS_Tensor_IVFPQ_<dataset>_nlist1024_M<m>_nbits8_train<label>.csv`, with a JSON file
 of the same stem. The CSV has exactly these columns, in this order:
 
 `nprobes,q_batch,K,qps,recall,visited_vectors_per_query,peak_gpu_memory`

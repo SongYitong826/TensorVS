@@ -19,8 +19,8 @@ $PY -u bench/amd_triton_bench.py --dataset hunyuan --kind ivfpq
 The defaults are K=10, NQ=1000 for these datasets, QBatch=32/128/512,
 two warmups, three synchronized timed repetitions, and the same nprobe
 grids as the Tensor results. Output names begin with
-`TensorVS_Triton_IVFFLAT_` or `TensorVS_Triton_IVFPQ_`. The pre-existing
-Tensor route results begin with `TensorVS_Tensor_`. Each CSV has a JSON
+`AMD_TensorVS_Triton_IVFFLAT_` or `AMD_TensorVS_Triton_IVFPQ_`. The pre-existing
+Tensor route results begin with `AMD_TensorVS_Tensor_`. Each CSV has a JSON
 sidecar and exactly these columns:
 
 ```

@@ -86,7 +86,7 @@ def output_path(args: argparse.Namespace) -> Path:
     stem = f"hipVS_{prefix}_{args.dataset}_nlist{args.nlist}"
     if args.kind == "ivfpq":
         stem += f"_M{args.pq_dim}_nbits{args.pq_bits}_train{TRAIN_LABEL[args.dataset]}"
-    return args.output_dir / f"{stem}.csv"
+    return args.output_dir / f"AMD_{stem}.csv"
 
 
 def atomic_json(path: Path, value: dict) -> None:

@@ -2,6 +2,8 @@
 
 Rows are GloVe and Hunyuan; columns are QBatch=32, 128, and 512.  Each
 panel compares completed hipVS, TensorVS (Tensor), and optional Triton CSVs.
+On the local paper workspace, generated PDFs are also copied to
+~/Desktop/TensorVS_SIGMOD27/expFig when that directory exists.
 
 Run on the AMD server:
     /root/tensorvs-venv/bin/python plot/plot_amd_ivf_compare.py --kind ivfflat
@@ -14,6 +16,7 @@ import argparse
 import csv
 import json
 import math
+import shutil
 from pathlib import Path
 
 import matplotlib
@@ -24,6 +27,7 @@ from matplotlib.ticker import FormatStrFormatter, LogLocator, NullFormatter
 
 
 ROOT = Path(__file__).resolve().parents[1]
+PAPER_FIGURE_DIR = Path.home() / "Desktop" / "TensorVS_SIGMOD27" / "expFig"
 DATASETS = (("glove1.2m", "GloVe", "M32_nbits8_train512"),
             ("hunyuan", "Hunyuan", "M384_nbits8_train256"))
 QBATCHES = (32, 128, 512)
@@ -46,7 +50,11 @@ def result_path(result_dir: Path, method: str, kind: str,
     prefix = {"hipVS": "hipVS", "TensorVS (Tensor)": "TensorVS_Tensor",
               "TensorVS (Triton)": "TensorVS_Triton"}[method]
     suffix = f"_{pq_config}" if kind == "ivfpq" else ""
-    return result_dir / f"{prefix}_{kind.upper()}_{dataset}_nlist1024{suffix}.csv"
+    stem = f"{prefix}_{kind.upper()}_{dataset}_nlist1024{suffix}"
+    marked = result_dir / f"AMD_{stem}.csv"
+    # Retain compatibility with historical local checkouts not yet renamed.
+    legacy = result_dir / f"{stem}.csv"
+    return marked if marked.exists() or not legacy.exists() else legacy
 
 
 def read_curves(path: Path) -> dict[int, list[tuple[int, float, float]]]:
@@ -113,9 +121,11 @@ def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
         "font.family": "DejaVu Sans", "font.size": 13.5, "pdf.fonttype": 42,
         "savefig.facecolor": "white",
     })
-    figure, axes = plt.subplots(2, 3, figsize=(9.8, 5.25), squeeze=False)
-    figure.subplots_adjust(left=.085, right=.975, top=.78, bottom=.12,
-                           wspace=.20, hspace=.48 if kind == "ivfpq" else .26)
+    # Match the MPS canvas; IVF-PQ needs room for each row's Recall ticks.
+    figure, axes = plt.subplots(2, 3, figsize=(9.8, 4.34), squeeze=False)
+    figure.subplots_adjust(left=.085, right=.99, top=.79, bottom=.145,
+                           wspace=.18, hspace=.05 if kind == "ivfflat" else .28)
+    legend_bottom = .802
     handles = {}
 
     for row_index, (dataset, label, _pq_config) in enumerate(DATASETS):
@@ -135,7 +145,7 @@ def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
             recall_low = min(point[1] for point in all_points)
             recall_high = max(point[1] for point in all_points)
             recall_span = max(recall_high - recall_low, .01)
-            recall_format = "%.3f" if recall_span < .05 else "%.2f"
+            recall_format = "%.2f"
             xlim = (max(0, recall_low - .05 * recall_span),
                     min(1.005, recall_high + .05 * recall_span))
 
@@ -147,7 +157,8 @@ def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
             if not visible_qps:
                 raise ValueError(f"No {dataset} results within Recall range {xlim}")
             low, high = min(visible_qps), max(visible_qps)
-            ylim = (10 ** (math.log10(low) - .12),
+            # Reserve space below the curves for the panel annotation.
+            ylim = (10 ** (math.log10(low) - .75),
                     10 ** (math.log10(high) + .12))
             for method in methods:
                 points = frontiers[(method, batch)]
@@ -175,11 +186,13 @@ def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
                 axis.set_xlabel("Recall", fontsize=16)
             if column == 0:
                 axis.set_ylabel("QPS", fontsize=16)
-            axis.set_title(f"{label} (QBatch = {batch})", fontsize=12.5,
-                           fontweight="bold", pad=5)
+            panel_label = f"{label} (QBatch = {batch})"
+            axis.text(.04, .05, panel_label, transform=axis.transAxes,
+                      fontsize=11.5, fontweight="bold", ha="left", va="bottom")
 
     figure.legend([handles[method] for method in methods], list(methods),
-                  loc="upper center", bbox_to_anchor=(.5, 1.01), ncol=len(methods),
+                  loc="lower center", bbox_to_anchor=(.5, legend_bottom),
+                  borderaxespad=0, ncol=len(methods),
                   frameon=True, fontsize=14, handlelength=2.5,
                   columnspacing=1.2)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -190,6 +203,11 @@ def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
     plt.close(figure)
     print(f"Saved {pdf_path}")
     print(f"Saved {png_path}")
+    if PAPER_FIGURE_DIR.is_dir():
+        paper_pdf = PAPER_FIGURE_DIR / pdf_path.name
+        if paper_pdf.resolve() != pdf_path.resolve():
+            shutil.copy2(pdf_path, paper_pdf)
+            print(f"Synced {paper_pdf}")
     return pdf_path, png_path
 
 
