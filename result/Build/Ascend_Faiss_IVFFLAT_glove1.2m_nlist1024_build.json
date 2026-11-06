@@ -1,0 +1,61 @@
+{
+  "build": {
+    "dataset": "glove1.2m",
+    "method": "Faiss-CPU",
+    "execution_device": "cpu",
+    "nlist": 1024,
+    "n_vectors": 1193514,
+    "dim": 200,
+    "metric": "squared_l2",
+    "cpu_threads": 24,
+    "cpu_information": {
+      "architecture": "aarch64",
+      "processor": "aarch64",
+      "logical_cpu_count": 192,
+      "available_cpu_threads": 24,
+      "cpuinfo": {
+        "cpu implementer": "0x48",
+        "cpu architecture": "8",
+        "cpu part": "0xd01"
+      }
+    },
+    "build_time_seconds": 284.8966311663389,
+    "train_seconds": 258.93400324881077,
+    "add_seconds": 25.961993822827935,
+    "preparation_seconds": 3.394463026896119,
+    "serialize_seconds": 0.9852429665625095,
+    "index_size_bytes": 965186843,
+    "index_size_mb": 920.4739027023315,
+    "index_size_unit": "MiB",
+    "index_path": "/home/ma-user/work/TensorVS/indexes/faiss_ascend_cpu/Ascend_Faiss_IVFFLAT_glove1.2m_nlist1024.faiss",
+    "training_input_rows": 1193514,
+    "max_points_per_centroid": 583,
+    "max_training_rows": 596992,
+    "timing_definition": "CPU constructor + train + full add; excludes data loading and serialization",
+    "progress_logging": true,
+    "progress_timing_note": "Progress output during train/add is included in wall-clock build time",
+    "size_definition": "actual serialized IVF-Flat file, including centroids, FP32 vectors and IDs"
+  },
+  "signature": {
+    "base": {
+      "path": "/home/ma-user/work/data/glove1.2m/glove1.2m_base.fvecs",
+      "size_bytes": 959585256,
+      "mtime_ns": 1793949630865985348
+    },
+    "nlist": 1024,
+    "metric": "squared_l2",
+    "cpu_threads": 24,
+    "seed": 1234,
+    "coarse_niter": 20,
+    "train_fraction": 0.5,
+    "add_batch_size": 65536,
+    "faiss_version": "1.13.2",
+    "library_sha256": {
+      "_swigfaiss.so": "04c1be861360bc940ed6896c00df6f22212fa611f49a9ed19edc60602c72fdfa"
+    },
+    "builder_sha256": "b7625bd65b611f3077bb97bdeb9471305763f17e723c52e00b765e77f1e5f21b",
+    "numpy_version": "1.26.4",
+    "architecture": "aarch64"
+  },
+  "index_loaded_from_cache": true
+}

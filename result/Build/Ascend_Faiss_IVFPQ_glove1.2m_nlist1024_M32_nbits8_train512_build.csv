@@ -1,0 +1,2 @@
+dataset,nlist,M,nbits,build_time_seconds,train_seconds,add_seconds,index_size_bytes,index_size_mb,preparation_seconds,serialize_seconds
+glove1.2m,1024,32,8,74.1936533380067,53.641162159037776,19.73752456298098,49059652,46.786930084228516,1.397352340980433,0.13890540099237114
