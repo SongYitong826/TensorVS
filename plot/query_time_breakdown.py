@@ -174,21 +174,24 @@ STAGE_LABELS = {
     "unsplit_library_search": "Unsplit library search",
 }
 STAGE_COLORS = {
-    "coarse_ivf_selection": "#4C78A8",
-    "list_scheduling_preparation": "#59A14F",
-    "vector_gather_read": "#59A14F",
-    "dot_product_computation": "#EDC948",
-    "l2_epilogue_distance_writeback": "#9C755F",
-    "vector_read_distance": "#EDC948",
-    "vector_read_distance_topk_fused": "#59A14F",
-    "topk_selection": "#E15759",
-    "topk_final_merge": "#E15759",
-    "query_transform": "#59A14F",
-    "lut_computation": "#B279A2",
-    "lut_build_lookup_accumulation": "#76B7B2",
-    "lut_lookup_accumulation": "#76B7B2",
-    "lut_lookup_topk_fused": "#76B7B2",
-    "unsplit_library_search": "#A6A6A6",
+    # This ordering maximizes the minimum CIELAB distance between adjacent
+    # segments in both the IVF-Flat and IVF-PQ stacks while staying within
+    # the paper's six-color palette.
+    "coarse_ivf_selection": "#F5A86E",
+    "list_scheduling_preparation": "#00609D",
+    "vector_gather_read": "#F4D291",
+    "dot_product_computation": "#F4D291",
+    "l2_epilogue_distance_writeback": "#7EABCE",
+    "vector_read_distance": "#F4D291",
+    "vector_read_distance_topk_fused": "#F4D291",
+    "topk_selection": "#C02635",
+    "topk_final_merge": "#C02635",
+    "query_transform": "#00609D",
+    "lut_computation": "#F58966",
+    "lut_build_lookup_accumulation": "#7EABCE",
+    "lut_lookup_accumulation": "#7EABCE",
+    "lut_lookup_topk_fused": "#7EABCE",
+    "unsplit_library_search": "#F4D291",
 }
 
 
@@ -993,8 +996,8 @@ def _plot_breakdown(result: dict[str, Any], output_path: Path) -> None:
     ms_to_us = 1000.0
     algorithms = (("IVFFlat", FLAT_STAGES), ("IVFPQ", PQ_STAGES))
     # Keep the final column width and use two compact legend rows.
-    fig, axes = plt.subplots(1, 2, figsize=(3.33, 1.5), sharey=True)
-    fig.subplots_adjust(left=0.21, right=0.98, bottom=0.32, top=0.73, wspace=0.10)
+    fig, axes = plt.subplots(1, 2, figsize=(3.33, 1.35), sharey=True)
+    fig.subplots_adjust(left=0.21, right=0.98, bottom=0.24, top=0.73, wspace=0.10)
     numeric_font = font_manager.FontProperties(family="Arial", size=6.5, weight="bold")
     renderer = fig.canvas.get_renderer()
 
@@ -1073,6 +1076,11 @@ def _plot_breakdown(result: dict[str, Any], output_path: Path) -> None:
                 axis.text(total / 2.0, y_position, f"{total:.1f}",
                           ha="center", va="center", fontproperties=numeric_font, color="black")
 
+        axis.text(
+            0.97, 0.04, "IVF-Flat" if algorithm == "IVFFlat" else "IVF-PQ",
+            transform=axis.transAxes, ha="right", va="bottom", fontsize=6.5,
+            fontweight="bold",
+        )
         axis.set_xlabel("Query time (μs)", labelpad=0, fontsize=6)
         axis.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=3, min_n_ticks=3))
         axis.set_yticks(
@@ -1106,7 +1114,8 @@ def _plot_breakdown(result: dict[str, Any], output_path: Path) -> None:
     for stage in dict.fromkeys((*legend_order, *all_stages)):
         if stage not in legend_stages or stage == "l2_epilogue_distance_writeback":
             continue
-        label = legend_labels.get(stage, STAGE_LABELS[stage]).capitalize()
+        raw_label = legend_labels.get(stage, STAGE_LABELS[stage])
+        label = raw_label if raw_label.startswith("LUT ") else raw_label.capitalize()
         if label in labels:
             continue
         labels.append(label)
@@ -1123,9 +1132,6 @@ def _plot_breakdown(result: dict[str, Any], output_path: Path) -> None:
             ncol=3, fontsize=6.5, frameon=False, handlelength=0.6,
             handletextpad=0.2, columnspacing=1.2, borderpad=0, borderaxespad=0,
         )
-    for axis, caption in zip(axes, ("(a) IVF-Flat", "(b) IVF-PQ")):
-        bounds = axis.get_position()
-        fig.text(bounds.x0 + bounds.width / 2, 0.085, caption, ha="center", va="bottom", fontsize=6.5)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=300)
     plt.close(fig)

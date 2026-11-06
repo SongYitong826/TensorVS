@@ -1,0 +1,2 @@
+dataset,method,index_type,nlist,n_vectors,dim,working_dim,M,nbits,build_seconds,train_seconds,metal_upload_seconds,add_seconds,save_seconds,index_size_bytes,index_size_mib,index_size_gib,build_device
+hunyuan,Faiss Metal,ivfflat,1024,1000000,768,768,0,0,33.58519358467311,15.032422417076305,0.03715525008738041,18.51561591750942,9.085047999862581,3083154059,2940.32483959198,2.871410976164043,CPU train + Metal upload/add

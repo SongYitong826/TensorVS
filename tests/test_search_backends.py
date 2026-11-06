@@ -53,6 +53,70 @@ def reference(q, vectors, labels, centers, nprobe, k, rotation=None):
     return values, ids
 
 
+@pytest.mark.parametrize("kind", ["flat", "pq"])
+@pytest.mark.parametrize("lut_chunk", [1, 2, 16, 32])
+@pytest.mark.parametrize("lookup", ["flat", "gather"])
+@pytest.mark.parametrize("tile,chunk,cap,budget", [(1, 16, 1, 1), (8, 32, 4, 1),
+    (64, 128, 256, 1), (64, 128, 4, .0625)])
+def test_grouped_execution_tiles_preserve_selected_candidates(indexes, kind, tile, chunk, cap, budget, lut_chunk, lookup):
+    index = indexes[0 if kind == "flat" else 1]
+    search = search_ivfflat_index if kind == "flat" else search_ivfpq_index
+    queries = indexes[4].repeat(6, 1)[:64]
+    options = dict(device="cpu", backend="torch", topk=9, nprobe=3,
+        torch_query_batch_size=64, torch_query_tile_size=tile,
+        torch_min_query_tile_size=min(8, tile),
+        torch_candidate_chunk_size=chunk, torch_max_tasks_per_batch=cap,
+        torch_memory_budget_mb=budget, persist_layout=False)
+    options.update(torch_flat_scan="grouped") if kind == "flat" else options.update(
+        torch_pq_scan="grouped", lut_dtype="fp32", torch_lut_chunk_size=lut_chunk, torch_pq_lookup=lookup)
+    metadata = dict(index.metadata)
+    values, ids = search(index, queries, **options)
+    vectors = indexes[2] if kind == "flat" else indexes[3]
+    rotation = None if kind == "flat" else indexes[7]
+    expected, expected_ids = reference(queries, vectors, indexes[5], indexes[6], 3, 9, rotation)
+    torch.testing.assert_close(values, expected, atol=3e-5, rtol=2e-5)
+    torch.testing.assert_close(ids.sort(1).values, expected_ids.sort(1).values)
+    assert index.metadata == metadata
+
+
+@pytest.mark.parametrize("kind", ["flat", "pq"])
+def test_explicit_execution_tile_honors_large_candidate_chunk(indexes, monkeypatch, kind):
+    from tensorvs import _torch_search as native
+    widths = []
+    original = native._schedule
+    def capture(probes, counts, offsets, tile, chunk, **kwargs):
+        widths.append(chunk)
+        return original(probes, counts, offsets, tile, chunk, **kwargs)
+    monkeypatch.setattr(native, "_schedule", capture)
+    search = search_ivfflat_index if kind == "flat" else search_ivfpq_index
+    search(indexes[0 if kind == "flat" else 1], indexes[4], device="cpu", backend="torch",
+           torch_query_tile_size=8, torch_candidate_chunk_size=2048)
+    assert widths == [2048]
+
+
+@pytest.mark.parametrize("option", [{"torch_query_tile_size": 0}, {"torch_query_tile_size": 3},
+                                    {"torch_max_tasks_per_batch": 0}])
+@pytest.mark.parametrize("kind", ["flat", "pq"])
+def test_invalid_grouped_execution_tiles_rejected(indexes, option, kind):
+    search = search_ivfflat_index if kind == "flat" else search_ivfpq_index
+    with pytest.raises(ValueError, match="tile|tasks"):
+        search(indexes[0 if kind == "flat" else 1], indexes[4], device="cpu", backend="torch", **option)
+
+
+@pytest.mark.parametrize("scan", ["gpu", "bucketed"])
+@pytest.mark.parametrize("lut_chunk", [1, 16, 32])
+def test_tensor_candidate_stream_gather_matches_decoded_oracle(indexes, scan, lut_chunk):
+    _, index, _, decoded, queries, labels, centers, rotation = indexes
+    for probes in (1, 3, 6):
+        values, ids = search_ivfpq_index(index, queries, device="cpu", backend="torch", topk=7,
+            nprobe=probes, torch_pq_scan=scan, torch_pq_lookup="gather",
+            torch_lut_chunk_size=lut_chunk, torch_candidate_chunk_size=32,
+            torch_query_batch_size=4, torch_memory_budget_mb=.25, lut_dtype="fp32")
+        expected, expected_ids = reference(queries, decoded, labels, centers, probes, 7, rotation)
+        torch.testing.assert_close(values, expected, rtol=2e-5, atol=3e-5)
+        torch.testing.assert_close(ids.sort(1).values, expected_ids.sort(1).values)
+
+
 @pytest.mark.parametrize("scan", ["grouped", "dense"])
 @pytest.mark.parametrize("device", ["cpu", "cuda:0"])
 def test_fixed_flat_scan_matches_selected_candidate_oracle(indexes, scan, device):
@@ -144,6 +208,42 @@ def test_tensor_native_pq_ragged_chunks_match_decoded_oracle(indexes, monkeypatc
         for row in ids.cpu():
             selected = row[row >= 0]
             assert selected.unique().numel() == selected.numel()
+
+
+def test_compact_cpu_pq_residency_preserves_search(indexes):
+    _, index, _, _, queries, _, _, _ = indexes
+    kwargs = dict(
+        device="cpu",
+        backend="torch",
+        topk=9,
+        nprobe=3,
+        lut_dtype="fp32",
+        torch_query_batch_size=4,
+        torch_candidate_chunk_size=16,
+        torch_memory_budget_mb=.25,
+        persist_layout=False,
+        torch_pq_scan="bucketed",
+    )
+    expected = search_ivfpq_index(index, queries, **kwargs)
+    logical = index.layout_cache.logical
+    layout = index.layout_cache.torch_layout
+
+    returned = index.compact_cpu_residency(
+        discard_build_metadata=True,
+        persist_layout=False,
+    )
+    assert returned is index
+    assert index.layout_cache.logical is logical
+    assert index.layout_cache.torch_layout is layout
+    assert index.assignments.numel() == 0
+    assert index.ids.numel() == 0
+    assert index.persisted_list_codes_interleaved_by_subspace is None
+    assert index.persisted_list_ids_interleaved is None
+    assert index.persisted_list_group_prefix is None
+    assert index.persisted_list_pq_static_corrections_interleaved is None
+
+    actual = search_ivfpq_index(index, queries, **kwargs)
+    torch.testing.assert_close(actual, expected)
 
 
 @pytest.mark.parametrize("device", ["cpu", "mps"])

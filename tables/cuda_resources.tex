@@ -1,0 +1,41 @@
+\documentclass[border=4pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{booktabs,multirow,array,tabularx,graphicx}
+\usepackage[table]{xcolor}
+\begin{document}
+\definecolor{e8qrow}{HTML}{EEF3F8}
+\definecolor{pending}{HTML}{929AA4}
+\definecolor{tensorvsbest}{HTML}{1F77B4}
+\begin{minipage}{3.5in}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{1.5pt}
+\setlength{\aboverulesep}{.20ex}
+\setlength{\belowrulesep}{.20ex}
+\renewcommand{\arraystretch}{1.0}
+\renewcommand{\tabularxcolumn}[1]{m{#1}}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}m{40pt}>{\raggedright\arraybackslash}m{37pt}*{4}{>{\centering\arraybackslash}X}@{}}
+\toprule
+\multicolumn{2}{@{}l}{\textbf{NVIDIA / CUDA}} & \multicolumn{4}{c}{\textbf{\textit{IVF-Flat / IVF-PQ}}} \\
+\cmidrule(lr){3-6}
+Method & \textbf{Metric} & SIFT & Tiny & GIST & OpenAI \\
+\midrule
+\rowcolor{e8qrow}
+ & {\fontsize{6.0}{7}\selectfont\mbox{Build (s)}} & \mbox{\fontsize{6.5}{7}\selectfont \textcolor{tensorvsbest}{\textbf{\textit{4.60}}}\,/\,16.53} & \mbox{\fontsize{6.5}{7}\selectfont \textcolor{tensorvsbest}{\textbf{\textit{6.06}}}\,/\,28.24} & \mbox{\fontsize{6.5}{7}\selectfont 7.28\,/\,18.80} & \mbox{\fontsize{6.5}{7}\selectfont 9.61\,/\,20.49} \\
+{\fontsize{6.3}{7}\selectfont \shortstack{TensorVS\\(Triton)}} & {\fontsize{6.0}{7}\selectfont\mbox{Size (GB)}} & \mbox{\fontsize{6.5}{7}\selectfont 5.41\,/\,0.60} & \mbox{\fontsize{6.5}{7}\selectfont 7.85\,/\,0.78} & \mbox{\fontsize{6.5}{7}\selectfont 3.93\,/\,0.28} & \mbox{\fontsize{6.5}{7}\selectfont 6.27\,/\,0.42} \\
+\rowcolor{e8qrow}
+ & {\fontsize{6.0}{7}\selectfont\mbox{Peak (GB)}} & \mbox{\fontsize{6.5}{7}\selectfont 8.19\,/\,0.87} & \mbox{\fontsize{6.5}{7}\selectfont \textcolor{tensorvsbest}{\textbf{\textit{10.79}}}\,/\,0.98} & \mbox{\fontsize{6.5}{7}\selectfont \textcolor{tensorvsbest}{\textbf{\textit{6.98}}}\,/\,0.76} & \mbox{\fontsize{6.5}{7}\selectfont \textcolor{tensorvsbest}{\textbf{\textit{9.32}}}\,/\,0.79} \\
+\cmidrule[.15pt](lr){1-6}
+\rowcolor{e8qrow}
+ & {\fontsize{6.0}{7}\selectfont\mbox{Build (s)}} & \mbox{\fontsize{6.5}{7}\selectfont 9.40\,/\,7.32} & \mbox{\fontsize{6.5}{7}\selectfont 7.48\,/\,9.69} & \mbox{\fontsize{6.5}{7}\selectfont 4.00\,/\,5.12} & \mbox{\fontsize{6.5}{7}\selectfont 6.02\,/\,7.69} \\
+{\fontsize{6.3}{7}\selectfont cuVS} & {\fontsize{6.0}{7}\selectfont\mbox{Size (GB)}} & \mbox{\fontsize{6.5}{7}\selectfont 5.21\,/\,0.25} & \mbox{\fontsize{6.5}{7}\selectfont 7.74\,/\,0.37} & \mbox{\fontsize{6.5}{7}\selectfont 3.91\,/\,0.15} & \mbox{\fontsize{6.5}{7}\selectfont 6.25\,/\,0.23} \\
+\rowcolor{e8qrow}
+ & {\fontsize{6.0}{7}\selectfont\mbox{Peak (GB)}} & \mbox{\fontsize{6.5}{7}\selectfont 6.90\,/\,0.68} & \mbox{\fontsize{6.5}{7}\selectfont 11.19\,/\,0.86} & \mbox{\fontsize{6.5}{7}\selectfont 7.93\,/\,0.63} & \mbox{\fontsize{6.5}{7}\selectfont 10.87\,/\,0.73} \\
+\cmidrule[.15pt](lr){1-6}
+\rowcolor{e8qrow}
+ & {\fontsize{6.0}{7}\selectfont\mbox{Build (s)}} & \mbox{\fontsize{6.5}{7}\selectfont 11.93\,/\,9.31} & \mbox{\fontsize{6.5}{7}\selectfont 14.64\,/\,35.78} & \mbox{\fontsize{6.5}{7}\selectfont 18.62\,/\,22.67} & \mbox{\fontsize{6.5}{7}\selectfont 27.29\,/\,50.10} \\
+{\fontsize{6.3}{7}\selectfont \shortstack{Faiss\\GPU}} & {\fontsize{6.0}{7}\selectfont\mbox{Size (GB)}} & \mbox{\fontsize{6.5}{7}\selectfont 5.20\,/\,0.24} & \mbox{\fontsize{6.5}{7}\selectfont 7.72\,/\,0.37} & \mbox{\fontsize{6.5}{7}\selectfont 3.85\,/\,0.11} & \mbox{\fontsize{6.5}{7}\selectfont 6.15\,/\,0.11} \\
+\rowcolor{e8qrow}
+ & {\fontsize{6.0}{7}\selectfont\mbox{Peak (GB)}} & \mbox{\fontsize{6.5}{7}\selectfont 8.31\,/\,2.28} & \mbox{\fontsize{6.5}{7}\selectfont 12.34\,/\,2.39} & \mbox{\fontsize{6.5}{7}\selectfont 8.38\,/\,2.14} & \mbox{\fontsize{6.5}{7}\selectfont 10.84\,/\,2.15} \\
+\bottomrule\end{tabularx}\endgroup\end{minipage}\end{document}

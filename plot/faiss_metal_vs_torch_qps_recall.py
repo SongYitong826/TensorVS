@@ -10,6 +10,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import sys
 
 import matplotlib
 matplotlib.use("Agg")
@@ -17,6 +18,10 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, MultipleLocator, StrMethodFormatter
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from bench._mps_results import comparison_paths, read_rows
+from plot.qbatch_comparison import read_results
+
 K = 10
 
 
@@ -43,37 +48,35 @@ def main():
     args = parser.parse_args()
     if args.q_batch <= 0:
         parser.error("q-batch must be positive")
-    args.results_dir = args.results_dir or (ROOT / "results" if args.q_batch == 128 else
-                                           ROOT / "results" / f"qbatch{args.q_batch}")
+    args.results_dir = args.results_dir or ROOT / "result"
+    read_results(args.results_dir, "sift1m", "ivfflat")
+    paths = comparison_paths(args.results_dir, "sift1m", "ivfflat", archive=True)
     specifications = (
-        ("Faiss Metal", "faiss_metal_IVFFLAT_sift_nlist1024.csv",
+        ("Faiss Metal",
          dict(color="#2474B5", marker="o", linestyle="-", markerfacecolor="#2474B5")),
-        ("TensorVS Torch (TensorNative)", "torch_mps_IVFFLAT_sift_nlist1024.csv",
+        ("TensorVS Torch (TensorNative)",
          dict(color="#D66A28", marker="s", linestyle="--", markerfacecolor="white")),
     )
     series, sources, metadata = [], [], []
-    for name, filename, style in specifications:
-        path = args.results_dir / filename
+    for name, style in specifications:
+        method = "Faiss Metal" if name == "Faiss Metal" else "TensorVS"
+        path = next(path for path in paths if read_rows(path)[0]["method"] == method)
         points = read_points(path, args.q_batch)
         meta = json.loads(path.with_suffix(".json").read_text())
         if meta["status"] != "complete":
             raise ValueError(f"Incomplete benchmark: {path}")
         series.append((name, points, style))
-        metadata.append(meta)
+        metadata.append(next(row for row in read_rows(path) if int(row["q_batch"]) == args.q_batch))
         sources.append(dict(method=name, csv=str(path.resolve()),
                             sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
                             metadata_sha256=hashlib.sha256(path.with_suffix(".json").read_bytes()).hexdigest(),
                             points=points))
     faiss, torch = metadata
-    assert faiss["backend"] == "faiss_metal" and torch["backend"] == "torch"
-    assert faiss["query_count"] == torch["query_count"] == 1024
-    assert faiss["repetitions"] == torch["repetitions"] == 3
-    assert faiss.get("warmup_scope", "first-batch") == torch.get("warmup_scope", "first-batch")
-    assert torch["q_batch"] == args.q_batch
-    assert torch["cpu_operator_fallback"] is False
-    assert faiss["index_conversion"]["source"]["path"] == torch["index"]
-    for field, torch_field in (("size_bytes", "index_size_bytes"), ("mtime_ns", "index_mtime_ns")):
-        assert faiss["index_conversion"]["source"][field] == torch[torch_field]
+    assert faiss["execution_device"] == "metal" and torch["execution_device"] == "mps"
+    assert int(faiss["query_count"]) == int(torch["query_count"]) == 1024
+    assert faiss["warmup_scope"] == torch["warmup_scope"] == "all-batches"
+    for field in ("index_path", "index_size_bytes", "index_mtime_ns"):
+        assert faiss[field] == torch[field]
     probes = [[p["nprobes"] for p in points] for _, points, _ in series]
     assert probes[0] == probes[1] and len(probes[0]) == 14
 
@@ -118,7 +121,7 @@ def main():
     zoom.grid(True, linewidth=.55, linestyle="--", alpha=.30)
     for spine in zoom.spines.values():
         spine.set_edgecolor("#B8B8B8")
-    figure.text(.115, .075, "14 measured nprobe settings (5–150) per method; median of 3 sweeps over 1,024 queries.",
+    figure.text(.115, .075, "14 measured nprobe settings (5–150) per method; median of saved sweeps over 1,024 queries.",
                 fontsize=9.5, color="#555555")
     figure.text(.115, .035, "Faiss uses host input/output; Torch uses resident MPS input/output. No smoothing or point removal.",
                 fontsize=9, color="#666666")
@@ -134,7 +137,7 @@ def main():
                   y_scale="linear", source_csvs=sources, points_per_method=14,
                   high_recall_inset=True, no_smoothing=True, no_point_removal=True,
                   warmup_scope=torch.get("warmup_scope", "first-batch"),
-                  measurement_limit=faiss["timing_comparison_limit"], outputs=outputs)
+                  measurement_limit="Faiss includes host/device transfers; Torch uses resident MPS tensors.", outputs=outputs)
     (args.output_dir / f"{stem}.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(dict(status="complete", points_per_method=14, outputs=outputs), indent=2))
 

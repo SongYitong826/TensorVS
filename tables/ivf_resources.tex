@@ -1,0 +1,50 @@
+\documentclass[border=4pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{booktabs,multirow,array,tabularx,graphicx}
+\usepackage[table]{xcolor}
+\begin{document}
+\definecolor{e8qrow}{HTML}{EEF3F8}
+\definecolor{pending}{HTML}{929AA4}
+\definecolor{tensorvsbest}{HTML}{1F77B4}
+\begin{minipage}{7in}
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{1.05pt}
+\setlength{\aboverulesep}{0.20ex}
+\setlength{\belowrulesep}{0.20ex}
+\renewcommand{\arraystretch}{.88}
+\renewcommand{\tabularxcolumn}[1]{m{#1}}
+
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}m{32pt}>{\raggedright\arraybackslash}m{40pt}>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X>{\centering\arraybackslash}X@{}}
+\toprule
+\multirow{2}{*}[-4pt]{\textbf{Dataset}} & \multirow{2}{*}[-4pt]{\textbf{Metric}} & \multicolumn{3}{c}{\makebox[0pt]{\fontsize{5.8}{7.4}\selectfont\textbf{NVIDIA}}} & \multicolumn{2}{c}{\makebox[0pt]{\fontsize{5.8}{7.4}\selectfont\textbf{Apple}}} & \multicolumn{4}{c}{\makebox[0pt]{\fontsize{5.8}{7.4}\selectfont\textbf{AMD}}} & \multicolumn{2}{c}{\makebox[0pt]{\fontsize{5.8}{7.4}\selectfont\textbf{Ascend}}} & \multicolumn{2}{c}{\makebox[0pt]{\fontsize{5.8}{7.4}\selectfont\textbf{Cambricon}}} & \multicolumn{1}{c}{\makebox[0pt]{\scalebox{.85}{\fontsize{5.8}{7.4}\selectfont\textbf{Kunlunxin}}}} \\
+\cmidrule(lr){3-5}\cmidrule(lr){6-7}\cmidrule(lr){8-11}\cmidrule(lr){12-13}\cmidrule(lr){14-15}\cmidrule(lr){16-16}
+ & & {\fontsize{5.8}{7.4}\selectfont \resizebox{.94\linewidth}{!}{\shortstack{TensorVS\\(Triton)}}} & {\fontsize{5.8}{7.4}\selectfont cuVS} & {\fontsize{5.8}{7.4}\selectfont \shortstack{Faiss\\GPU}} & {\fontsize{5.8}{7.4}\selectfont \resizebox{.94\linewidth}{!}{\shortstack{TensorVS\\(Tensor)}}} & {\fontsize{5.8}{7.4}\selectfont \shortstack{Faiss\\Metal}} & {\fontsize{5.8}{7.4}\selectfont \resizebox{.94\linewidth}{!}{\shortstack{TensorVS\\(Triton)}}} & {\fontsize{5.8}{7.4}\selectfont \resizebox{.94\linewidth}{!}{\shortstack{TensorVS\\(Tensor)}}} & {\fontsize{5.8}{7.4}\selectfont \shortstack{Faiss\\ROCm}} & {\fontsize{5.8}{7.4}\selectfont hipVS} & {\fontsize{5.8}{7.4}\selectfont \resizebox{.94\linewidth}{!}{\shortstack{TensorVS\\(Tensor)}}} & {\fontsize{5.8}{7.4}\selectfont \shortstack{Faiss\\Ascend}} & {\fontsize{5.8}{7.4}\selectfont \resizebox{.94\linewidth}{!}{\shortstack{TensorVS\\(Tensor)}}} & {\fontsize{5.8}{7.4}\selectfont \shortstack{Baseline\\(TBD)}} & {\fontsize{5.8}{7.4}\selectfont \resizebox{.94\linewidth}{!}{\shortstack{TensorVS\\(Tensor)}}} \\
+\midrule
+\multicolumn{16}{@{}l}{\textbf{\textit{IVF-Flat}}} \\
+\rowcolor{e8qrow}
+ & {\fontsize{6.3}{7}\selectfont\mbox{Build (s)}} & 4.14 & 3.47 & 6.96 & \textcolor{tensorvsbest}{\textbf{\textit{4.14}}} & 12.74 & 4.14 & 4.14 & 2.92 & 1.54 & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} \\
+ & {\fontsize{6.3}{7}\selectfont\mbox{Size (GB)}} & 1.01 & 0.98 & 0.97 & 1.01 & 0.97 & 1.01 & 1.01 & 0.97 & 0.99 & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} \\
+\rowcolor{e8qrow}
+\multirow{-3}{*}{GloVe} & {\fontsize{6.3}{7}\selectfont\mbox{Peak (GB)}} & \textcolor{tensorvsbest}{\textbf{\textit{3.29}}} & 3.91 & 4.82 & \textcolor{tensorvsbest}{\textbf{\textit{2.16}}} & 8.57 & \textcolor{tensorvsbest}{\textbf{\textit{1.87}}} & 1.94 & 3.92 & 3.69 & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} \\
+\cmidrule[.15pt](lr){1-16}
+\rowcolor{e8qrow}
+ & {\fontsize{6.3}{7}\selectfont\mbox{Build (s)}} & 18.41 & 3.30 & 17.89 & \textcolor{tensorvsbest}{\textbf{\textit{18.41}}} & 33.59 & 18.41 & 18.41 & 6.18 & 1.62 & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} \\
+ & {\fontsize{6.3}{7}\selectfont\mbox{Size (GB)}} & 3.17 & 3.14 & 3.08 & 3.16 & 3.08 & 3.16 & 3.16 & 3.08 & 3.18 & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} \\
+\rowcolor{e8qrow}
+\multirow{-3}{*}{Hunyuan} & {\fontsize{6.3}{7}\selectfont\mbox{Peak (GB)}} & 5.45 & 4.97 & 5.77 & \textcolor{tensorvsbest}{\textbf{\textit{5.35}}} & 8.75 & 3.95 & \textcolor{tensorvsbest}{\textbf{\textit{3.78}}} & 6.60 & 8.48 & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} \\
+\midrule
+\multicolumn{16}{@{}l}{\textbf{\textit{IVF-PQ}}} \\
+\rowcolor{e8qrow}
+ & {\fontsize{6.3}{7}\selectfont\mbox{Build (s)}} & 2.95 & 1.36 & 6.59 & \textcolor{tensorvsbest}{\textbf{\textit{8.81}}} & 32.63 & 8.81 & 8.81 & 5.59 & 7.44 & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} \\
+ & {\fontsize{6.3}{7}\selectfont\mbox{Size (GB)}} & 0.10 & 0.05 & 0.04 & 0.11 & 0.05 & 0.11 & 0.11 & 0.05 & 0.05 & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} \\
+\rowcolor{e8qrow}
+\multirow{-3}{*}{GloVe} & {\fontsize{6.3}{7}\selectfont\mbox{Peak (GB)}} & 0.65 & 0.48 & 2.07 & 1.12 & 0.14 & \textcolor{tensorvsbest}{\textbf{\textit{0.75}}} & 0.84 & 2.41 & 2.06 & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} \\
+\cmidrule[.15pt](lr){1-16}
+\rowcolor{e8qrow}
+ & {\fontsize{6.3}{7}\selectfont\mbox{Build (s)}} & 47.72 & 7.40 & \textsf{N/S} & \textcolor{tensorvsbest}{\textbf{\textit{47.72}}} & \textsf{N/S} & \textcolor{tensorvsbest}{\textbf{\textit{47.72}}} & \textcolor{tensorvsbest}{\textbf{\textit{47.72}}} & \textsf{N/S} & 49.06 & \textcolor{pending}{\textit{xxx}} & \textsf{N/S} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} \\
+ & {\fontsize{6.3}{7}\selectfont\mbox{Size (GB)}} & 0.81 & 0.41 & \textsf{N/S} & \textcolor{tensorvsbest}{\textbf{\textit{0.81}}} & \textsf{N/S} & 0.81 & 0.81 & \textsf{N/S} & 0.41 & \textcolor{pending}{\textit{xxx}} & \textsf{N/S} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} \\
+\rowcolor{e8qrow}
+\multirow{-3}{*}{Hunyuan} & {\fontsize{6.3}{7}\selectfont\mbox{Peak (GB)}} & 1.01 & 0.90 & \textsf{N/S} & \textcolor{tensorvsbest}{\textbf{\textit{1.14}}} & \textsf{N/S} & \textcolor{tensorvsbest}{\textbf{\textit{1.13}}} & 1.28 & \textsf{N/S} & 4.77 & \textcolor{pending}{\textit{xxx}} & \textsf{N/S} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} & \textcolor{pending}{\textit{xxx}} \\
+\bottomrule\end{tabularx}\endgroup\end{minipage}\end{document}

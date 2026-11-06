@@ -1,0 +1,2 @@
+dataset,method,index_type,benchmark_platform,build_device,nlist,n_vectors,dim,M,nbits,build_seconds,index_size_bytes,index_size_mib,index_path,status
+glove1.2m,TensorVS,ivfflat,MPS,cuda:6,1024,1193514,200,,,4.1416096687316895,1007685817,961.0040826797485,/Users/yitongsong/Dataset/glove1.2m/GPUIndex/TenVS_IVFFlat_nlist1024.bin,source_index_metadata

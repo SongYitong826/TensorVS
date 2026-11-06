@@ -60,9 +60,9 @@ DATASETS = (
 )
 
 METHODS = {
-    "tensorvs": Method("TensorVS", "#1f77b4", "o", "-"),
-    "cuvs": Method("cuVS", "#ff7f0e", "s", "--"),
-    "faiss": Method("Faiss GPU", "#2ca02c", "^", "-."),
+    "tensorvs": Method("TensorVS", "#00609d", "s", "-"),
+    "cuvs": Method("cuVS", "#f5ba03", "o", "-"),
+    "faiss": Method("Faiss GPU", "#e43d33", "^", "-"),
 }
 LEGEND_ORDER = ("cuvs", "faiss", "tensorvs")
 
@@ -79,7 +79,8 @@ DEFAULT_RESULT_DIRS = {
 }
 
 FILENAME_PATTERN = re.compile(
-    r"^(?:TensorVS_Tensor_)?IVFPQ_(?P<dataset>.+?)_nlist\d+.*?(?:_K(?P<topk>\d+))?\.csv$",
+    # AMD-prefixed files and their legacy TensorVS_Tensor names are not CUDA runs.
+    r"^IVFPQ_(?P<dataset>.+?)_nlist\d+.*?(?:_K(?P<topk>\d+))?\.csv$",
     re.IGNORECASE,
 )
 
@@ -264,7 +265,7 @@ def plot_figure(
     output_stem: str,
 ) -> tuple[Path, Path]:
     figure, axes = plt.subplots(
-        len(q_batches), len(DATASETS), figsize=(18.0, 8.0), squeeze=False
+        len(q_batches), len(DATASETS), figsize=(18.0, 7.4), squeeze=False
     )
     legend_handles: dict[str, object] = {}
 
@@ -284,9 +285,11 @@ def plot_figure(
                     color=method.color,
                     marker=method.marker,
                     linestyle=method.linestyle,
-                    linewidth=2.0,
-                    markersize=4.5,
-                    markeredgewidth=0.6,
+                    linewidth=1.5,
+                    markersize=6.4,
+                    markerfacecolor=method.color,
+                    markeredgecolor=method.color,
+                    markeredgewidth=1.0,
                     label=method.label,
                 )
                 legend_handles.setdefault(method_key, line)
@@ -303,9 +306,17 @@ def plot_figure(
             axis.yaxis.set_minor_formatter(NullFormatter())
             if qps_limits is not None:
                 axis.set_ylim(*qps_limits)
+            if dataset.key == "hunyuan":
+                # The Hunyuan range contains only the 10^5 major decade; keep
+                # that label explicit instead of letting LogLocator prune it.
+                axis.set_yticks([1e5])
             axis.grid(True, which="both", linestyle="--", linewidth=0.6, alpha=0.35)
             axis.tick_params(axis="both", labelsize=12.5)
-            axis.set_xlabel("Recall", fontsize=14)
+            axis.tick_params(
+                axis="x", labelbottom=row_index == len(q_batches) - 1
+            )
+            if row_index == len(q_batches) - 1:
+                axis.set_xlabel("Recall", fontsize=14)
             axis.set_ylabel("QPS" if column == 0 else "", fontsize=14)
             axis.text(
                 0.04,
@@ -347,7 +358,7 @@ def plot_figure(
             [legend_handles[key] for key in legend_keys],
             [METHODS[key].label for key in legend_keys],
             loc="upper center",
-            bbox_to_anchor=(0.5, 0.995),
+            bbox_to_anchor=(0.5, 0.95),
             ncol=len(legend_keys),
             frameon=True,
             fontsize=16,
@@ -360,7 +371,7 @@ def plot_figure(
         bottom=0.09,
         top=0.91,
         wspace=0.27,
-        hspace=0.32,
+        hspace=0.08,
     )
 
     output_dir.mkdir(parents=True, exist_ok=True)

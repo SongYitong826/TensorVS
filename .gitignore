@@ -15,17 +15,37 @@ dist/
 /bench/*
 !/bench/
 !/bench/*.py
-/result/
+!/bench/run_ascend_tensor_bench.sh
+!/bench/run_ascend_faiss_ivfpq_bench.sh
+!/bench/run_ascend_faiss_cpu_ivfflat_bench.sh
+!/bench/install_ascend_faiss.sh
+!/bench/ASCEND_FAISS.md
+/result/*
+!/result/MPS_*.csv
+!/result/MPS_*.json
+!/result/Archive/
+/result/Archive/*
+!/result/Archive/MPS_*.csv
+!/result/Archive/MPS_*.json
+!/result/Archive/incomplete/
+/result/Archive/incomplete/*
+!/result/Archive/incomplete/MPS_*.csv
+!/result/Archive/incomplete/MPS_*.json
+!/result/Build/
+/result/Build/*
+!/result/Build/MPS_*.csv
+!/result/Build/MPS_*.json
+/indexes/faiss_ascend/
+/indexes/faiss_ascend_cpu/
+/indexes/faiss_metal/
+/diagnostics/ascend_tensor_tuning/
 /results/*
-!/results/glove1.2m_ivfflat.csv
-!/results/glove1.2m_ivfpq.csv
-!/results/sift1m_ivfflat.csv
-!/results/sift1m_ivfpq.csv
 
 # Local plotting scripts and generated figures.
 /plot/*
 !/plot/
 !/plot/*.py
+!/plot/ivf_cuda_resources.json
 !/plot/Figures/
 /plot/Figures/*
 !/plot/Figures/*_QBatch128_256_512_K10.png
@@ -34,6 +54,10 @@ dist/
 !/plot/Figures/IVFFlat_CUDA_QBatch32_128_512_K10.pdf
 !/plot/Figures/IVFFlat_SensitiveToK_QBatch128_Recall0p99.png
 !/plot/Figures/IVFFlat_SensitiveToK_QBatch128_Recall0p99.pdf
+!/plot/Figures/IVFFlat_MPS_QBatch32_128_512_K10.png
+!/plot/Figures/IVFFlat_MPS_QBatch32_128_512_K10.pdf
+!/plot/Figures/IVFPQ_MPS_QBatch32_128_512_K10.png
+!/plot/Figures/IVFPQ_MPS_QBatch32_128_512_K10.pdf
 
 # LaTeX build intermediates; keep source and final PDF artifacts.
 /tables/*.aux

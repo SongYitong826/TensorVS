@@ -103,7 +103,7 @@ def plot_figure(
     q_batch: int,
     output_dir: Path,
 ) -> tuple[Path, Path]:
-    figure, axes = plt.subplots(1, len(datasets), figsize=(12.6, 3.8), squeeze=False)
+    figure, axes = plt.subplots(1, len(datasets), figsize=(11.8, 3.15), squeeze=False)
     axes = axes[0]
     legend_handles: dict[str, object] = {}
 
@@ -121,9 +121,11 @@ def plot_figure(
                 color=method.color,
                 marker=method.marker,
                 linestyle=method.linestyle,
-                linewidth=2.4,
-                markersize=7,
-                markeredgewidth=0.7,
+                linewidth=1.5,
+                markersize=6.4,
+                markerfacecolor=method.color,
+                markeredgecolor=method.color,
+                markeredgewidth=1.0,
                 label=method.label,
             )
             legend_handles.setdefault(method_key, line)
@@ -145,20 +147,22 @@ def plot_figure(
             LogLocator(base=10, subs=tuple(range(2, 10)), numticks=12)
         )
         axis.yaxis.set_minor_formatter(NullFormatter())
-        axis.set_xlabel("K", fontsize=16)
-        axis.set_ylabel("QPS" if column == 0 else "", fontsize=16)
-        axis.tick_params(axis="both", labelsize=14)
-        axis.grid(True, which="both", linestyle="--", linewidth=0.65, alpha=0.35)
+        axis.set_xlabel("k", fontsize=20)
+        axis.set_ylabel("QPS" if column == 0 else "", fontsize=20)
+        axis.tick_params(axis="both", labelsize=16)
+        axis.grid(True, which="both", linestyle="--", linewidth=0.6, alpha=0.35)
+        axis.spines["top"].set_visible(True)
+        axis.spines["right"].set_visible(True)
         axis.text(
             0.04,
-            0.42,
+            0.28,
             dataset.label,
             transform=axis.transAxes,
             ha="left",
             va="bottom",
-            fontsize=15,
+            fontsize=18,
             fontweight="bold",
-            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.8},
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.78},
         )
         if not dataset_points:
             axis.set_ylim(1e2, 1e4)
@@ -179,14 +183,16 @@ def plot_figure(
             [legend_handles[key] for key in legend_keys],
             [METHODS[key].label for key in legend_keys],
             loc="upper center",
-            bbox_to_anchor=(0.5, 1.0),
+            bbox_to_anchor=(0.5, 0.97),
             ncol=len(legend_keys),
             frameon=True,
-            fontsize=15,
-            handlelength=3.0,
-            columnspacing=2.0,
+            fontsize=20,
+            handlelength=2.2,
+            columnspacing=1.5,
         )
-    figure.subplots_adjust(left=0.075, right=0.995, bottom=0.18, top=0.78, wspace=0.25)
+    figure.subplots_adjust(
+        left=0.075, right=0.995, bottom=0.22, top=0.74, wspace=0.17
+    )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     nprobe_tag = "_".join(str(dataset.nprobe) for dataset in datasets)

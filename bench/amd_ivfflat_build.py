@@ -110,7 +110,7 @@ def paths(args: argparse.Namespace) -> tuple[Path, Path, Path]:
     stem = f"ivfflat_nlist{args.nlist}_build"
     index = args.data_root / args.dataset / "GPUIndex" / subdir / f"{stem}{suffix}"
     method_label = "FaissROCm" if args.method == "faiss-rocm" else "hipVS"
-    csv_path = args.output_dir / f"AMD_{method_label}_IVFFLAT_{args.dataset}_nlist{args.nlist}_build.csv"
+    csv_path = args.output_dir / "Build" / f"AMD_{method_label}_IVFFLAT_{args.dataset}_nlist{args.nlist}_build.csv"
     return index, index.with_suffix(".json"), csv_path
 
 
@@ -214,7 +214,7 @@ def main() -> None:
     parser.add_argument("--method", choices=("faiss-rocm", "hipvs"), required=True)
     parser.add_argument("--dataset", choices=("glove1.2m", "hunyuan"), required=True)
     parser.add_argument("--data-root", type=Path, default=Path("/root/vector_data"))
-    parser.add_argument("--output-dir", type=Path, default=PROJECT_ROOT / "result" / "Build")
+    parser.add_argument("--output-dir", type=Path, default=PROJECT_ROOT / "result")
     parser.add_argument("--gpu-id", type=int, default=0)
     parser.add_argument("--nlist", type=int, default=1024)
     parser.add_argument("--kmeans-iters", type=int, default=20)

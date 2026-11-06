@@ -1,23 +1,32 @@
-"""Measure TensorVS and local Faiss Metal; retain one CSV per dataset/index.
+"""Measure TensorVS and local Faiss Metal; save one CSV/JSON pair per method/index.
 
 Run with conda run -n tensorvs python -u bench/compare_mps_faiss.py --dataset ...
 Torch and Faiss run in separate processes because their OpenMP runtimes differ.
-Temporary index exports are removed automatically. No JSON/log/archive is saved.
+Temporary index exports are removed automatically. Results use MPS_ names in
+result/; original source-index build metadata is saved separately in result/Build/.
 """
 from __future__ import annotations
 
 import argparse
 import csv
+import ctypes
 from datetime import datetime, timezone
 import hashlib
 import math
 import os
 from pathlib import Path
+import resource
 import statistics
 import subprocess
 import sys
 import tempfile
+import threading
 import time
+
+try:
+    from ._mps_results import index_stem, read_rows, save_source_index, write_result
+except ImportError:
+    from _mps_results import index_stem, read_rows, save_source_index, write_result
 
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "0"
 os.environ["FAISS_METAL_IVF_ALLOW_CPU_FALLBACK"] = "0"
@@ -31,11 +40,73 @@ FIELDS = ["dataset", "index_type", "method", "execution_device", "q_batch", "K",
           "nprobes", "qps", "recall", "query_count", "nlist", "dim", "M", "nbits",
           "pq_working_dim", "use_compile", "scan", "lut_dtype", "omp_threads",
           "warmup_iterations", "warmup_scope", "repetitions", "sample1_seconds",
-          "sample2_seconds", "sample3_seconds", "index_path", "index_size_bytes",
+          "sample2_seconds", "sample3_seconds", "peak_gpu_memory", "peak_rss_memory",
+          "memory_samples", "index_path", "index_size_bytes",
           "index_mtime_ns", "query_path", "groundtruth_path", "source_sha256",
           "library_version", "measured_at_utc"]
 REMEASURE_FIELDS = [*(f"sample{i}_seconds" for i in range(4, 8)),
                     "sample_sweep_counts", "minimum_sample_seconds"]
+
+
+def _maximum_rss_bytes():
+    """Return the process high-water RSS in bytes on macOS."""
+    return int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+
+
+class PeakMemorySampler:
+    """Sample Metal-driver allocation and process RSS during one search sweep."""
+
+    def __init__(self, driver_memory):
+        self.driver_memory = driver_memory
+        self.peak_driver = 0
+        self.peak_rss = 0
+        self.samples = 0
+        self.error = None
+        self.stop = threading.Event()
+        self.thread = threading.Thread(target=self._run, daemon=True)
+
+    def sample(self):
+        self.peak_driver = max(self.peak_driver, int(self.driver_memory()))
+        self.peak_rss = max(self.peak_rss, _maximum_rss_bytes())
+        self.samples += 1
+
+    def _run(self):
+        try:
+            while not self.stop.wait(.01):
+                self.sample()
+        except BaseException as error:
+            self.error = error
+            self.stop.set()
+
+    def __enter__(self):
+        self.sample()
+        self.thread.start()
+        return self
+
+    def __exit__(self, *args):
+        self.stop.set()
+        self.thread.join()
+        self.sample()
+        if self.error is not None:
+            raise RuntimeError("Peak-memory sampling failed") from self.error
+
+
+def faiss_metal_driver_memory(faiss_root):
+    """Load the local Metal allocation helper without importing PyTorch."""
+    source = faiss_root / "local_bench" / "metal_memory.mm"
+    library_path = source.with_suffix(".dylib")
+    if not source.is_file():
+        raise FileNotFoundError(source)
+    if not library_path.exists() or library_path.stat().st_mtime_ns < source.stat().st_mtime_ns:
+        subprocess.run([
+            "xcrun", "clang++", "-arch", "arm64", "-std=c++17", "-O2",
+            "-dynamiclib", "-fobjc-arc", "-framework", "Metal", "-framework",
+            "Foundation", str(source), "-o", str(library_path),
+        ], check=True)
+    library = ctypes.CDLL(str(library_path))
+    library.metal_driver_allocated_bytes.restype = ctypes.c_ulonglong
+    library.metal_driver_allocated_bytes.argtypes = []
+    return library, library.metal_driver_allocated_bytes
 
 
 def read_vectors(path, dtype):
@@ -53,15 +124,10 @@ def read_vectors(path, dtype):
     return np.ascontiguousarray(values, dtype=dtype)
 
 
-def write_csv(path, rows):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".csv.tmp")
-    with temporary.open("w", newline="", encoding="utf-8") as file:
-        fields = FIELDS + REMEASURE_FIELDS if any("sample4_seconds" in row for row in rows) else FIELDS
-        writer = csv.DictWriter(file, fieldnames=fields)
-        writer.writeheader()
-        writer.writerows(rows)
-    temporary.replace(path)
+def write_csv(path, rows, *, complete=False):
+    fields = FIELDS + REMEASURE_FIELDS if any("sample4_seconds" in row for row in rows) else FIELDS
+    write_result(path, [{field: row.get(field, "") for field in fields} for row in rows],
+                 complete=complete)
 
 
 def fingerprint(paths):
@@ -116,8 +182,10 @@ def import_faiss(args):
     np.testing.assert_array_equal(cpu.quantizer.reconstruct_n(0, nlist), centers)
     if args.kind == "ivfpq":
         cpu.precompute_table()
-    resources = faiss.StandardGpuResources()
-    metal = faiss.index_cpu_to_gpu(resources, 0, cpu)
+    # The Metal IVF-PQ wrapper rejects M > 64 even though search delegates to
+    # CPU. Allow that same CPU search path without constructing the wrapper.
+    resources = None if args.faiss_cpu else faiss.StandardGpuResources()
+    metal = cpu if args.faiss_cpu else faiss.index_cpu_to_gpu(resources, 0, cpu)
     wrapper = metal
     transform = None
     if rotation is not None:
@@ -157,10 +225,15 @@ def worker(args):
         nbits = 0 if flat else int(index.metadata["nbits"])
         working_dim = dim if flat else m * index.pq_codebooks.shape[2]
         version, device = str(torch.__version__), "mps"
+        memory_library = None
+        driver_memory = torch.mps.driver_allocated_memory
         source_paths += [ROOT / "src/tensorvs" / name for name in
                          ("_torch_search.py", "_torch_pq_bucketed.py", "_layout_cache.py",
                           f"index_{args.kind}.py")]
         sync = torch.mps.synchronize
+        def prepare_memory_sweep():
+            sync()
+            torch.mps.empty_cache()
         def prepare(batch_size):
             batches = [torch.from_numpy(queries[i:i + batch_size]).to("mps")
                        for i in range(0, len(queries), batch_size)]
@@ -181,14 +254,19 @@ def worker(args):
         import contextlib
         import faiss
         faiss.omp_set_num_threads(args.threads)
+        if args.faiss_cpu:
+            memory_library, driver_memory = None, lambda: 0
+        else:
+            memory_library, driver_memory = faiss_metal_driver_memory(args.faiss_root)
         index, cpu, resources, configuration = import_faiss(args)
         nlist, dim, m, nbits, working_dim = configuration
-        version, device = faiss.__version__, "metal" if flat else "cpu"
+        version, device = faiss.__version__, "metal" if flat and not args.faiss_cpu else "cpu"
         metal_source = args.faiss_root / "faiss/gpu_metal" / f"MetalIndex{'IVFFlat' if flat else 'IVFPQ'}.mm"
         source_paths.append(metal_source)
-        if not flat and "cpuIndex_->search(n, x, k, distances, labels)" not in metal_source.read_text():
+        if not flat and not args.faiss_cpu and "cpuIndex_->search(n, x, k, distances, labels)" not in metal_source.read_text():
             raise RuntimeError("Faiss PQ execution path changed; review device label")
         sync = lambda: None  # Faiss Metal's Python search API is synchronous.
+        prepare_memory_sweep = lambda: None
         def prepare(batch_size):
             batches = [queries[i:i + batch_size] for i in range(0, len(queries), batch_size)]
             def call(batch, probe):
@@ -213,16 +291,21 @@ def worker(args):
             overlap = np.mean([len(set(a) & set(b)) / args.topk for a, b in zip(ids, expected_ids)])
             if overlap < .95:
                 raise RuntimeError(f"Metal/CPU neighbor overlap too low: {overlap}")
-            print(f"Verified Metal/CPU overlap={overlap:.4f} nprobe={probe}", flush=True)
+            print(f"Verified Faiss/CPU overlap={overlap:.4f} nprobe={probe}", flush=True)
     if dim != queries.shape[1] or max(args.nprobes) > nlist:
         raise ValueError("Queries/nprobe do not match index")
     rows = []
     if args.output.exists():
-        with args.output.open(newline="") as file:
-            rows = list(csv.DictReader(file))
+        rows = read_rows(args.output)
     method = "TensorVS" if args.worker == "tensorvs" else "Faiss Metal"
-    if not args.remeasure_points and any(row["method"] == method for row in rows):
-        raise FileExistsError(f"Existing {method} rows in {args.output}")
+    existing_keys = {
+        (int(row["q_batch"]), int(row["nprobes"]))
+        for row in rows if row["method"] == method
+    }
+    if not args.remeasure_points and existing_keys and not args.resume:
+        raise FileExistsError(
+            f"Existing {method} rows in {args.output}; use --resume to keep completed points"
+        )
     stat = args.index.stat()
     base = dict(dataset=args.dataset.name, index_type=args.kind, method=method,
                 execution_device=device, K=args.topk, query_count=len(queries), nlist=nlist,
@@ -243,6 +326,9 @@ def worker(args):
         for batch_size in args.q_batches:
             batches, call = prepare(batch_size)
             for probe in args.nprobes:
+                if (batch_size, probe) in existing_keys:
+                    print(f"Keeping completed {method} QBatch={batch_size} nprobe={probe}", flush=True)
+                    continue
                 for _ in range(args.warmup):
                     for batch in batches:
                         values, ids = call(batch, probe)
@@ -273,13 +359,26 @@ def worker(args):
                 qps = len(queries) / statistics.median(samples)
                 if not math.isfinite(qps) or qps <= 0 or not 0 <= recall <= 1:
                     raise RuntimeError("Invalid QPS/recall")
+                prepare_memory_sweep()
+                with PeakMemorySampler(driver_memory) as memory:
+                    for batch in batches:
+                        values, ids = call(batch, probe)
+                        sync()
+                        memory.sample()
+                        del values, ids
                 row = dict(base, q_batch=batch_size, nprobes=probe, qps=qps, recall=recall,
+                           peak_gpu_memory=memory.peak_driver / (1 << 20),
+                           peak_rss_memory=memory.peak_rss / (1 << 20),
+                           memory_samples=memory.samples,
                            measured_at_utc=datetime.now(timezone.utc).isoformat(),
                            **{f"sample{i + 1}_seconds": value for i, value in enumerate(samples)})
                 rows.append(row)
                 write_csv(args.output, rows)
                 print(f"{args.dataset.name} {args.kind} {method} QBatch={batch_size} "
-                      f"nprobe={probe} QPS={qps:.2f} Recall@{args.topk}={recall:.6f}", flush=True)
+                      f"nprobe={probe} QPS={qps:.2f} Recall@{args.topk}={recall:.6f} "
+                      f"PeakMetal={row['peak_gpu_memory']:.1f}MiB "
+                      f"PeakRSS={row['peak_rss_memory']:.1f}MiB", flush=True)
+    write_csv(args.output, rows, complete=True)
 
 
 def remeasure(args, rows, base, prepare, sync, retain, context, queries, truth):
@@ -361,7 +460,7 @@ def remeasure(args, rows, base, prepare, sync, retain, context, queries, truth):
         rows[position] = row
         print(f"Replaced {base['method']} QBatch={key[0]} nprobe={key[1]}: "
               f"QPS {float(old['qps']):.2f} -> {qps:.2f}, recall={measurement['recall']:.6f}", flush=True)
-    write_csv(args.output, rows)
+    write_csv(args.output, rows, complete=True)
 
 
 def main():
@@ -376,10 +475,14 @@ def main():
     parser.add_argument("--nq", type=int, default=1024)
     parser.add_argument("--warmup", type=int, default=2)
     parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--faiss-cpu", action="store_true",
+                        help="Run Faiss CPU directly, including PQ configurations beyond Metal's M limit.")
     parser.add_argument("--remeasure-points", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--repetitions", type=int, choices=(3, 7), default=3)
     parser.add_argument("--min-sample-seconds", type=float, default=.4)
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "results")
+    parser.add_argument("--resume", action="store_true",
+                        help="Keep valid completed method/QBatch/nprobe rows and run missing points.")
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "result")
     parser.add_argument("--faiss-root", type=Path, default=ROOT.parent / "faiss-metal")
     parser.add_argument("--worker", choices=("tensorvs", "faiss"), help=argparse.SUPPRESS)
     parser.add_argument("--index", type=Path, help=argparse.SUPPRESS)
@@ -412,9 +515,15 @@ def main():
         indexes = list((args.dataset / "GPUIndex").glob(pattern))
         if len(indexes) != 1:
             raise ValueError(f"Expected one {kind} index: {indexes}")
-        output = args.output_dir / f"{args.dataset.name}_{kind}.csv"
-        if output.exists():
-            raise FileExistsError(output)
+        outputs = {
+            backend: args.output_dir / (
+                index_stem(indexes[0], args.dataset.name, kind, method) + ".csv")
+            for backend, method in (("faiss", "Faiss Metal"), ("tensorvs", "TensorVS"))
+        }
+        for output in outputs.values():
+            if (output.exists() or output.with_suffix(".json").exists()) and not args.resume:
+                raise FileExistsError(output)
+        save_source_index(indexes[0], args.dataset.name, kind, args.output_dir)
         with tempfile.TemporaryDirectory(prefix="tensorvs-comparison-") as directory:
             export = Path(directory)
             subprocess.run([sys.executable, str(ROOT / "bench/export_comparison_index.py"),
@@ -422,7 +531,7 @@ def main():
             for backend in ("faiss", "tensorvs"):
                 subprocess.run([sys.executable, "-u", str(Path(__file__).resolve()), *sys.argv[1:],
                                 "--kind", kind, "--worker", backend, "--index", str(indexes[0]),
-                                "--export-dir", str(export), "--output", str(output)], check=True)
+                                "--export-dir", str(export), "--output", str(outputs[backend])], check=True)
 
 
 if __name__ == "__main__":

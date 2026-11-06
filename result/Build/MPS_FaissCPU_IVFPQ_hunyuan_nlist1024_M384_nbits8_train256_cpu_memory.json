@@ -1,0 +1,121 @@
+{
+  "status": "complete",
+  "platform": "MPS",
+  "host_family": "Apple Silicon",
+  "completed_rows": 1,
+  "config": {
+    "dataset": "hunyuan",
+    "method": "Faiss CPU",
+    "execution_device": "cpu",
+    "nlist": "1024",
+    "dim": "768",
+    "M": "384",
+    "nbits": "8",
+    "index_path": "/Users/yitongsong/Dataset/hunyuan/GPUIndex/TenVS_IVFPQResidual_nlist1024_m384_nbits8_train256.bin",
+    "index_size_bytes": "806634181",
+    "q_batches": [
+      128
+    ],
+    "nprobes": [
+      1000
+    ],
+    "topk": [
+      10
+    ]
+  },
+  "csv_columns": [
+    "dataset",
+    "method",
+    "execution_device",
+    "q_batch",
+    "K",
+    "nprobes",
+    "nlist",
+    "dim",
+    "M",
+    "nbits",
+    "threads",
+    "warmup_iterations",
+    "baseline_rss_mib",
+    "peak_rss_mib",
+    "search_delta_rss_mib",
+    "search_seconds",
+    "qps",
+    "memory_samples",
+    "sample_interval_ms",
+    "compact_cpu_residency",
+    "index_path",
+    "index_size_bytes",
+    "query_path",
+    "measured_at_utc"
+  ],
+  "csv_sha256": "07143743a6a059a1c0d40c8418f5b2a24415145dfbac4f34b0aff6e92a1e1cbb",
+  "provenance": {
+    "source_csv": "results/cpu_memory/hunyuan_ivfpq.csv",
+    "source_sha256": "1a2a44ec08110bb66944bc997f5d3887959028bda288b50420039dc13d75d9a1",
+    "source_rows": 2,
+    "method_rows": 1
+  },
+  "measurement_notes": [
+    "execution_device records the actual device; Faiss Metal IVF-PQ uses CPU search.",
+    "peak_gpu_memory, when recorded, is sampled Metal-driver allocation in MiB, not CUDA VRAM.",
+    "CPU-memory experiments report RSS in MiB; missing metrics were not measured.",
+    "Empty visited_vectors_per_query cells mean the original run did not measure this metric.",
+    "Full per-point timing, device, RSS, and provenance fields are retained in records."
+  ],
+  "schema_version": 2,
+  "record_fields": [
+    "dataset",
+    "method",
+    "execution_device",
+    "q_batch",
+    "K",
+    "nprobes",
+    "nlist",
+    "dim",
+    "M",
+    "nbits",
+    "threads",
+    "warmup_iterations",
+    "baseline_rss_mib",
+    "peak_rss_mib",
+    "search_delta_rss_mib",
+    "search_seconds",
+    "qps",
+    "memory_samples",
+    "sample_interval_ms",
+    "compact_cpu_residency",
+    "index_path",
+    "index_size_bytes",
+    "query_path",
+    "measured_at_utc"
+  ],
+  "records": [
+    {
+      "dataset": "hunyuan",
+      "method": "Faiss CPU",
+      "execution_device": "cpu",
+      "q_batch": "128",
+      "K": "10",
+      "nprobes": "1000",
+      "nlist": "1024",
+      "dim": "768",
+      "M": "384",
+      "nbits": "8",
+      "threads": "4",
+      "warmup_iterations": "1",
+      "baseline_rss_mib": "824.734375",
+      "peak_rss_mib": "825.140625",
+      "search_delta_rss_mib": "0.40625",
+      "search_seconds": "5.375372749986127",
+      "qps": "23.812302132969354",
+      "memory_samples": "4193",
+      "sample_interval_ms": "1.0",
+      "compact_cpu_residency": "False",
+      "index_path": "/Users/yitongsong/Dataset/hunyuan/GPUIndex/TenVS_IVFPQResidual_nlist1024_m384_nbits8_train256.bin",
+      "index_size_bytes": "806634181",
+      "query_path": "/Users/yitongsong/Dataset/hunyuan/hunyuan_query.fvecs",
+      "measured_at_utc": "2026-10-29T08:30:25.711213+00:00"
+    }
+  ]
+}

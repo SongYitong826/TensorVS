@@ -46,6 +46,7 @@ class Method:
     color: str
     marker: str
     linestyle: str
+    markerfacecolor: str
 
 
 DATASETS = (
@@ -59,9 +60,10 @@ DATASETS = (
 QBATCHES = (32, 128, 512)
 
 METHODS = {
-    "tensorvs": Method("TensorVS", "#1f77b4", "o", "-"),
-    "cuvs": Method("cuVS", "#ff7f0e", "s", "--"),
-    "faiss": Method("Faiss GPU", "#2ca02c", "^", "-."),
+    # Keep a consistent paper palette and filled-marker mapping.
+    "tensorvs": Method("TensorVS", "#00609d", "s", "-", "#00609d"),
+    "cuvs": Method("cuVS", "#f5ba03", "o", "-", "#f5ba03"),
+    "faiss": Method("Faiss GPU", "#e43d33", "^", "-", "#e43d33"),
 }
 LEGEND_ORDER = ("cuvs", "faiss", "tensorvs")
 DATASET_Y_LIMITS = {
@@ -84,7 +86,8 @@ DEFAULT_RESULT_DIRS = {
 }
 
 FILENAME_PATTERN = re.compile(
-    r"^(?:TensorVS_Tensor_)?IVFFLAT_(?P<dataset>.+?)_nlist(?P<nlist>\d+)"
+    # AMD-prefixed files and their legacy TensorVS_Tensor names are not CUDA runs.
+    r"^IVFFLAT_(?P<dataset>.+?)_nlist(?P<nlist>\d+)"
     r"(?:_K(?P<topk>\d+))?\.csv$",
     re.IGNORECASE,
 )
@@ -284,7 +287,7 @@ def plot_figure(
     figure, axes = plt.subplots(
         len(q_batches),
         len(DATASETS),
-        figsize=(18.0, 8.0),
+        figsize=(18.0, 7.4),
         squeeze=False,
     )
     legend_handles: dict[str, object] = {}
@@ -306,9 +309,11 @@ def plot_figure(
                     color=method.color,
                     marker=method.marker,
                     linestyle=method.linestyle,
-                    linewidth=2.0,
-                    markersize=4.5,
-                    markeredgewidth=0.6,
+                    linewidth=1.5,
+                    markersize=6.4,
+                    markerfacecolor=method.markerfacecolor,
+                    markeredgecolor=method.color,
+                    markeredgewidth=1.0,
                     label=method.label,
                 )
                 legend_handles.setdefault(method_key, line)
@@ -331,7 +336,11 @@ def plot_figure(
                 axis.set_ylim(*y_limits)
             axis.grid(True, which="both", linestyle="--", linewidth=0.6, alpha=0.35)
             axis.tick_params(axis="both", labelsize=12.5)
-            axis.set_xlabel("Recall", fontsize=14)
+            axis.tick_params(
+                axis="x", labelbottom=row_index == len(q_batches) - 1
+            )
+            if row_index == len(q_batches) - 1:
+                axis.set_xlabel("Recall", fontsize=14)
             axis.set_ylabel("QPS" if column == 0 else "", fontsize=14)
             axis.text(
                 0.04,
@@ -374,7 +383,7 @@ def plot_figure(
             [legend_handles[key] for key in legend_method_keys],
             [METHODS[key].label for key in legend_method_keys],
             loc="upper center",
-            bbox_to_anchor=(0.5, 0.995),
+            bbox_to_anchor=(0.5, 0.95),
             ncol=len(legend_method_keys),
             frameon=True,
             fontsize=16,
@@ -387,7 +396,7 @@ def plot_figure(
         bottom=0.09,
         top=0.91,
         wspace=0.27,
-        hspace=0.32,
+        hspace=0.08,
     )
 
     output_dir.mkdir(parents=True, exist_ok=True)

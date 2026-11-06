@@ -1,7 +1,8 @@
 """Plot AMD MI300X IVF-Flat or IVF-PQ Recall-QPS results in the MPS layout.
 
 Rows are GloVe and Hunyuan; columns are QBatch=32, 128, and 512.  Each
-panel compares completed hipVS, TensorVS (Tensor), and optional Triton CSVs.
+panel compares hipVS, TensorVS (Tensor/Triton), and Faiss ROCm CSVs.
+Faiss ROCm is omitted for Hunyuan IVF-PQ, which it does not support.
 On the local paper workspace, generated PDFs are also copied to
 ~/Desktop/TensorVS_SIGMOD27/expFig when that directory exists.
 
@@ -33,9 +34,13 @@ DATASETS = (("glove1.2m", "GloVe", "M32_nbits8_train512"),
 QBATCHES = (32, 128, 512)
 BASE_METHODS = ("hipVS", "TensorVS (Tensor)")
 TRITON_METHOD = "TensorVS (Triton)"
+FAISS_METHOD = "Faiss ROCm"
+METHODS = ("hipVS", FAISS_METHOD, "TensorVS (Tensor)", TRITON_METHOD)
 FIELDS = ("nprobes", "q_batch", "K", "qps", "recall",
           "visited_vectors_per_query", "peak_gpu_memory")
 STYLES = {
+    FAISS_METHOD: dict(color="#2ca02c", marker="^", linestyle="-",
+                      markerfacecolor="#2ca02c"),
     "hipVS": dict(color="#e43d33", marker="o", linestyle="-",
                   markerfacecolor="#e43d33"),
     "TensorVS (Tensor)": dict(color="#f5ba03", marker="o", linestyle="-",
@@ -45,10 +50,20 @@ STYLES = {
 }
 
 
+def methods_for(dataset: str, kind: str) -> tuple[str, ...]:
+    return tuple(method for method in METHODS
+                 if not (method == FAISS_METHOD and dataset == "hunyuan" and kind == "ivfpq"))
+
+
 def result_path(result_dir: Path, method: str, kind: str,
                 dataset: str, pq_config: str) -> Path:
     prefix = {"hipVS": "hipVS", "TensorVS (Tensor)": "TensorVS_Tensor",
-              "TensorVS (Triton)": "TensorVS_Triton"}[method]
+              "TensorVS (Triton)": "TensorVS_Triton", FAISS_METHOD: "FaissROCm"}[method]
+    if method == FAISS_METHOD and kind == "ivfpq":
+        if dataset != "glove1.2m":
+            raise ValueError(f"Faiss ROCm IVF-PQ is not supported for {dataset}")
+        # The Faiss run uses its own train label and zero-padded dimension.
+        pq_config = "M32_nbits8_train256_pad224"
     suffix = f"_{pq_config}" if kind == "ivfpq" else ""
     stem = f"{prefix}_{kind.upper()}_{dataset}_nlist1024{suffix}"
     marked = result_dir / f"AMD_{stem}.csv"
@@ -104,9 +119,9 @@ def performance_frontier(points: list[tuple[int, float, float]]):
 
 
 def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
-    methods = BASE_METHODS + (TRITON_METHOD,)
     curves = {}
     for dataset, _label, pq_config in DATASETS:
+        methods = methods_for(dataset, kind)
         curves[dataset] = {
             method: read_curves(result_path(result_dir, method, kind, dataset, pq_config))
             for method in methods
@@ -129,6 +144,7 @@ def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
     handles = {}
 
     for row_index, (dataset, label, _pq_config) in enumerate(DATASETS):
+        methods = methods_for(dataset, kind)
         # IVF-Flat Tensor can be fastest at high recall. A Pareto filter then
         # removes nearly every lower-nprobe measurement and hides its curve.
         # Show the complete measured nprobe sweep for each method instead.
@@ -190,9 +206,10 @@ def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
             axis.text(.04, .05, panel_label, transform=axis.transAxes,
                       fontsize=11.5, fontweight="bold", ha="left", va="bottom")
 
-    figure.legend([handles[method] for method in methods], list(methods),
-                  loc="lower center", bbox_to_anchor=(.5, legend_bottom),
-                  borderaxespad=0, ncol=len(methods),
+    legend_center = (figure.subplotpars.left + figure.subplotpars.right) / 2
+    figure.legend([handles[method] for method in METHODS], list(METHODS),
+                  loc="lower center", bbox_to_anchor=(legend_center, legend_bottom),
+                  borderaxespad=0, ncol=len(METHODS),
                   frameon=True, fontsize=14, handlelength=2.5,
                   columnspacing=1.2)
     output_dir.mkdir(parents=True, exist_ok=True)

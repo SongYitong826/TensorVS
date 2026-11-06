@@ -1,0 +1,142 @@
+{
+  "status": "complete",
+  "sources": [
+    {
+      "source": "results/glove1.2m_ivfflat.csv",
+      "rows": 108,
+      "outputs": [
+        "Archive/MPS_FaissMetal_IVFFLAT_glove1.2m_nlist1024.csv",
+        "Archive/MPS_TensorVS_Tensor_IVFFLAT_glove1.2m_nlist1024.csv"
+      ],
+      "rows_sha256": "fc634956cca0528b12bd4015cf813cdf5256c2fc76218c41fffbe12f28e7310e"
+    },
+    {
+      "source": "results/glove1.2m_ivfpq.csv",
+      "rows": 108,
+      "outputs": [
+        "Archive/MPS_FaissMetal_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256.csv",
+        "Archive/MPS_TensorVS_Tensor_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256.csv"
+      ],
+      "rows_sha256": "ceb2b8c3429ff7b8a1bfb9975a5b315f039280ea12d5a8e7437f1aaf2bac630d"
+    },
+    {
+      "source": "results/sift1m_ivfflat.csv",
+      "rows": 84,
+      "outputs": [
+        "Archive/MPS_FaissMetal_IVFFLAT_sift1m_nlist1024.csv",
+        "Archive/MPS_TensorVS_Tensor_IVFFLAT_sift1m_nlist1024.csv"
+      ],
+      "rows_sha256": "3f63490294f7bcea76de959a8c4add16d07938fb0facb073255138217dcbd853"
+    },
+    {
+      "source": "results/sift1m_ivfpq.csv",
+      "rows": 84,
+      "outputs": [
+        "Archive/MPS_FaissMetal_IVFPQ_sift1m_nlist1024_M16_nbits8_train256.csv",
+        "Archive/MPS_TensorVS_Tensor_IVFPQ_sift1m_nlist1024_M16_nbits8_train256.csv"
+      ],
+      "rows_sha256": "58b08baee16356d12c1c3fbeef44f97b35cdcef5a6ca889cce4d81734adb0c2e"
+    },
+    {
+      "source": "results/mps_kernel/glove1.2m_ivfflat.csv",
+      "rows": 108,
+      "outputs": [
+        "MPS_FaissMetal_IVFFLAT_glove1.2m_nlist1024.csv",
+        "MPS_TensorVS_Tensor_IVFFLAT_glove1.2m_nlist1024.csv"
+      ],
+      "rows_sha256": "a2e22f89de371acb3a1bc3b31474fd85ab1e6e45ef792220ea0b30f6ed1f401b"
+    },
+    {
+      "source": "results/mps_kernel/glove1.2m_ivfpq.csv",
+      "rows": 108,
+      "outputs": [
+        "MPS_FaissMetal_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256.csv",
+        "MPS_TensorVS_Tensor_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256.csv"
+      ],
+      "rows_sha256": "7eac92d73c356ab8292ba2ccece59f51d786b7ef1b916f975e34c2ce691e6e0a"
+    },
+    {
+      "source": "results/mps_kernel/hunyuan_ivfflat.csv",
+      "rows": 90,
+      "outputs": [
+        "MPS_FaissMetal_IVFFLAT_hunyuan_nlist1024.csv",
+        "MPS_TensorVS_Tensor_IVFFLAT_hunyuan_nlist1024.csv"
+      ],
+      "rows_sha256": "0d057ca0fa7999fc8d89995c1b1746a1c79a4d694c2385315a8a8d60691300ce"
+    },
+    {
+      "source": "results/mps_kernel/hunyuan_ivfpq.csv",
+      "rows": 45,
+      "outputs": [
+        "MPS_TensorVS_Tensor_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256.csv"
+      ],
+      "rows_sha256": "24aaf633b4c83b915b38b98961438a8f705ee2b957f2c7b64bde568cb0590fb6"
+    },
+    {
+      "source": "results/cpu_memory/glove1.2m_ivfpq.csv",
+      "rows": 2,
+      "outputs": [
+        "Build/MPS_FaissCPU_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256_cpu_memory.csv",
+        "Build/MPS_TensorVS_CPU_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256_cpu_memory.csv"
+      ],
+      "rows_sha256": "e2aab456c382eeed7d2afbf80914494f84377dc087cfdc405c26845039a8ec13"
+    },
+    {
+      "source": "results/cpu_memory/hunyuan_ivfpq.csv",
+      "rows": 2,
+      "outputs": [
+        "Build/MPS_FaissCPU_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256_cpu_memory.csv",
+        "Build/MPS_TensorVS_CPU_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256_cpu_memory.csv"
+      ],
+      "rows_sha256": "7180dcd01c650639c868557aee5b0327896a6201ad7be7412374d4d3af780c94"
+    }
+  ],
+  "source_rows": 739,
+  "build_records": [
+    "Build/MPS_TensorVS_Tensor_IVFFLAT_glove1.2m_nlist1024_build.csv",
+    "Build/MPS_TensorVS_Tensor_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256_build.csv",
+    "Build/MPS_TensorVS_Tensor_IVFFLAT_sift1m_nlist1024_build.csv",
+    "Build/MPS_TensorVS_Tensor_IVFPQ_sift1m_nlist1024_M16_nbits8_train256_build.csv",
+    "Build/MPS_TensorVS_Tensor_IVFFLAT_hunyuan_nlist1024_build.csv",
+    "Build/MPS_TensorVS_Tensor_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256_build.csv"
+  ],
+  "backup_dir": "/var/folders/5v/lmkl22vn5r541t4fqc30rjvc0000gn/T/tensorvs-mps-migration-2swqi7na",
+  "format_version": 2,
+  "query_csv_columns": [
+    "nprobes",
+    "q_batch",
+    "K",
+    "qps",
+    "recall",
+    "visited_vectors_per_query",
+    "peak_gpu_memory"
+  ],
+  "format_updates": [
+    {
+      "backup_dir": "/var/folders/5v/lmkl22vn5r541t4fqc30rjvc0000gn/T/tensorvs-mps-format-1t81aq60",
+      "paths": {
+        "MPS_FaissCPU_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256_cpu_memory.csv": "Build/MPS_FaissCPU_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256_cpu_memory.csv",
+        "MPS_FaissCPU_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256_cpu_memory.csv": "Build/MPS_FaissCPU_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256_cpu_memory.csv",
+        "MPS_FaissMetal_IVFFLAT_glove1.2m_nlist1024.csv": "MPS_FaissMetal_IVFFLAT_glove1.2m_nlist1024.csv",
+        "MPS_FaissMetal_IVFFLAT_glove1.2m_nlist1024_QBatch128_256_512.csv": "Archive/MPS_FaissMetal_IVFFLAT_glove1.2m_nlist1024.csv",
+        "MPS_FaissMetal_IVFFLAT_hunyuan_nlist1024.csv": "MPS_FaissMetal_IVFFLAT_hunyuan_nlist1024.csv",
+        "MPS_FaissMetal_IVFFLAT_sift1m_nlist1024_QBatch128_256_512.csv": "Archive/MPS_FaissMetal_IVFFLAT_sift1m_nlist1024.csv",
+        "MPS_FaissMetal_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256.csv": "MPS_FaissMetal_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256.csv",
+        "MPS_FaissMetal_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256_QBatch128_256_512.csv": "Archive/MPS_FaissMetal_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256.csv",
+        "MPS_FaissMetal_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256.csv": "Archive/incomplete/MPS_FaissMetal_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256.csv",
+        "MPS_FaissMetal_IVFPQ_sift1m_nlist1024_M16_nbits8_train256_QBatch128_256_512.csv": "Archive/MPS_FaissMetal_IVFPQ_sift1m_nlist1024_M16_nbits8_train256.csv",
+        "MPS_TensorVS_CPU_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256_cpu_memory.csv": "Build/MPS_TensorVS_CPU_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256_cpu_memory.csv",
+        "MPS_TensorVS_CPU_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256_cpu_memory.csv": "Build/MPS_TensorVS_CPU_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256_cpu_memory.csv",
+        "MPS_TensorVS_Tensor_IVFFLAT_glove1.2m_nlist1024.csv": "MPS_TensorVS_Tensor_IVFFLAT_glove1.2m_nlist1024.csv",
+        "MPS_TensorVS_Tensor_IVFFLAT_glove1.2m_nlist1024_QBatch128_256_512.csv": "Archive/MPS_TensorVS_Tensor_IVFFLAT_glove1.2m_nlist1024.csv",
+        "MPS_TensorVS_Tensor_IVFFLAT_hunyuan_nlist1024.csv": "MPS_TensorVS_Tensor_IVFFLAT_hunyuan_nlist1024.csv",
+        "MPS_TensorVS_Tensor_IVFFLAT_sift1m_nlist1024_QBatch128_256_512.csv": "Archive/MPS_TensorVS_Tensor_IVFFLAT_sift1m_nlist1024.csv",
+        "MPS_TensorVS_Tensor_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256.csv": "MPS_TensorVS_Tensor_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256.csv",
+        "MPS_TensorVS_Tensor_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256_QBatch128_256_512.csv": "Archive/MPS_TensorVS_Tensor_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train256.csv",
+        "MPS_TensorVS_Tensor_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256.csv": "MPS_TensorVS_Tensor_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256.csv",
+        "MPS_TensorVS_Tensor_IVFPQ_sift1m_nlist1024_M16_nbits8_train256_QBatch128_256_512.csv": "Archive/MPS_TensorVS_Tensor_IVFPQ_sift1m_nlist1024_M16_nbits8_train256.csv"
+      },
+      "rows": 741
+    }
+  ]
+}

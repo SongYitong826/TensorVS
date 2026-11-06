@@ -321,16 +321,16 @@ def plot_dataset_result(result: dict[str, Any], output_path: Path, nprobes: tupl
 def _plot_dataset_result(result: dict[str, Any], output_path: Path, nprobes: tuple[int, ...]) -> None:
     methods = ("traditional_kmeans", "balanced_kmeans")
     display_names = {"traditional_kmeans": "Traditional KMeans", "balanced_kmeans": "Balanced KMeans"}
-    colors = {"traditional_kmeans": "#4C78A8", "balanced_kmeans": "#F58518"}
+    colors = {"traditional_kmeans": "#C02635", "balanced_kmeans": "#00609D"}
 
     # Use the final printed size so \includegraphics[width=\columnwidth]
     # preserves readable text, with both panels in one compact row.
-    fig, (ax_box, ax_bar) = plt.subplots(1, 2, figsize=(3.33, 1.5))
+    fig, (ax_box, ax_bar) = plt.subplots(1, 2, figsize=(3.33, 1.32))
     fig.subplots_adjust(
         left=0.15,
         right=0.98,
-        bottom=0.40,
-        top=0.82,
+        bottom=0.30,
+        top=0.78,
         wspace=0.38,
     )
     for ax in (ax_box, ax_bar):
@@ -362,7 +362,7 @@ def _plot_dataset_result(result: dict[str, Any], output_path: Path, nprobes: tup
             x,
             stats["min"],
             marker="v",
-            color="#E41A1C",
+            color="#F5A86E",
             edgecolors="#111111",
             linewidths=0.5,
             s=25,
@@ -373,7 +373,7 @@ def _plot_dataset_result(result: dict[str, Any], output_path: Path, nprobes: tup
             x,
             stats["max"],
             marker="^",
-            color="#E41A1C",
+            color="#F5A86E",
             edgecolors="#111111",
             linewidths=0.5,
             s=25,
@@ -430,14 +430,6 @@ def _plot_dataset_result(result: dict[str, Any], output_path: Path, nprobes: tup
         handletextpad=0.4,
         columnspacing=1.0,
     )
-    # Figure coordinates align the captions despite different x-axis labels.
-    for ax, caption in (
-        (ax_box, "(a) IVF list lengths"),
-        (ax_bar, "(b) Effect on recall"),
-    ):
-        bounds = ax.get_position()
-        fig.text(bounds.x0 + bounds.width / 2, 0.14, caption, ha="center", va="bottom", fontsize=8)
-
     output_path.parent.mkdir(parents=True, exist_ok=True)
     # Keep the exact page size instead of letting a tight crop rescale fonts.
     fig.savefig(output_path, dpi=300)

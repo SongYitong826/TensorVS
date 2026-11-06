@@ -404,7 +404,7 @@ def _pq_select_scores(distances, k, chunk, selection):
 
 
 def _packed_pq_search(batch, layout, lut, bias, probes, best, best_ids,
-                      budget, chunk, timer, use_compile, query_tile=None):
+                      budget, chunk, timer, use_compile, query_tile=None, lut_chunk_size=16, pq_lookup="flat"):
     begin = timer.begin()
     adc_data = prepare_pq_adc_words(layout) if use_compile and layout.pq_anchor_grain else None
     adc_function = _pq_anchor_scores_packed if adc_data is not None else _pq_anchor_scores
@@ -489,7 +489,7 @@ def _packed_pq_search(batch, layout, lut, bias, probes, best, best_ids,
             best[qs:qe], best_ids[qs:qe] = values, ids
             timer.end("topk_selection", begin)
             continue
-        fn = _compute(_pq_packed_block if use_compile else _pq_packed_block_eager, use_compile, specialization)
+        fn = _compute(_pq_packed_block if use_compile or pq_lookup == "gather" else _pq_packed_block_eager, use_compile, specialization)
         def scan(start):
             # A short last block scans exactly the remaining index bound.
             lanes = ordinals[:min(chunk, size - start)] + start
@@ -502,7 +502,7 @@ def _packed_pq_search(batch, layout, lut, bias, probes, best, best_ids,
                 return values, ids
             return fn(tables, layout.lists.data, layout.lists.ids, layout.lists.auxiliary,
                       selected_bias, selected_probes, layout.lists.offsets, ends, starts,
-                      lanes, min(best.shape[1], lanes.shape[0]), 1 if use_compile else 16)
+                      lanes, min(best.shape[1], lanes.shape[0]), 1 if use_compile else lut_chunk_size)
         values, ids = _chunked_topk(scan, size, chunk, best[qs:qe], best_ids[qs:qe], budget, timer,
                                    "packed_lut_distance_topk", use_compile, specialization)
         best[qs:qe], best_ids[qs:qe] = values, ids
@@ -721,6 +721,10 @@ class _Timer:
             event = torch.cuda.Event(enable_timing=True)
             event.record(torch.cuda.current_stream(self.device))
             return event
+        if self.device.type == "npu":
+            event = torch.npu.Event(enable_timing=True)
+            event.record(torch.npu.current_stream(self.device))
+            return event
         if self.device.type == "mps":
             torch.mps.synchronize()
         return time.perf_counter()
@@ -732,6 +736,10 @@ class _Timer:
             end = torch.cuda.Event(enable_timing=True)
             end.record(torch.cuda.current_stream(self.device))
             self.events.append((name, begin, end))
+        elif self.device.type == "npu":
+            end = torch.npu.Event(enable_timing=True)
+            end.record(torch.npu.current_stream(self.device))
+            self.events.append((name, begin, end))
         else:
             if self.device.type == "mps":
                 torch.mps.synchronize()
@@ -739,7 +747,7 @@ class _Timer:
 
     def finish(self):
         if self.events:
-            torch.cuda.synchronize(self.device)
+            (torch.npu if self.device.type == "npu" else torch.cuda).synchronize(self.device)
             for name, begin, end in self.events:
                 self.profile[name] = self.profile.get(name, 0.0) + begin.elapsed_time(end) / 1000
 
@@ -763,7 +771,9 @@ def search_torch(index: Any, queries: torch.Tensor, *, kind: str, topk: int, npr
                  candidate_chunk_size: int = 2048, memory_budget_mb: float = 128,
                  use_compile: bool = False, persist_layout: bool = True,
                  lut_dtype: str = "fp32", refine_vectors=None, refine_factor: int = 1,
-                 flat_scan: str = "auto", pq_scan: str = "auto"):
+                 flat_scan: str = "auto", pq_scan: str = "auto",
+                 query_tile_size: int | None = None, max_tasks_per_batch: int = 256,
+                 lut_chunk_size: int = 16, pq_lookup: str = "flat", min_query_tile_size: int = 1):
     if flat_scan not in {"auto", "grouped", "dense"}:
         raise ValueError("flat_scan must be 'auto', 'grouped', or 'dense'")
     if pq_scan not in {"auto", "grouped", "gpu", "bucketed"}:
@@ -774,6 +784,16 @@ def search_torch(index: Any, queries: torch.Tensor, *, kind: str, topk: int, npr
         raise ValueError("IVF lists are not loaded; load the index with load_lists=True")
     if query_batch_size <= 0 or candidate_chunk_size <= 0 or not math.isfinite(memory_budget_mb) or memory_budget_mb <= 0:
         raise ValueError("Torch query/candidate chunk sizes and memory budget must be positive")
+    if query_tile_size is not None and (query_tile_size <= 0 or query_tile_size & (query_tile_size - 1)):
+        raise ValueError("Torch query tile size must be a positive power of two")
+    if max_tasks_per_batch <= 0:
+        raise ValueError("Torch max tasks per batch must be positive")
+    if lut_chunk_size <= 0:
+        raise ValueError("Torch LUT chunk size must be positive")
+    if pq_lookup not in {"flat", "gather"}:
+        raise ValueError("Torch PQ lookup must be 'flat' or 'gather'")
+    if min_query_tile_size <= 0 or min_query_tile_size & (min_query_tile_size - 1):
+        raise ValueError("Torch minimum query tile size must be a positive power of two")
     device = search_device(queries, device)
     timer = _Timer(device, profile)
     begin = timer.begin()
@@ -797,7 +817,7 @@ def search_torch(index: Any, queries: torch.Tensor, *, kind: str, topk: int, npr
     else:
         from .index_ivfpq import _coarse_centroid_scores_addmm, _normalize_lut_dtype
         lut_dtype = _normalize_lut_dtype(lut_dtype)
-        block_function = _pq_block if use_compile else _pq_block_eager
+        block_function = _pq_block if use_compile or pq_lookup == "gather" else _pq_block_eager
     budget = int(memory_budget_mb * (1 << 20))
     # IEEE FP32 for Flat and coarse selection, matching the existing path.
     previous_tf32 = torch.backends.cuda.matmul.allow_tf32
@@ -829,9 +849,10 @@ def search_torch(index: Any, queries: torch.Tensor, *, kind: str, topk: int, npr
             reserve = max(budget // 8, 48 * batch.shape[0] * search_k)
             workspace = budget - reserve
             preferred_chunk = candidate_chunk_size * (32 if kind == "flat" else 4)
+            address_bytes = 8 if pq_lookup == "gather" else (4 if kind == "pq" and lut_numel <= 2147483647 else 8)
             packed_lane_bytes = (32 if use_compile else
-                64 + (4 if lut_numel <= 2147483647 else 8) * m
-                + ((4 if lut_numel <= 2147483647 else 8) + lut_bytes + 4) * min(m, 16)) if kind == "pq" else 0
+                64 + address_bytes * m
+                + (address_bytes + lut_bytes + 4) * min(m, lut_chunk_size)) if kind == "pq" else 0
             bytes_per_candidate = batch.shape[0] * (12 if kind == "flat" else packed_lane_bytes) + 16
             available = workspace - (batch.shape[0] * len(layout.host_counts) if kind == "flat" else 0)
             packed_query_tile = batch.shape[0]
@@ -848,9 +869,12 @@ def search_torch(index: Any, queries: torch.Tensor, *, kind: str, topk: int, npr
             stream_chunk = 1 << (capacity.bit_length() - 1) if capacity else 0
             if kind == "flat" and flat_scan == "dense" and stream_chunk < 1:
                 raise ValueError("Torch memory budget is too small for dense Flat scanning")
+            dense_shape = (device.type == "cuda" and batch.shape[0] >= 64
+                           and nprobe * 16 >= len(layout.host_counts)) or (
+                device.type == "npu" and batch.shape[0] >= 128
+                and nprobe * 16 >= len(layout.host_counts))
             use_dense = kind == "flat" and (flat_scan == "dense" or (
-                flat_scan == "auto" and device.type == "cuda" and batch.shape[0] >= 64
-                and nprobe * 16 >= len(layout.host_counts) and stream_chunk >= 4096))
+                flat_scan == "auto" and dense_shape and stream_chunk >= 4096))
             use_packed = kind == "pq" and (pq_scan in {"gpu", "bucketed"} or (
                 pq_scan == "auto" and device.type == "cuda"
                 and batch.shape[0] >= 32 and stream_chunk >= 256))
@@ -864,11 +888,12 @@ def search_torch(index: Any, queries: torch.Tensor, *, kind: str, topk: int, npr
                     if pq_scan == "bucketed":
                         from ._torch_pq_bucketed import search_bucketed_pq
                         best, best_ids = search_bucketed_pq(batch, layout, lut, bias, probes,
-                            best, best_ids, budget, stream_chunk, timer, use_compile, lut_dtype=lut_dtype)
+                            best, best_ids, budget, stream_chunk, timer, use_compile,
+                            lut_dtype=lut_dtype, lut_chunk_size=lut_chunk_size, pq_lookup=pq_lookup)
                     else:
                         best, best_ids = _packed_pq_search(batch, layout, lut, bias, probes,
                                                       best, best_ids, budget, stream_chunk,
-                                                      timer, use_compile, packed_query_tile)
+                                                      timer, use_compile, packed_query_tile, lut_chunk_size, pq_lookup)
                 begin = timer.begin()
                 best, order = best.sort(dim=1)
                 distances[qs:qs + batch.shape[0]] = best
@@ -882,7 +907,8 @@ def search_torch(index: Any, queries: torch.Tensor, *, kind: str, topk: int, npr
                 timer.end("query_norm_preparation", begin)
             begin = timer.begin()
             # Shrink the vector tile if one task alone would exceed the budget.
-            tile = min(8 if kind == "pq" and not use_compile else 32, query_batch_size)
+            tile = min(query_tile_size or (8 if kind == "pq" and not use_compile else 32),
+                       query_batch_size)
             tile = 1 << (tile.bit_length() - 1)
             cchunk = 1 << (candidate_chunk_size.bit_length() - 1)
             def estimate(qwidth, cwidth):
@@ -897,9 +923,11 @@ def search_torch(index: Any, queries: torch.Tensor, *, kind: str, topk: int, npr
                     else:
                         # Bound materialized flat addresses, LUT values and
                         # their FP32 reduction, not just the broadcast views.
-                        address_bytes = 4 if lut.numel() <= 2147483647 else 8
-                        lane_bytes = 32 + (address_bytes + lut.element_size() + 4) * min(m, 16)
+                        address_bytes = 8 if pq_lookup == "gather" else (4 if lut.numel() <= 2147483647 else 8)
+                        lane_bytes = 32 + (address_bytes + lut.element_size() + 4) * min(m, lut_chunk_size)
                         block = 16 * cwidth * m + lane_bytes * qwidth * cwidth
+                        if pq_lookup == "gather":
+                            block += qwidth * m * lut.shape[2] * lut.element_size()
                 merge = 48 * batch.shape[0] * search_k + 48 * qwidth * search_k
                 return block + merge
             while estimate(tile, cchunk) > budget and (cchunk > 1 or tile > 1):
@@ -909,11 +937,11 @@ def search_torch(index: Any, queries: torch.Tensor, *, kind: str, topk: int, npr
                     tile //= 2
             if estimate(tile, cchunk) > budget:
                 raise ValueError("Torch memory budget is too small for one scan task and its Top-K merge")
-            max_tasks = 256
+            max_tasks = max_tasks_per_batch
             host_probes = probes.detach().cpu()
             def plan(width):
                 schedule = _schedule(host_probes, layout.host_counts, layout.host_offsets, tile, width,
-                                     minimum_query_width=1 if not use_compile else 8)
+                                     minimum_query_width=min_query_tile_size if not use_compile else 8)
                 partial_width = _partial_slots(schedule, batch.shape[0], search_k)
                 reservoir_size = batch.shape[0] * partial_width + max_tasks * tile * min(search_k, width)
                 reservoir_bytes = reservoir_size * 12
@@ -923,7 +951,9 @@ def search_torch(index: Any, queries: torch.Tensor, *, kind: str, topk: int, npr
             # Smaller eager blocks reduce candidate padding. Retain the
             # requested larger blocks if extra block Top-Ks would force online
             # merging; large K/probe combinations benefit from the reservoir.
-            preferred = min(cchunk, 1024) if not use_compile else cchunk
+            # Explicit execution tiling also honors the requested candidate
+            # chunk instead of silently applying the default eager 1024 cap.
+            preferred = min(cchunk, 1024) if not use_compile and query_tile_size is None else cchunk
             schedule, partial_width, reservoir_size, reservoir_bytes, collect = plan(preferred)
             if not collect and preferred < cchunk:
                 schedule, partial_width, reservoir_size, reservoir_bytes, collect = plan(cchunk)
@@ -955,7 +985,7 @@ def search_torch(index: Any, queries: torch.Tensor, *, kind: str, topk: int, npr
                     else:
                         block_args = (lut, layout.lists.data, layout.lists.ids, layout.lists.auxiliary,
                                       bias, query_ids, lists, starts, counts, valid, candidate_offsets,
-                                      local_k, 1 if use_compile else 16)
+                                      local_k, 1 if use_compile else lut_chunk_size)
                     if collect and use_compile:
                         combined = _compute(_flat_collect if kind == "flat" else _pq_collect, True, specialization)
                         combined(*block_args, partial_values, partial_ids, row_slots, partial_width, batch.shape[0])

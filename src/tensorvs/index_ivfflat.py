@@ -781,6 +781,9 @@ def search_ivfflat_index(
     torch_candidate_chunk_size: int = 2048,
     torch_memory_budget_mb: float = 128,
     torch_flat_scan: str = "auto",
+    torch_query_tile_size: int | None = None,
+    torch_max_tasks_per_batch: int = 256,
+    torch_min_query_tile_size: int = 1,
     use_compile: bool = False,
     persist_layout: bool = True,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -795,6 +798,9 @@ def search_ivfflat_index(
     ``torch_flat_scan='grouped'`` always scans only the selected IVF lists;
     ``'dense'`` always computes all vector distances before IVF masking.
     ``'auto'`` retains the adaptive choice. This option applies to Torch.
+    ``torch_query_tile_size`` overrides the grouped list-task query width
+    (a power of two); ``torch_max_tasks_per_batch`` caps grouped tasks per
+    call. Both remain subject to the workspace budget and do not alter IVF.
     The memory budget bounds scan/merge workspace, excluding resident index,
     input/output tensors, and compiler/library workspaces. The legacy
     ``selection_mode`` argument is retained for existing callers.
@@ -817,7 +823,10 @@ def search_ivfflat_index(
                             device=target, profile=profile, query_batch_size=torch_query_batch_size,
                             candidate_chunk_size=torch_candidate_chunk_size,
                             memory_budget_mb=torch_memory_budget_mb, use_compile=use_compile,
-                            persist_layout=persist_layout, flat_scan=torch_flat_scan)
+                            persist_layout=persist_layout, flat_scan=torch_flat_scan,
+                            query_tile_size=torch_query_tile_size,
+                            max_tasks_per_batch=torch_max_tasks_per_batch,
+                            min_query_tile_size=torch_min_query_tile_size)
     if not supported:
         raise RuntimeError("The requested Triton IVF-Flat backend does not support this device or shape")
     index.reside_on_device(target, persist_layout=persist_layout)

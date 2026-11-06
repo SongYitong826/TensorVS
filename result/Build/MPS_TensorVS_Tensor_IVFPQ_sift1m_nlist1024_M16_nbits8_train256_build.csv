@@ -1,0 +1,2 @@
+dataset,method,index_type,benchmark_platform,build_device,nlist,n_vectors,dim,M,nbits,build_seconds,index_size_bytes,index_size_mib,index_path,status
+sift1m,TensorVS,ivfpq,MPS,cuda:1,1024,1000000,128,16,8,2.2070415634661913,61159731,58.32646465301514,/Users/yitongsong/Dataset/sift1m/GPUIndex/TenVS_IVFPQResidual_nlist1024_m16_nbits8_train256.bin,source_index_metadata

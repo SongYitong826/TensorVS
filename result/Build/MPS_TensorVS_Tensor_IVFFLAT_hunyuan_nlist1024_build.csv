@@ -1,0 +1,2 @@
+dataset,method,index_type,benchmark_platform,build_device,nlist,n_vectors,dim,M,nbits,build_seconds,index_size_bytes,index_size_mib,index_path,status
+hunyuan,TensorVS,ivfflat,MPS,cuda:0,1024,1000000,768,,,18.40638021286577,3163978233,3017.40477848053,/Users/yitongsong/Dataset/hunyuan/GPUIndex/TenVS_IVFFlat_nlist1024.bin,source_index_metadata

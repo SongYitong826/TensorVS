@@ -11,6 +11,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import sys
 
 import matplotlib
 matplotlib.use("Agg")
@@ -18,14 +19,19 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator, StrMethodFormatter
 
 ROOT = Path(__file__).resolve().parents[1]
-STEM = "torch_mps_IVFPQ_sift_nlist1024_M16_nbits8_train256"
+sys.path.insert(0, str(ROOT))
+from bench._mps_results import comparison_paths, read_rows
+from plot.qbatch_comparison import read_results
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results-dir", type=Path, default=ROOT / "results")
+    parser.add_argument("--results-dir", type=Path, default=ROOT / "result")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "plot/Figures")
     args = parser.parse_args()
+    read_results(args.results_dir, "sift1m", "ivfpq")
+    paths = comparison_paths(args.results_dir, "sift1m", "ivfpq", archive=True)
+    path = next(path for path in paths if read_rows(path)[0]["method"] == "TensorVS")
     sources = []
     figure, axis = plt.subplots(figsize=(9.2, 6.2))
     plt.rcParams.update({"font.family": "DejaVu Sans", "pdf.fonttype": 42,
@@ -34,13 +40,10 @@ def main():
               512: dict(color="#D66A28", marker="s", linestyle="--", markerfacecolor="white")}
     maxima, minima, query_counts, configurations = [], [], set(), []
     for batch, style in styles.items():
-        path = args.results_dir / f"qbatch{batch}" / f"{STEM}.csv"
         metadata = json.loads(path.with_suffix(".json").read_text())
-        assert metadata["status"] == "complete" and metadata["algorithm"] == "ivfpq"
-        assert metadata["backend"] == "torch" and metadata["device"] == "mps"
-        assert metadata["cpu_operator_fallback"] is False
-        assert metadata["q_batch"] == batch and metadata["warmup_scope"] == "all-batches"
-        assert metadata["repetitions"] == 3 and metadata["warmup_iterations"] == 2
+        assert metadata["status"] == "complete"
+        selected = [row for row in read_rows(path) if int(row["q_batch"]) == batch]
+        assert all(row["execution_device"] == "mps" for row in selected)
         with path.open(newline="") as file:
             points = [dict(nprobes=int(r["nprobes"]), recall=float(r["recall"]), qps=float(r["qps"]))
                       for r in csv.DictReader(file) if int(r["K"]) == 10 and int(r["q_batch"]) == batch]
@@ -49,7 +52,7 @@ def main():
         assert all(math.isfinite(p["qps"]) and p["qps"] > 0 and
                    math.isfinite(p["recall"]) and 0 <= p["recall"] <= 1 for p in points)
         configurations.append([p["nprobes"] for p in points])
-        query_counts.add(metadata["query_count"])
+        query_counts.update(int(row["query_count"]) for row in selected)
         axis.plot([p["recall"] for p in points], [p["qps"] for p in points],
                   label=f"Torch MPS — QBatch = {batch}", linewidth=2.1,
                   markersize=5.7, markeredgewidth=1.2, **style)
@@ -75,7 +78,7 @@ def main():
     axis.spines[["top", "right"]].set_visible(False)
     axis.set_axisbelow(True)
     axis.grid(True, linestyle="--", linewidth=.65, alpha=.30)
-    figure.text(.115, .075, "14 measured nprobe settings per curve; full-query warmup; median of 3 sweeps over 1,024 queries.",
+    figure.text(.115, .075, "14 measured nprobe settings per curve; full-query warmup; median of saved sweeps over 1,024 queries.",
                 fontsize=9, color="#555555")
     figure.text(.115, .035, "Faiss Metal 1.15.1 IVF-PQ search delegates to CPU; no Faiss GPU curve is available.",
                 fontsize=9, color="#666666")

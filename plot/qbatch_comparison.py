@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import math
 from pathlib import Path
 import statistics
+import sys
 
 import matplotlib
 matplotlib.use("Agg")
@@ -13,13 +13,15 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import LogFormatterMathtext, LogLocator, MaxNLocator, MultipleLocator, NullFormatter, StrMethodFormatter
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from bench._mps_results import comparison_rows
+
 BATCHES = (128, 256, 512)
 METHODS = ("Faiss Metal", "TensorVS")
 
 
 def read_results(path, dataset, kind):
-    with path.open(newline="", encoding="utf-8") as file:
-        rows = list(csv.DictReader(file))
+    rows = comparison_rows(path, dataset, kind, archive=True)
     series, keys = {}, set()
     for row in rows:
         batch, probe, k = (int(row[field]) for field in ("q_batch", "nprobes", "K"))
@@ -81,7 +83,7 @@ def performance_frontier(points):
 
 
 def make_figure(dataset, kind, results_dir, output_dir, curve_mode="frontier"):
-    rows, series = read_results(results_dir / f"{dataset}_{kind}.csv", dataset, kind)
+    rows, series = read_results(results_dir, dataset, kind)
     flat = kind == "ivfflat"
     label = "SIFT1M" if dataset.startswith("sift") else "GloVe1.2M"
     plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 11,
@@ -152,7 +154,7 @@ def make_figure(dataset, kind, results_dir, output_dir, curve_mode="frontier"):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results-dir", type=Path, default=ROOT / "results")
+    parser.add_argument("--results-dir", type=Path, default=ROOT / "result")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "plot/Figures")
     parser.add_argument("--datasets", nargs="+", default=["glove1.2m", "sift1m"])
     parser.add_argument("--curve-mode", choices=("frontier", "all"), default="frontier")

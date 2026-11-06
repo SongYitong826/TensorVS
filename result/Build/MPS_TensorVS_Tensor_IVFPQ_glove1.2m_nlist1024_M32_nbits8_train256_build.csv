@@ -1,0 +1,2 @@
+dataset,method,index_type,benchmark_platform,build_device,nlist,n_vectors,dim,M,nbits,build_seconds,index_size_bytes,index_size_mib,index_path,status
+glove1.2m,TensorVS,ivfpq,MPS,cuda:6,1024,1193514,200,32,8,8.808971067890525,112695553,107.47485446929932,/Users/yitongsong/Dataset/glove1.2m/GPUIndex/TenVS_IVFPQResidual_nlist1024_m32_nbits8_train256.bin,source_index_metadata

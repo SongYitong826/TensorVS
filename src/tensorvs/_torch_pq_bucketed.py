@@ -37,7 +37,7 @@ def _pq_length_buckets(lengths, k, available, chunk, grain, use_compile):
 
 
 def search_bucketed_pq(batch, layout, lut, bias, probes, best, best_ids,
-                       budget, chunk, timer, use_compile, *, lut_dtype="fp32"):
+                       budget, chunk, timer, use_compile, *, lut_dtype="fp32", lut_chunk_size=16, pq_lookup="flat"):
     begin = timer.begin()
     adc_data = prepare_pq_adc_words(layout) if use_compile and layout.pq_anchor_grain else None
     adc_function = _pq_anchor_scores_packed if adc_data is not None else _pq_anchor_scores
@@ -105,21 +105,21 @@ def search_bucketed_pq(batch, layout, lut, bias, probes, best, best_ids,
         else:
             # Exact-length streaming avoids full-score allocation for huge
             # lists, large K, small budgets, and uncompiled execution.
-            address_bytes = 4 if tables.numel() <= 2147483647 else 8
+            address_bytes = 8 if pq_lookup == "gather" else (4 if tables.numel() <= 2147483647 else 8)
             lane_bytes = (32 if use_compile else 64 + address_bytes * lut.shape[1]
-                          + (address_bytes + lut.element_size() + 4) * min(lut.shape[1], 16))
+                          + (address_bytes + lut.element_size() + 4) * min(lut.shape[1], lut_chunk_size))
             capacity = max(0, available // (lane_bytes * width + 16))
             if capacity < 1:
                 raise ValueError("Torch memory budget is too small for bucketed PQ scanning")
             stream_chunk = min(chunk, 1 << (capacity.bit_length() - 1))
             ordinals = torch.arange(stream_chunk, device=batch.device)
-            fn = _compute(_pq_packed_block if use_compile else _pq_packed_block_eager, use_compile, key)
+            fn = _compute(_pq_packed_block if use_compile or pq_lookup == "gather" else _pq_packed_block_eager, use_compile, key)
             def scan(offset):
                 lanes = ordinals[:min(stream_chunk, size - offset)] + offset
                 return fn(tables[start:end], layout.lists.data, layout.lists.ids, layout.lists.auxiliary,
                     selected_bias[start:end], probes[start:end], layout.lists.offsets,
                     prefix[start:end], previous[start:end], lanes,
-                    min(best.shape[1], lanes.shape[0]), 1 if use_compile else 16)
+                    min(best.shape[1], lanes.shape[0]), 1 if use_compile else lut_chunk_size)
             timer.end("bucket_mapping", begin)
             values, ids = _chunked_topk(scan, size, stream_chunk, best[order[start:end]], best_ids[order[start:end]],
                 budget, timer, "bucket_adc_topk", use_compile, key)

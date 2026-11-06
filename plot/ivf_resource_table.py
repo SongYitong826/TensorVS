@@ -7,13 +7,23 @@ import argparse
 import csv
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
+from bench._mps_results import comparison_rows
+
 DATA_ROOT = Path("/storage/vector_data")
 DEFAULT_OUTPUT = PROJECT_ROOT / "tables" / "ivf_resource_statistics.tex"
 TOPK = 10
 Q_BATCH = 128
+MPS_RESULT_ROOT = PROJECT_ROOT / "result"
+MPS_DATASETS = {"glove1.2m", "hunyuan"}
+MPS_METHODS = {
+    "Faiss GPU": "Faiss Metal",
+    "TensorVS": "TensorVS",
+}
 
 
 @dataclass(frozen=True)
@@ -116,9 +126,9 @@ PQ_SPECS: dict[str, dict[str, PQSpec]] = {
             "IVFPQ_glove1.2m_nlist1024_M25_nbits8.csv",
         ),
         "TensorVS": PQSpec(
-            1024, 32, 8,
-            "TenVS_IVFPQResidual_nlist1024_m32_nbits8_train256.bin",
-            "TensorVS_Tensor_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train512.csv",
+            1024, 25, 8,
+            "TenVS_IVFPQResidual_nlist1024_m25_nbits8_train256.bin",
+            "IVFPQ_glove1.2m_nlist1024_M25_nbits8_train512.csv",
         ),
     },
     "tiny5m": {
@@ -155,7 +165,7 @@ PQ_SPECS: dict[str, dict[str, PQSpec]] = {
         "TensorVS": PQSpec(
             1024, 384, 8,
             "TenVS_IVFPQResidual_nlist1024_m384_nbits8_train256.bin",
-            "TensorVS_Tensor_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256.csv",
+            "IVFPQ_hunyuan_nlist1024_M384_nbits8_train256.csv",
         ),
     },
     "gist": {
@@ -271,8 +281,8 @@ def collect_records(
     for method in METHODS:
         if kind == "IVF-Flat":
             path = index_path(dataset, method.flat_index_name)
-            prefix = "TensorVS_Tensor_" if method.label == "TensorVS" and dataset.key in ("glove1.2m", "hunyuan") else ""
-            result_path = method.result_root / f"{prefix}IVFFLAT_{dataset.key}_nlist1024.csv"
+            # This section reports CUDA memory; AMD results belong to AMD figures.
+            result_path = method.result_root / f"IVFFLAT_{dataset.key}_nlist1024.csv"
             configs[method.label] = (1024, None, None)
             config_texts[method.label] = "1024/--/--"
         else:
@@ -331,17 +341,69 @@ def highlighted(
         return rendered
     if min(peers) == max(peers):
         return rendered
-    if value == max(peers):
-        return rf"\cellcolor{{tablemax}}{rendered}"
     if value == min(peers):
         return rf"\cellcolor{{tablemin}}{rendered}"
     return rendered
 
 
-def data_rows(dataset: Dataset) -> list[str]:
+def collect_mps_memory(dataset: Dataset, kind: str) -> dict[str, float]:
+    """Read sampled Metal-driver peaks for the available MPS experiments."""
+    if dataset.key not in MPS_DATASETS:
+        return {}
+    kind_key = "ivfflat" if kind == "IVF-Flat" else "ivfpq"
+    result_path = MPS_RESULT_ROOT
+    candidates: dict[str, dict[int, float]] = {}
+    for row in comparison_rows(result_path, dataset.key, kind_key):
+        if int(row["K"]) != TOPK or int(row["q_batch"]) != Q_BATCH:
+            continue
+        if row["execution_device"] not in ("mps", "metal"):
+            continue
+        table_method = next(
+            (label for label, result_name in MPS_METHODS.items()
+             if result_name == row["method"]),
+            None,
+        )
+        if table_method is None:
+            continue
+        nprobe = int(row["nprobes"])
+        method_values = candidates.setdefault(table_method, {})
+        if nprobe in method_values:
+            raise ValueError(
+                f"Duplicate {row['method']} K={TOPK}, QBatch={Q_BATCH}, "
+                f"nprobe={nprobe} in {result_path}"
+            )
+        method_values[nprobe] = float(row["peak_gpu_memory"]) / 1024.0
+    if not candidates:
+        raise ValueError(f"No MPS K={TOPK}, QBatch={Q_BATCH} rows in {result_path}")
+    return {
+        method: max(values.values())
+        for method, values in candidates.items()
+    }
+
+
+def memory_cell(
+    method_label: str,
+    values: dict[str, float],
+) -> str:
+    if method_label not in values:
+        return "--"
+    value = values[method_label]
+    rendered = f"{value:.2f}"
+    peers = list(values.values())
+    if min(peers) == max(peers):
+        return rendered
+    if value == min(peers):
+        return rf"\cellcolor{{tablemin}}{rendered}"
+    return rendered
+
+
+def data_rows(dataset: Dataset) -> tuple[list[str], list[str]]:
     flat = collect_records(dataset, "IVF-Flat")
     pq = collect_records(dataset, "IVF-PQ")
-    rows: list[str] = []
+    flat_mps = collect_mps_memory(dataset, "IVF-Flat")
+    pq_mps = collect_mps_memory(dataset, "IVF-PQ")
+    cuda_rows: list[str] = []
+    kernel_rows: list[str] = []
 
     for method_index, method in enumerate(METHODS):
         flat_record = flat[method.label]
@@ -356,6 +418,7 @@ def data_rows(dataset: Dataset) -> list[str]:
         flat_memory = highlighted(
             flat_record.peak_memory_gib, "peak_memory_gib", method.label, flat
         )
+        flat_mps_memory = memory_cell(method.label, flat_mps)
         if pq:
             pq_record = pq[method.label]
             pq_size = highlighted(pq_record.size_gib, "size_gib", method.label, pq)
@@ -365,74 +428,127 @@ def data_rows(dataset: Dataset) -> list[str]:
             pq_memory = highlighted(
                 pq_record.peak_memory_gib, "peak_memory_gib", method.label, pq
             )
-            pq_cells = f"{pq_size} & {pq_build} & {pq_memory} & -- & -- & --"
+            pq_mps_memory = memory_cell(method.label, pq_mps)
+            if method.label == "Faiss GPU" and method.label not in pq_mps:
+                pq_mps_memory = r"\ding{55}"
+            pq_cuda_cells = f"{pq_size} & {pq_build} & {pq_memory}"
+            pq_kernel_cells = f"{pq_mps_memory} & -- & --"
         else:
-            pq_cells = "-- & -- & -- & -- & -- & --"
-        rows.append(
+            pq_cuda_cells = "-- & -- & --"
+            pq_kernel_cells = "-- & -- & --"
+        cuda_rows.append(
             f"    {dataset_cell} & {method.label} "
-            f"& {flat_size} & {flat_build} & {flat_memory} & -- & -- & -- "
-            f"& {pq_cells} \\\\"
+            f"& {flat_size} & {flat_build} & {flat_memory} "
+            f"& {pq_cuda_cells} \\\\"
         )
-    return rows
+        if method.label != "cuVS":
+            kernel_method = (
+                "Faiss Metal" if method.label == "Faiss GPU" else method.label
+            )
+            kernel_dataset_cell = (
+                rf"\multirow{{2}}{{*}}{{\texttt{{{dataset.label}}}}}"
+                if method.label == "Faiss GPU" else ""
+            )
+            kernel_rows.append(
+                f"    {kernel_dataset_cell} & {kernel_method} "
+                f"& {flat_mps_memory} & -- & -- "
+                f"& {pq_kernel_cells} \\\\"
+            )
+    return cuda_rows, kernel_rows
 
 
 def generate_table() -> str:
-    body_rows: list[str] = []
+    cuda_body_rows: list[str] = []
+    kernel_groups: list[list[str]] = []
     for dataset_index, dataset in enumerate(DATASETS):
-        body_rows.extend(data_rows(dataset))
+        cuda_rows, kernel_rows = data_rows(dataset)
+        cuda_body_rows.extend(cuda_rows)
         if dataset_index != len(DATASETS) - 1:
-            body_rows.append("    \\midrule")
-    body = "\n".join(body_rows)
+            cuda_body_rows.append("    \\midrule")
+        if dataset.key in MPS_DATASETS:
+            kernel_groups.append(kernel_rows)
+    kernel_body_rows: list[str] = []
+    for group_index, rows in enumerate(kernel_groups):
+        kernel_body_rows.extend(rows)
+        if group_index != len(kernel_groups) - 1:
+            kernel_body_rows.append("    \\midrule")
+    cuda_body = "\n".join(cuda_body_rows)
+    kernel_body = "\n".join(kernel_body_rows)
 
-    return rf"""\documentclass[sigconf,nonacm]{{acmart}}
+    return rf"""\PassOptionsToPackage{{table}}{{xcolor}}
+\documentclass[sigconf,nonacm]{{acmart}}
 \usepackage{{array}}
 \usepackage{{booktabs}}
 \usepackage{{graphicx}}
-\usepackage[table]{{xcolor}}
+\usepackage{{xcolor}}
 \usepackage{{multirow}}
 \usepackage{{pifont}}
 
-\definecolor{{tablemax}}{{HTML}}{{FADBD8}} % light red
 \definecolor{{tablemin}}{{HTML}}{{D6EAF8}} % light blue
 
 % Replace these labels when the remaining kernel names are decided.
-\newcommand{{\KernelTwo}}{{Kernel 2}}
+\newcommand{{\KernelTwo}}{{MPS}}
 \newcommand{{\KernelThree}}{{Kernel 3}}
 \newcommand{{\KernelFour}}{{Kernel 4}}
 
 \begin{{document}}
 \begin{{table*}}[t]
   \centering
-  \caption{{IVF index and GPU resource statistics ($K={TOPK}$,
-  $\mathrm{{QBatch}}={Q_BATCH}$). ``--'' means not yet available. CUDA peak
-  memory is the absolute peak process GPU memory, including the resident
-  index, maximized over nprobe values shared by methods with successful GPU
-  runs. \ding{{55}} indicates that the index was built, but GPU search could
-  not run because of GPU resource limits. Within each dataset and index type,
-  \colorbox{{tablemax}}{{maximum}} and
+  \caption{{IVF index and CUDA resource statistics ($K={TOPK}$,
+  $\mathrm{{QBatch}}={Q_BATCH}$). CUDA peak memory is the absolute peak
+  process GPU memory, including the resident index, maximized over nprobe
+  values shared by methods with successful GPU runs. \ding{{55}} indicates
+  that GPU search could not run because of resource limits. Within each
+  dataset and index type, the
   \colorbox{{tablemin}}{{minimum}} values are highlighted.}}
-  \label{{tab:ivf-resource-statistics}}
+  \label{{tab:ivf-cuda-resource-statistics}}
   \scriptsize
-  \setlength{{\tabcolsep}}{{2.2pt}}
+  \setlength{{\tabcolsep}}{{4.2pt}}
   \renewcommand{{\arraystretch}}{{1.00}}
   \resizebox{{\textwidth}}{{!}}{{%
-  \begin{{tabular}}{{>{{\centering\arraybackslash}}p{{1.45cm}}l*{{2}}{{cc*{{4}}{{c}}}}}}
+  \begin{{tabular}}{{>{{\centering\arraybackslash}}p{{1.45cm}}l*{{2}}{{ccc}}}}
     \toprule
-    \multirow{{3}}{{*}}{{Dataset}} & \multirow{{3}}{{*}}{{Method}}
-      & \multicolumn{{6}}{{c}}{{IVF-Flat}}
-      & \multicolumn{{6}}{{c}}{{IVF-PQ}} \\
-    \cmidrule(lr){{3-8}} \cmidrule(lr){{9-14}}
-      & & \multirow{{2}}{{*}}{{\shortstack{{Index Size\\(GiB)}}}}
-      & \multirow{{2}}{{*}}{{\shortstack{{Build Time\\(s)}}}}
-      & \multicolumn{{4}}{{c}}{{Peak GPU Memory (GiB)}}
-      & \multirow{{2}}{{*}}{{\shortstack{{Index Size\\(GiB)}}}}
-      & \multirow{{2}}{{*}}{{\shortstack{{Build Time\\(s)}}}}
-      & \multicolumn{{4}}{{c}}{{Peak GPU Memory (GiB)}} \\
-    \cmidrule(lr){{5-8}} \cmidrule(lr){{11-14}}
-      & & & & CUDA & \KernelTwo & \KernelThree & \KernelFour
-      & & & CUDA & \KernelTwo & \KernelThree & \KernelFour \\
+    \multirow{{2}}{{*}}{{Dataset}} & \multirow{{2}}{{*}}{{Method}}
+      & \multicolumn{{3}}{{c}}{{IVF-Flat}}
+      & \multicolumn{{3}}{{c}}{{IVF-PQ}} \\
+    \cmidrule(lr){{3-5}} \cmidrule(lr){{6-8}}
+      & & \shortstack{{Index Size\\(GiB)}}
+      & \shortstack{{Build Time\\(s)}}
+      & \shortstack{{Peak GPU\\Memory (GiB)}}
+      & \shortstack{{Index Size\\(GiB)}}
+      & \shortstack{{Build Time\\(s)}}
+      & \shortstack{{Peak GPU\\Memory (GiB)}} \\
     \midrule
-{body}
+{cuda_body}
+    \bottomrule
+  \end{{tabular}}}}
+\end{{table*}}
+\clearpage
+\begin{{table*}}[t]
+  \centering
+  \caption{{IVF peak memory on non-CUDA kernels for datasets with
+  currently available results ($K={TOPK}$, $\mathrm{{QBatch}}={Q_BATCH}$).
+  Values are in GiB and ``--'' means not yet available. MPS entries report
+  sampled peak Metal driver allocation, maximized over the applicable nprobe
+  values. \ding{{55}} means that search does not execute on MPS; the current
+  Faiss Metal IVF-PQ implementation delegates queries to CPU. When at least
+  two values are available within a dataset and index type, the
+  \colorbox{{tablemin}}{{minimum}} available values are highlighted.}}
+  \label{{tab:ivf-kernel-memory-statistics}}
+  \scriptsize
+  \setlength{{\tabcolsep}}{{5.0pt}}
+  \renewcommand{{\arraystretch}}{{1.00}}
+  \resizebox{{\textwidth}}{{!}}{{%
+  \begin{{tabular}}{{>{{\centering\arraybackslash}}p{{1.45cm}}l*{{2}}{{ccc}}}}
+    \toprule
+    \multirow{{2}}{{*}}{{Dataset}} & \multirow{{2}}{{*}}{{Method}}
+      & \multicolumn{{3}}{{c}}{{IVF-Flat Peak Memory (GiB)}}
+      & \multicolumn{{3}}{{c}}{{IVF-PQ Peak Memory (GiB)}} \\
+    \cmidrule(lr){{3-5}} \cmidrule(lr){{6-8}}
+      & & \KernelTwo & \KernelThree & \KernelFour
+      & \KernelTwo & \KernelThree & \KernelFour \\
+    \midrule
+{kernel_body}
     \bottomrule
   \end{{tabular}}}}
 \end{{table*}}

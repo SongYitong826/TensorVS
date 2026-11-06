@@ -1,0 +1,2 @@
+dataset,method,index_type,benchmark_platform,build_device,nlist,n_vectors,dim,M,nbits,build_seconds,index_size_bytes,index_size_mib,index_path,status
+hunyuan,TensorVS,ivfpq,MPS,cuda:1,1024,1000000,768,384,8,47.717141633853316,806634181,769.2663011550903,/Users/yitongsong/Dataset/hunyuan/GPUIndex/TenVS_IVFPQResidual_nlist1024_m384_nbits8_train256.bin,source_index_metadata

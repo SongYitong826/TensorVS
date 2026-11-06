@@ -694,6 +694,54 @@ class IVFPQIndex:
         self.resident_device = target_device
         return self
 
+    def compact_cpu_residency(
+        self,
+        *,
+        discard_build_metadata: bool = True,
+        persist_layout: bool = True,
+    ) -> IVFPQIndex:
+        """Keep one CPU Torch search layout and release redundant index copies.
+
+        The serialized index stores a padded, interleaved source layout for
+        Triton.  CPU Torch search converts that source to compact list-major
+        rows.  Once the conversion is cached, retaining both complete layouts
+        needlessly duplicates PQ codes, IDs, and residual corrections.  This
+        method preserves the active Torch layout and releases only the source
+        tensors that it supersedes, so subsequent CPU Torch searches execute
+        the identical operators over the identical tensors.
+
+        With ``discard_build_metadata=True``, per-vector assignments and the
+        archive's standalone ID vector are released as well; search IDs remain
+        in the compact list layout.  Reload the index before selecting the
+        Triton backend or using build-diagnostic metadata.  A later Torch MPS
+        search can still be prepared directly from the retained logical rows.
+        """
+        layout = prepare_torch_layout(
+            self,
+            "pq",
+            torch.device("cpu"),
+            persist=persist_layout,
+        )
+        if layout.lists.data.device.type != "cpu":
+            raise RuntimeError("CPU compaction requires a CPU Torch layout")
+        self.persisted_list_codes_interleaved_by_subspace = None
+        self.persisted_list_ids_interleaved = None
+        self.persisted_list_group_prefix = None
+        self.persisted_list_pq_static_corrections_interleaved = None
+        self.list_codes_interleaved_by_subspace = None
+        self.list_codes_interleaved_packed_16b = None
+        self.list_ids_interleaved = None
+        self.list_group_prefix = None
+        self.list_pq_static_corrections_interleaved = None
+        self.triton_partial_keys = None
+        self.search_workspace_key = None
+        self.search_workspace = None
+        self.resident_device = None
+        if discard_build_metadata:
+            self.assignments = torch.empty(0, dtype=self.assignments.dtype)
+            self.ids = torch.empty(0, dtype=self.ids.dtype)
+        return self
+
     def release_device_residency(self) -> IVFPQIndex:
         """Move resident search tensors back to CPU."""
         self.centroids = self.centroids.to(dtype=torch.float32, device="cpu", copy=False)
@@ -1765,6 +1813,11 @@ def search_ivfpq_index(
     use_compile: bool = False,
     persist_layout: bool = True,
     torch_pq_scan: str = "auto",
+    torch_query_tile_size: int | None = None,
+    torch_max_tasks_per_batch: int = 256,
+    torch_lut_chunk_size: int = 16,
+    torch_pq_lookup: str = "flat",
+    torch_min_query_tile_size: int = 1,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Search residual IVF-PQ with fused Triton or bounded PyTorch ADC.
 
@@ -1775,6 +1828,12 @@ def search_ivfpq_index(
     query-dependent host scheduling or scalar readback. Its scan length uses
     an index-only upper bound; Python still submits fixed tensor operations.
     ``"grouped"`` forces list grouping; ``"auto"`` retains device heuristics.
+    ``torch_query_tile_size`` overrides the grouped list-task query width
+    (a power of two); ``torch_max_tasks_per_batch`` caps grouped tasks per
+    call. The workspace budget can shrink these execution tiles without
+    changing the index, probes, precision or candidate set.
+    ``torch_lut_chunk_size`` controls eager ADC reduction width, while
+    ``torch_pq_lookup`` selects flattened indexing or batched ``gather``.
     ``"bucketed"`` downloads actual candidate counts once per query batch,
     groups similarly sized queries on the CPU, and scans on the selected
     Torch device. This reduces padding but permits query-dependent CPU work.
@@ -1819,7 +1878,10 @@ def search_ivfpq_index(
                             memory_budget_mb=torch_memory_budget_mb, use_compile=use_compile,
                             persist_layout=persist_layout, lut_dtype=lut_dtype,
                             refine_vectors=refine_vectors, refine_factor=refine_factor,
-                            pq_scan=torch_pq_scan)
+                            pq_scan=torch_pq_scan, query_tile_size=torch_query_tile_size,
+                            max_tasks_per_batch=torch_max_tasks_per_batch,
+                            lut_chunk_size=torch_lut_chunk_size, pq_lookup=torch_pq_lookup,
+                            min_query_tile_size=torch_min_query_tile_size)
     if not supported:
         raise RuntimeError("The requested Triton IVF-PQ backend does not support this device or shape")
     index.reside_on_device(target, persist_layout=persist_layout)

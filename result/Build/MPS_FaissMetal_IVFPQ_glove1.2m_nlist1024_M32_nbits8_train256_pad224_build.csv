@@ -1,0 +1,2 @@
+dataset,method,index_type,nlist,n_vectors,dim,working_dim,M,nbits,build_seconds,train_seconds,metal_upload_seconds,add_seconds,save_seconds,index_size_bytes,index_size_mib,index_size_gib,build_device
+glove1.2m,Faiss Metal,ivfpq,1024,1193514,200,224,32,8,32.63088545831852,15.446257500210777,0.04801000002771616,17.136617958080024,0.039260916877537966,48895812,46.630680084228516,0.04553777351975441,CPU train + Metal upload/add
