@@ -1,0 +1,3091 @@
+{
+  "status": "complete",
+  "config": {
+    "build": {
+      "dataset": "sift100m",
+      "base": {
+        "path": "/storage/vector_data/sift100M/base.bin",
+        "size_bytes": 12800000008,
+        "mtime_ns": 1772092852828585798
+      },
+      "kind": "ivfflat",
+      "shards": 3,
+      "independent_quantizers": true,
+      "global_nlist": 3072,
+      "nlist_per_shard": 1024,
+      "coarse_iters": 25,
+      "seed": 1234,
+      "flat_max_points_per_centroid": 256,
+      "coarse_train_fraction": 0.5,
+      "pq_dim": 16,
+      "pq_bits": 8,
+      "pq_iters": 50,
+      "pq_restarts": 2,
+      "pq_train_points": 512,
+      "cpu_residual_chunk_size": 65536,
+      "source_hashes": {
+        "bench/sift100m_multigpu_bench.py": "9fadef79d37cf955c6e337ab73a5d1d03781817c33aa87db843305443aea7863",
+        "bench/_benchmark_utils.py": "e1cf36e22d1a3c4b0fd12df29662e87a993d9374178483536bff7ca73ed73068",
+        "src/tensorvs/__init__.py": "9e466ab9e177ab54e257f8134577772bc03a0611972670af530820cf62b7489c",
+        "src/tensorvs/_coarse_triton.py": "08055a3812ed38cd1b744394b81f3489c1ad80be9201d73226cf5e5f00e2bc2f",
+        "src/tensorvs/_ivf_interleaved.py": "eb1810de4e9d4257151d7c62b085764bbb959f1a4064db8b16163ff8f048514d",
+        "src/tensorvs/_ivfflat_triton.py": "dff0a31eb47c2b95fb3daba40792a0d5354ce13a847a46af15e46a735c7a20ad",
+        "src/tensorvs/_ivfpq_triton.py": "c8c298f54aa5b1b16f1ad701391401d163550d2879b6e94254e78e09e9f3738b",
+        "src/tensorvs/_layout_cache.py": "31c84eb6900c8672008e66fd962ac1a38426f1a0f0ad944eec294d432d1f4a03",
+        "src/tensorvs/_torch_pq_bucketed.py": "a34b2f3b480579127af3cc0397a5d992df3146711bd0f74d9275abd52df8420d",
+        "src/tensorvs/_torch_search.py": "1bec9334c73b4465d26dc9527cf572118e8f15e27f756e3a3288c53927311ccc",
+        "src/tensorvs/distance.py": "d3b23e1302334b985a0f4de0717ab3daffda0f07acd37de945bca7812cbb82c1",
+        "src/tensorvs/index_ivfflat.py": "96d4666136b993d6fce151c19a35ef37f65715e5dc44179e337d00fa6e8c49a1",
+        "src/tensorvs/index_ivfpq.py": "a0cc93ce6c9a9bd948cb13f40fcc6ea14df8e4ae2290cc0720532441adf81b0f",
+        "src/tensorvs/refine.py": "41488b2606701b916384e08ba92aafe94db73c54325d8427260c4dd542be2c13",
+        "src/tensorvs/torch_baseline.py": "d60dd7f7a3181822f82f5cad630c461cf0b48f2657b9804758e2d10b0b4e7aeb",
+        "src/tensorvs/util.py": "5e472ac00d58e65fab6531fb6b2535012575d8095fbeb3db6e0816cd8549ec77",
+        "flash-kmeans/flash_kmeans/__init__.py": "9932b79d13ae8fb325230f700c5580194a361149d2320beb6d14f0ebb8f6b5ee",
+        "flash-kmeans/flash_kmeans/assign_euclid_triton.py": "601ae2ccba7de2cd2d0e2a01a1ccdac686db63684653593fa628ecf52c7cc17e",
+        "flash-kmeans/flash_kmeans/centroid_update_triton.py": "8fc4760ba87bc79682833b2448a2d50d60f8df7625c53094846c0260b49b417d",
+        "flash-kmeans/flash_kmeans/interface.py": "6c9be9c676077c88430891174df1ca228a6d7ddc47d196de4753f6d48b48bd61",
+        "flash-kmeans/flash_kmeans/kmeans_large.py": "7481b771ef2cfbe51d21f0036a7b2dd5083bc6c193272d20a8d5b51fb65b843d",
+        "flash-kmeans/flash_kmeans/kmeans_triton_impl.py": "dbf35bc9da140d515fecfcd5582b415670828ac465b0e1258b7f9ec105c25e0e",
+        "flash-kmeans/flash_kmeans/torch_fallback.py": "8a10450f701f1329fe14bb57de7cac57c28fd5bfb502815ad6085ffc92b8d20a",
+        "flash-kmeans/flash_kmeans/training.py": "7c08242bb932a2cc47e46556968a1ca31aa313533ccfa8914535a4941fe39e0d"
+      }
+    },
+    "gpus": [
+      0,
+      1,
+      2
+    ],
+    "backend": "triton",
+    "q_batches": [
+      32,
+      128,
+      512
+    ],
+    "nprobes": [
+      5,
+      10,
+      15,
+      20,
+      30,
+      40,
+      50,
+      60,
+      70,
+      80,
+      90,
+      100,
+      120,
+      150
+    ],
+    "nq": 1000,
+    "topk": 10,
+    "warmup": 2,
+    "repetitions": 3,
+    "lut_dtype": "fp16",
+    "cpu_threads": 4,
+    "queries": {
+      "path": "/storage/vector_data/sift100M/query.bin",
+      "size_bytes": 128008,
+      "mtime_ns": 1772092853816565822
+    },
+    "truth": {
+      "path": "/storage/vector_data/sift100M/groundtruth.bin",
+      "size_bytes": 400008,
+      "mtime_ns": 1772094075497161617
+    },
+    "index_paths": [
+      "/storage/vector_data/sift100M/GPUIndex/TensorVS_MultiGPU3/CUDA_TensorVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_build/shard0of3.bin",
+      "/storage/vector_data/sift100M/GPUIndex/TensorVS_MultiGPU3/CUDA_TensorVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_build/shard1of3.bin",
+      "/storage/vector_data/sift100M/GPUIndex/TensorVS_MultiGPU3/CUDA_TensorVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_build/shard2of3.bin"
+    ],
+    "torch_version": "2.12.1+cu130",
+    "cuda_version": "13.0",
+    "cuda_visible_devices": null
+  },
+  "results": [
+    {
+      "nprobes": 5,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 7441.179962868662,
+      "recall": 0.7616999999999985,
+      "visited_vectors_per_query": 497495.787,
+      "peak_gpu_memory": 51536.0,
+      "samples_seconds": [
+        0.14065339183434844,
+        0.12967937905341387,
+        0.1343872887082398
+      ],
+      "memory": {
+        "peak_total_mib": 51536.0,
+        "peak_per_gpu_mib": {
+          "0": 17184.0,
+          "1": 17182.0,
+          "2": 17170.0
+        },
+        "samples": 13,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16689.013671875,
+          "peak_torch_reserved_mib": 16706.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16688.72216796875,
+          "peak_torch_reserved_mib": 16704.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16687.02685546875,
+          "peak_torch_reserved_mib": 16692.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 164599454,
+          "visited_vectors_per_query": 164599.454,
+          "visited_vectors_min_per_query": 109464,
+          "visited_vectors_max_per_query": 421256,
+          "visited_data_bytes_total": 84274920448,
+          "visited_data_mb_total": 80370.8271484375,
+          "visited_data_mb_per_query": 80.3708271484375
+        },
+        {
+          "visited_vectors_total": 165073254,
+          "visited_vectors_per_query": 165073.254,
+          "visited_vectors_min_per_query": 115817,
+          "visited_vectors_max_per_query": 418247,
+          "visited_data_bytes_total": 84517506048,
+          "visited_data_mb_total": 80602.1748046875,
+          "visited_data_mb_per_query": 80.6021748046875
+        },
+        {
+          "visited_vectors_total": 167823079,
+          "visited_vectors_per_query": 167823.079,
+          "visited_vectors_min_per_query": 114081,
+          "visited_vectors_max_per_query": 464291,
+          "visited_data_bytes_total": 85925416448,
+          "visited_data_mb_total": 81944.86279296875,
+          "visited_data_mb_per_query": 81.94486279296875
+        }
+      ]
+    },
+    {
+      "nprobes": 10,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 5328.723828468416,
+      "recall": 0.8734999999999968,
+      "visited_vectors_per_query": 985105.575,
+      "peak_gpu_memory": 51582.0,
+      "samples_seconds": [
+        0.1876621930859983,
+        0.18268146365880966,
+        0.1931114331819117
+      ],
+      "memory": {
+        "peak_total_mib": 51582.0,
+        "peak_per_gpu_mib": {
+          "0": 17196.0,
+          "1": 17194.0,
+          "2": 17192.0
+        },
+        "samples": 19,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16702.01318359375,
+          "peak_torch_reserved_mib": 16718.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16701.4697265625,
+          "peak_torch_reserved_mib": 16716.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16698.0234375,
+          "peak_torch_reserved_mib": 16714.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 324871205,
+          "visited_vectors_per_query": 324871.205,
+          "visited_vectors_min_per_query": 225988,
+          "visited_vectors_max_per_query": 840927,
+          "visited_data_bytes_total": 166334056960,
+          "visited_data_mb_total": 158628.51806640625,
+          "visited_data_mb_per_query": 158.62851806640626
+        },
+        {
+          "visited_vectors_total": 327198012,
+          "visited_vectors_per_query": 327198.012,
+          "visited_vectors_min_per_query": 237988,
+          "visited_vectors_max_per_query": 796504,
+          "visited_data_bytes_total": 167525382144,
+          "visited_data_mb_total": 159764.654296875,
+          "visited_data_mb_per_query": 159.764654296875
+        },
+        {
+          "visited_vectors_total": 333036358,
+          "visited_vectors_per_query": 333036.358,
+          "visited_vectors_min_per_query": 240182,
+          "visited_vectors_max_per_query": 821938,
+          "visited_data_bytes_total": 170514615296,
+          "visited_data_mb_total": 162615.4091796875,
+          "visited_data_mb_per_query": 162.6154091796875
+        }
+      ]
+    },
+    {
+      "nprobes": 15,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 4241.070843171532,
+      "recall": 0.9179999999999962,
+      "visited_vectors_per_query": 1464678.4239999999,
+      "peak_gpu_memory": 51622.0,
+      "samples_seconds": [
+        0.23405920807272196,
+        0.23578950623050332,
+        0.24478674214333296
+      ],
+      "memory": {
+        "peak_total_mib": 51622.0,
+        "peak_per_gpu_mib": {
+          "0": 17210.0,
+          "1": 17208.0,
+          "2": 17204.0
+        },
+        "samples": 24,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16714.90966796875,
+          "peak_torch_reserved_mib": 16730.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16714.0205078125,
+          "peak_torch_reserved_mib": 16728.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16708.8994140625,
+          "peak_torch_reserved_mib": 16724.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 482507899,
+          "visited_vectors_per_query": 482507.899,
+          "visited_vectors_min_per_query": 343029,
+          "visited_vectors_max_per_query": 1096113,
+          "visited_data_bytes_total": 247044044288,
+          "visited_data_mb_total": 235599.56005859375,
+          "visited_data_mb_per_query": 235.59956005859374
+        },
+        {
+          "visited_vectors_total": 487556068,
+          "visited_vectors_per_query": 487556.068,
+          "visited_vectors_min_per_query": 363088,
+          "visited_vectors_max_per_query": 1089625,
+          "visited_data_bytes_total": 249628706816,
+          "visited_data_mb_total": 238064.486328125,
+          "visited_data_mb_per_query": 238.064486328125
+        },
+        {
+          "visited_vectors_total": 494614457,
+          "visited_vectors_per_query": 494614.457,
+          "visited_vectors_min_per_query": 366047,
+          "visited_vectors_max_per_query": 1128556,
+          "visited_data_bytes_total": 253242601984,
+          "visited_data_mb_total": 241510.96533203125,
+          "visited_data_mb_per_query": 241.51096533203125
+        }
+      ]
+    },
+    {
+      "nprobes": 20,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 3562.495836534572,
+      "recall": 0.9449999999999964,
+      "visited_vectors_per_query": 1940338.208,
+      "peak_gpu_memory": 51660.0,
+      "samples_seconds": [
+        0.2807020824402571,
+        0.2787060928530991,
+        0.2861380157992244
+      ],
+      "memory": {
+        "peak_total_mib": 51660.0,
+        "peak_per_gpu_mib": {
+          "0": 17222.0,
+          "1": 17222.0,
+          "2": 17216.0
+        },
+        "samples": 28,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16728.458984375,
+          "peak_torch_reserved_mib": 16742.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16726.51318359375,
+          "peak_torch_reserved_mib": 16742.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16720.47509765625,
+          "peak_torch_reserved_mib": 16736.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 639322481,
+          "visited_vectors_per_query": 639322.481,
+          "visited_vectors_min_per_query": 471491,
+          "visited_vectors_max_per_query": 1365675,
+          "visited_data_bytes_total": 327333110272,
+          "visited_data_mb_total": 312169.18017578125,
+          "visited_data_mb_per_query": 312.16918017578126
+        },
+        {
+          "visited_vectors_total": 646352548,
+          "visited_vectors_per_query": 646352.548,
+          "visited_vectors_min_per_query": 491704,
+          "visited_vectors_max_per_query": 1391720,
+          "visited_data_bytes_total": 330932504576,
+          "visited_data_mb_total": 315601.830078125,
+          "visited_data_mb_per_query": 315.601830078125
+        },
+        {
+          "visited_vectors_total": 654663179,
+          "visited_vectors_per_query": 654663.179,
+          "visited_vectors_min_per_query": 497735,
+          "visited_vectors_max_per_query": 1457834,
+          "visited_data_bytes_total": 335187547648,
+          "visited_data_mb_total": 319659.75537109375,
+          "visited_data_mb_per_query": 319.65975537109375
+        }
+      ]
+    },
+    {
+      "nprobes": 30,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 2863.451415995241,
+      "recall": 0.970299999999997,
+      "visited_vectors_per_query": 2888496.1500000004,
+      "peak_gpu_memory": 51730.0,
+      "samples_seconds": [
+        0.3492289041168988,
+        0.3504037237726152,
+        0.34639984322711825
+      ],
+      "memory": {
+        "peak_total_mib": 51730.0,
+        "peak_per_gpu_mib": {
+          "0": 17248.0,
+          "1": 17246.0,
+          "2": 17236.0
+        },
+        "samples": 33,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16753.3642578125,
+          "peak_torch_reserved_mib": 16768.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16751.43310546875,
+          "peak_torch_reserved_mib": 16766.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16741.42724609375,
+          "peak_torch_reserved_mib": 16756.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 951235680,
+          "visited_vectors_per_query": 951235.68,
+          "visited_vectors_min_per_query": 722400,
+          "visited_vectors_max_per_query": 1802296,
+          "visited_data_bytes_total": 487032668160,
+          "visited_data_mb_total": 464470.546875,
+          "visited_data_mb_per_query": 464.470546875
+        },
+        {
+          "visited_vectors_total": 961999910,
+          "visited_vectors_per_query": 961999.91,
+          "visited_vectors_min_per_query": 765502,
+          "visited_vectors_max_per_query": 1823569,
+          "visited_data_bytes_total": 492543953920,
+          "visited_data_mb_total": 469726.5185546875,
+          "visited_data_mb_per_query": 469.7265185546875
+        },
+        {
+          "visited_vectors_total": 975260560,
+          "visited_vectors_per_query": 975260.56,
+          "visited_vectors_min_per_query": 740449,
+          "visited_vectors_max_per_query": 1942631,
+          "visited_data_bytes_total": 499333406720,
+          "visited_data_mb_total": 476201.4453125,
+          "visited_data_mb_per_query": 476.2014453125
+        }
+      ]
+    },
+    {
+      "nprobes": 40,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 2493.867976726993,
+      "recall": 0.9825999999999981,
+      "visited_vectors_per_query": 3831230.666,
+      "peak_gpu_memory": 51806.0,
+      "samples_seconds": [
+        0.39764625392854214,
+        0.4018108150921762,
+        0.40098353615030646
+      ],
+      "memory": {
+        "peak_total_mib": 51806.0,
+        "peak_per_gpu_mib": {
+          "0": 17274.0,
+          "1": 17272.0,
+          "2": 17260.0
+        },
+        "samples": 39,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16778.61962890625,
+          "peak_torch_reserved_mib": 16794.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16776.306640625,
+          "peak_torch_reserved_mib": 16792.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16762.703125,
+          "peak_torch_reserved_mib": 16780.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 1261136201,
+          "visited_vectors_per_query": 1261136.201,
+          "visited_vectors_min_per_query": 976167,
+          "visited_vectors_max_per_query": 2246215,
+          "visited_data_bytes_total": 645701734912,
+          "visited_data_mb_total": 615789.1606445312,
+          "visited_data_mb_per_query": 615.7891606445312
+        },
+        {
+          "visited_vectors_total": 1276555464,
+          "visited_vectors_per_query": 1276555.464,
+          "visited_vectors_min_per_query": 1020882,
+          "visited_vectors_max_per_query": 2252765,
+          "visited_data_bytes_total": 653596397568,
+          "visited_data_mb_total": 623318.09765625,
+          "visited_data_mb_per_query": 623.31809765625
+        },
+        {
+          "visited_vectors_total": 1293539001,
+          "visited_vectors_per_query": 1293539.001,
+          "visited_vectors_min_per_query": 1018504,
+          "visited_vectors_max_per_query": 2338940,
+          "visited_data_bytes_total": 662291968512,
+          "visited_data_mb_total": 631610.8403320312,
+          "visited_data_mb_per_query": 631.6108403320312
+        }
+      ]
+    },
+    {
+      "nprobes": 50,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 2241.0173803402868,
+      "recall": 0.9874999999999985,
+      "visited_vectors_per_query": 4769352.65,
+      "peak_gpu_memory": 51876.0,
+      "samples_seconds": [
+        0.43967815674841404,
+        0.4482262060046196,
+        0.44622590113431215
+      ],
+      "memory": {
+        "peak_total_mib": 51876.0,
+        "peak_per_gpu_mib": {
+          "0": 17300.0,
+          "1": 17296.0,
+          "2": 17280.0
+        },
+        "samples": 43,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16804.87744140625,
+          "peak_torch_reserved_mib": 16820.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16801.025390625,
+          "peak_torch_reserved_mib": 16816.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16783.990234375,
+          "peak_torch_reserved_mib": 16800.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 1569593256,
+          "visited_vectors_per_query": 1569593.256,
+          "visited_vectors_min_per_query": 1220540,
+          "visited_vectors_max_per_query": 2718468,
+          "visited_data_bytes_total": 803631747072,
+          "visited_data_mb_total": 766402.95703125,
+          "visited_data_mb_per_query": 766.40295703125
+        },
+        {
+          "visited_vectors_total": 1589724445,
+          "visited_vectors_per_query": 1589724.445,
+          "visited_vectors_min_per_query": 1280065,
+          "visited_vectors_max_per_query": 2640139,
+          "visited_data_bytes_total": 813938915840,
+          "visited_data_mb_total": 776232.6391601562,
+          "visited_data_mb_per_query": 776.2326391601563
+        },
+        {
+          "visited_vectors_total": 1610034949,
+          "visited_vectors_per_query": 1610034.949,
+          "visited_vectors_min_per_query": 1284145,
+          "visited_vectors_max_per_query": 2768896,
+          "visited_data_bytes_total": 824337893888,
+          "visited_data_mb_total": 786149.8774414062,
+          "visited_data_mb_per_query": 786.1498774414063
+        }
+      ]
+    },
+    {
+      "nprobes": 60,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 2009.4113139998728,
+      "recall": 0.9914999999999989,
+      "visited_vectors_per_query": 5702610.749,
+      "peak_gpu_memory": 51944.0,
+      "samples_seconds": [
+        0.49765819124877453,
+        0.5004123100079596,
+        0.4907570453360677
+      ],
+      "memory": {
+        "peak_total_mib": 51944.0,
+        "peak_per_gpu_mib": {
+          "0": 17324.0,
+          "1": 17320.0,
+          "2": 17300.0
+        },
+        "samples": 47,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16829.91552734375,
+          "peak_torch_reserved_mib": 16844.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16826.05322265625,
+          "peak_torch_reserved_mib": 16840.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16806.02099609375,
+          "peak_torch_reserved_mib": 16820.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 1875871080,
+          "visited_vectors_per_query": 1875871.08,
+          "visited_vectors_min_per_query": 1508406,
+          "visited_vectors_max_per_query": 3110732,
+          "visited_data_bytes_total": 960445992960,
+          "visited_data_mb_total": 915952.67578125,
+          "visited_data_mb_per_query": 915.95267578125
+        },
+        {
+          "visited_vectors_total": 1901328587,
+          "visited_vectors_per_query": 1901328.587,
+          "visited_vectors_min_per_query": 1533347,
+          "visited_vectors_max_per_query": 3071117,
+          "visited_data_bytes_total": 973480236544,
+          "visited_data_mb_total": 928383.0991210938,
+          "visited_data_mb_per_query": 928.3830991210938
+        },
+        {
+          "visited_vectors_total": 1925411082,
+          "visited_vectors_per_query": 1925411.082,
+          "visited_vectors_min_per_query": 1537835,
+          "visited_vectors_max_per_query": 3126057,
+          "visited_data_bytes_total": 985810473984,
+          "visited_data_mb_total": 940142.1298828125,
+          "visited_data_mb_per_query": 940.1421298828125
+        }
+      ]
+    },
+    {
+      "nprobes": 70,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 1941.1841544552703,
+      "recall": 0.9941999999999992,
+      "visited_vectors_per_query": 6634502.426999999,
+      "peak_gpu_memory": 52016.0,
+      "samples_seconds": [
+        0.5170371648855507,
+        0.5151494760066271,
+        0.513905487023294
+      ],
+      "memory": {
+        "peak_total_mib": 52016.0,
+        "peak_per_gpu_mib": {
+          "0": 17350.0,
+          "1": 17344.0,
+          "2": 17322.0
+        },
+        "samples": 49,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16854.57568359375,
+          "peak_torch_reserved_mib": 16870.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16850.35986328125,
+          "peak_torch_reserved_mib": 16864.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16826.42919921875,
+          "peak_torch_reserved_mib": 16842.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 2182066303,
+          "visited_vectors_per_query": 2182066.303,
+          "visited_vectors_min_per_query": 1777147,
+          "visited_vectors_max_per_query": 3521362,
+          "visited_data_bytes_total": 1117217947136,
+          "visited_data_mb_total": 1065462.0620117188,
+          "visited_data_mb_per_query": 1065.4620620117187
+        },
+        {
+          "visited_vectors_total": 2212324110,
+          "visited_vectors_per_query": 2212324.11,
+          "visited_vectors_min_per_query": 1801520,
+          "visited_vectors_max_per_query": 3465812,
+          "visited_data_bytes_total": 1132709944320,
+          "visited_data_mb_total": 1080236.3818359375,
+          "visited_data_mb_per_query": 1080.2363818359374
+        },
+        {
+          "visited_vectors_total": 2240112014,
+          "visited_vectors_per_query": 2240112.014,
+          "visited_vectors_min_per_query": 1818345,
+          "visited_vectors_max_per_query": 3472881,
+          "visited_data_bytes_total": 1146937351168,
+          "visited_data_mb_total": 1093804.6943359375,
+          "visited_data_mb_per_query": 1093.8046943359375
+        }
+      ]
+    },
+    {
+      "nprobes": 80,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 1764.203387590401,
+      "recall": 0.9959999999999996,
+      "visited_vectors_per_query": 7564434.854,
+      "peak_gpu_memory": 52084.0,
+      "samples_seconds": [
+        0.568910064175725,
+        0.5668280692771077,
+        0.5632498599588871
+      ],
+      "memory": {
+        "peak_total_mib": 52084.0,
+        "peak_per_gpu_mib": {
+          "0": 17374.0,
+          "1": 17368.0,
+          "2": 17342.0
+        },
+        "samples": 53,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16879.5390625,
+          "peak_torch_reserved_mib": 16894.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16874.6669921875,
+          "peak_torch_reserved_mib": 16888.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16847.369140625,
+          "peak_torch_reserved_mib": 16862.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 2487035087,
+          "visited_vectors_per_query": 2487035.087,
+          "visited_vectors_min_per_query": 2045605,
+          "visited_vectors_max_per_query": 3869922,
+          "visited_data_bytes_total": 1273361964544,
+          "visited_data_mb_total": 1214372.6010742188,
+          "visited_data_mb_per_query": 1214.3726010742187
+        },
+        {
+          "visited_vectors_total": 2523285709,
+          "visited_vectors_per_query": 2523285.709,
+          "visited_vectors_min_per_query": 2066598,
+          "visited_vectors_max_per_query": 3829591,
+          "visited_data_bytes_total": 1291922283008,
+          "visited_data_mb_total": 1232073.1000976562,
+          "visited_data_mb_per_query": 1232.0731000976562
+        },
+        {
+          "visited_vectors_total": 2554114058,
+          "visited_vectors_per_query": 2554114.058,
+          "visited_vectors_min_per_query": 2088242,
+          "visited_vectors_max_per_query": 3885209,
+          "visited_data_bytes_total": 1307706397696,
+          "visited_data_mb_total": 1247126.0048828125,
+          "visited_data_mb_per_query": 1247.1260048828126
+        }
+      ]
+    },
+    {
+      "nprobes": 90,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 1742.3084021333161,
+      "recall": 0.9971999999999998,
+      "visited_vectors_per_query": 8492427.986,
+      "peak_gpu_memory": 52152.0,
+      "samples_seconds": [
+        0.5739512010477483,
+        0.572137582115829,
+        0.5762354279868305
+      ],
+      "memory": {
+        "peak_total_mib": 52152.0,
+        "peak_per_gpu_mib": {
+          "0": 17398.0,
+          "1": 17392.0,
+          "2": 17362.0
+        },
+        "samples": 55,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16905.12060546875,
+          "peak_torch_reserved_mib": 16918.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16899.1953125,
+          "peak_torch_reserved_mib": 16912.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16869.2041015625,
+          "peak_torch_reserved_mib": 16882.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 2793430138,
+          "visited_vectors_per_query": 2793430.138,
+          "visited_vectors_min_per_query": 2314134,
+          "visited_vectors_max_per_query": 4231551,
+          "visited_data_bytes_total": 1430236230656,
+          "visited_data_mb_total": 1363979.5595703125,
+          "visited_data_mb_per_query": 1363.9795595703124
+        },
+        {
+          "visited_vectors_total": 2833002395,
+          "visited_vectors_per_query": 2833002.395,
+          "visited_vectors_min_per_query": 2346822,
+          "visited_vectors_max_per_query": 4261609,
+          "visited_data_bytes_total": 1450497226240,
+          "visited_data_mb_total": 1383301.9506835938,
+          "visited_data_mb_per_query": 1383.3019506835938
+        },
+        {
+          "visited_vectors_total": 2865995453,
+          "visited_vectors_per_query": 2865995.453,
+          "visited_vectors_min_per_query": 2359468,
+          "visited_vectors_max_per_query": 4242231,
+          "visited_data_bytes_total": 1467389671936,
+          "visited_data_mb_total": 1399411.8422851562,
+          "visited_data_mb_per_query": 1399.4118422851564
+        }
+      ]
+    },
+    {
+      "nprobes": 100,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 1670.0289859281338,
+      "recall": 0.9974999999999997,
+      "visited_vectors_per_query": 9418861.125,
+      "peak_gpu_memory": 52222.0,
+      "samples_seconds": [
+        0.5987920020706952,
+        0.598287639208138,
+        0.600037925876677
+      ],
+      "memory": {
+        "peak_total_mib": 52222.0,
+        "peak_per_gpu_mib": {
+          "0": 17424.0,
+          "1": 17416.0,
+          "2": 17382.0
+        },
+        "samples": 57,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16929.6982421875,
+          "peak_torch_reserved_mib": 16944.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16923.57958984375,
+          "peak_torch_reserved_mib": 16936.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16889.60595703125,
+          "peak_torch_reserved_mib": 16902.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 3098366725,
+          "visited_vectors_per_query": 3098366.725,
+          "visited_vectors_min_per_query": 2559918,
+          "visited_vectors_max_per_query": 4568969,
+          "visited_data_bytes_total": 1586363763200,
+          "visited_data_mb_total": 1512874.3774414062,
+          "visited_data_mb_per_query": 1512.8743774414063
+        },
+        {
+          "visited_vectors_total": 3140942170,
+          "visited_vectors_per_query": 3140942.17,
+          "visited_vectors_min_per_query": 2611559,
+          "visited_vectors_max_per_query": 4593525,
+          "visited_data_bytes_total": 1608162391040,
+          "visited_data_mb_total": 1533663.1689453125,
+          "visited_data_mb_per_query": 1533.6631689453125
+        },
+        {
+          "visited_vectors_total": 3179552230,
+          "visited_vectors_per_query": 3179552.23,
+          "visited_vectors_min_per_query": 2644319,
+          "visited_vectors_max_per_query": 4573350,
+          "visited_data_bytes_total": 1627930741760,
+          "visited_data_mb_total": 1552515.7373046875,
+          "visited_data_mb_per_query": 1552.5157373046875
+        }
+      ]
+    },
+    {
+      "nprobes": 120,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 1538.5991751212905,
+      "recall": 0.9986999999999999,
+      "visited_vectors_per_query": 11268110.753,
+      "peak_gpu_memory": 52360.0,
+      "samples_seconds": [
+        0.6496434989385307,
+        0.6499418537132442,
+        0.6503862417303026
+      ],
+      "memory": {
+        "peak_total_mib": 52360.0,
+        "peak_per_gpu_mib": {
+          "0": 17472.0,
+          "1": 17464.0,
+          "2": 17424.0
+        },
+        "samples": 61,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16980.95654296875,
+          "peak_torch_reserved_mib": 16992.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16972.97119140625,
+          "peak_torch_reserved_mib": 16984.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16932.96142578125,
+          "peak_torch_reserved_mib": 16944.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 3707441681,
+          "visited_vectors_per_query": 3707441.681,
+          "visited_vectors_min_per_query": 3083417,
+          "visited_vectors_max_per_query": 5336964,
+          "visited_data_bytes_total": 1898210140672,
+          "visited_data_mb_total": 1810274.2583007812,
+          "visited_data_mb_per_query": 1810.2742583007812
+        },
+        {
+          "visited_vectors_total": 3757251163,
+          "visited_vectors_per_query": 3757251.163,
+          "visited_vectors_min_per_query": 3145616,
+          "visited_vectors_max_per_query": 5305614,
+          "visited_data_bytes_total": 1923712595456,
+          "visited_data_mb_total": 1834595.2944335938,
+          "visited_data_mb_per_query": 1834.5952944335938
+        },
+        {
+          "visited_vectors_total": 3803417909,
+          "visited_vectors_per_query": 3803417.909,
+          "visited_vectors_min_per_query": 3176106,
+          "visited_vectors_max_per_query": 5325474,
+          "visited_data_bytes_total": 1947349969408,
+          "visited_data_mb_total": 1857137.6508789062,
+          "visited_data_mb_per_query": 1857.1376508789062
+        }
+      ]
+    },
+    {
+      "nprobes": 150,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 1387.0896162794857,
+      "recall": 0.9992,
+      "visited_vectors_per_query": 14030214.059,
+      "peak_gpu_memory": 52568.0,
+      "samples_seconds": [
+        0.7361617311835289,
+        0.7203930309042335,
+        0.7209339528344572
+      ],
+      "memory": {
+        "peak_total_mib": 52568.0,
+        "peak_per_gpu_mib": {
+          "0": 17546.0,
+          "1": 17536.0,
+          "2": 17486.0
+        },
+        "samples": 71,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 17056.0703125,
+          "peak_torch_reserved_mib": 17066.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 17046.01904296875,
+          "peak_torch_reserved_mib": 17056.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16994.8837890625,
+          "peak_torch_reserved_mib": 17006.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 4616125343,
+          "visited_vectors_per_query": 4616125.343,
+          "visited_vectors_min_per_query": 3927929,
+          "visited_vectors_max_per_query": 6409331,
+          "visited_data_bytes_total": 2363456175616,
+          "visited_data_mb_total": 2253967.4526367188,
+          "visited_data_mb_per_query": 2253.967452636719
+        },
+        {
+          "visited_vectors_total": 4680814202,
+          "visited_vectors_per_query": 4680814.202,
+          "visited_vectors_min_per_query": 4021801,
+          "visited_vectors_max_per_query": 6405018,
+          "visited_data_bytes_total": 2396576871424,
+          "visited_data_mb_total": 2285553.8095703125,
+          "visited_data_mb_per_query": 2285.5538095703123
+        },
+        {
+          "visited_vectors_total": 4733274514,
+          "visited_vectors_per_query": 4733274.514,
+          "visited_vectors_min_per_query": 4011427,
+          "visited_vectors_max_per_query": 6407213,
+          "visited_data_bytes_total": 2423436551168,
+          "visited_data_mb_total": 2311169.1962890625,
+          "visited_data_mb_per_query": 2311.1691962890627
+        }
+      ]
+    },
+    {
+      "nprobes": 5,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 13918.502403106879,
+      "recall": 0.7616999999999985,
+      "visited_vectors_per_query": 497495.787,
+      "peak_gpu_memory": 51662.0,
+      "samples_seconds": [
+        0.07398990076035261,
+        0.06896970607340336,
+        0.071846810169518
+      ],
+      "memory": {
+        "peak_total_mib": 51662.0,
+        "peak_per_gpu_mib": {
+          "0": 17224.0,
+          "1": 17222.0,
+          "2": 17216.0
+        },
+        "samples": 8,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16728.59765625,
+          "peak_torch_reserved_mib": 16744.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16726.69873046875,
+          "peak_torch_reserved_mib": 16742.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16720.63427734375,
+          "peak_torch_reserved_mib": 16736.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 164599454,
+          "visited_vectors_per_query": 164599.454,
+          "visited_vectors_min_per_query": 109464,
+          "visited_vectors_max_per_query": 421256,
+          "visited_data_bytes_total": 84274920448,
+          "visited_data_mb_total": 80370.8271484375,
+          "visited_data_mb_per_query": 80.3708271484375
+        },
+        {
+          "visited_vectors_total": 165073254,
+          "visited_vectors_per_query": 165073.254,
+          "visited_vectors_min_per_query": 115817,
+          "visited_vectors_max_per_query": 418247,
+          "visited_data_bytes_total": 84517506048,
+          "visited_data_mb_total": 80602.1748046875,
+          "visited_data_mb_per_query": 80.6021748046875
+        },
+        {
+          "visited_vectors_total": 167823079,
+          "visited_vectors_per_query": 167823.079,
+          "visited_vectors_min_per_query": 114081,
+          "visited_vectors_max_per_query": 464291,
+          "visited_data_bytes_total": 85925416448,
+          "visited_data_mb_total": 81944.86279296875,
+          "visited_data_mb_per_query": 81.94486279296875
+        }
+      ]
+    },
+    {
+      "nprobes": 10,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 10140.971284267058,
+      "recall": 0.8734999999999968,
+      "visited_vectors_per_query": 985105.575,
+      "peak_gpu_memory": 51808.0,
+      "samples_seconds": [
+        0.09860988380387425,
+        0.09927555778995156,
+        0.09403763804584742
+      ],
+      "memory": {
+        "peak_total_mib": 51808.0,
+        "peak_per_gpu_mib": {
+          "0": 17276.0,
+          "1": 17272.0,
+          "2": 17260.0
+        },
+        "samples": 11,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16778.49853515625,
+          "peak_torch_reserved_mib": 16796.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16776.0947265625,
+          "peak_torch_reserved_mib": 16792.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16762.388671875,
+          "peak_torch_reserved_mib": 16780.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 324871205,
+          "visited_vectors_per_query": 324871.205,
+          "visited_vectors_min_per_query": 225988,
+          "visited_vectors_max_per_query": 840927,
+          "visited_data_bytes_total": 166334056960,
+          "visited_data_mb_total": 158628.51806640625,
+          "visited_data_mb_per_query": 158.62851806640626
+        },
+        {
+          "visited_vectors_total": 327198012,
+          "visited_vectors_per_query": 327198.012,
+          "visited_vectors_min_per_query": 237988,
+          "visited_vectors_max_per_query": 796504,
+          "visited_data_bytes_total": 167525382144,
+          "visited_data_mb_total": 159764.654296875,
+          "visited_data_mb_per_query": 159.764654296875
+        },
+        {
+          "visited_vectors_total": 333036358,
+          "visited_vectors_per_query": 333036.358,
+          "visited_vectors_min_per_query": 240182,
+          "visited_vectors_max_per_query": 821938,
+          "visited_data_bytes_total": 170514615296,
+          "visited_data_mb_total": 162615.4091796875,
+          "visited_data_mb_per_query": 162.6154091796875
+        }
+      ]
+    },
+    {
+      "nprobes": 15,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 8476.952915842361,
+      "recall": 0.9179999999999962,
+      "visited_vectors_per_query": 1464678.4239999999,
+      "peak_gpu_memory": 51938.0,
+      "samples_seconds": [
+        0.11796691687777638,
+        0.12378450017422438,
+        0.11633990705013275
+      ],
+      "memory": {
+        "peak_total_mib": 51938.0,
+        "peak_per_gpu_mib": {
+          "0": 17322.0,
+          "1": 17318.0,
+          "2": 17298.0
+        },
+        "samples": 13,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16829.61181640625,
+          "peak_torch_reserved_mib": 16842.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16825.62060546875,
+          "peak_torch_reserved_mib": 16838.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16805.62353515625,
+          "peak_torch_reserved_mib": 16818.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 482507899,
+          "visited_vectors_per_query": 482507.899,
+          "visited_vectors_min_per_query": 343029,
+          "visited_vectors_max_per_query": 1096113,
+          "visited_data_bytes_total": 247044044288,
+          "visited_data_mb_total": 235599.56005859375,
+          "visited_data_mb_per_query": 235.59956005859374
+        },
+        {
+          "visited_vectors_total": 487556068,
+          "visited_vectors_per_query": 487556.068,
+          "visited_vectors_min_per_query": 363088,
+          "visited_vectors_max_per_query": 1089625,
+          "visited_data_bytes_total": 249628706816,
+          "visited_data_mb_total": 238064.486328125,
+          "visited_data_mb_per_query": 238.064486328125
+        },
+        {
+          "visited_vectors_total": 494614457,
+          "visited_vectors_per_query": 494614.457,
+          "visited_vectors_min_per_query": 366047,
+          "visited_vectors_max_per_query": 1128556,
+          "visited_data_bytes_total": 253242601984,
+          "visited_data_mb_total": 241510.96533203125,
+          "visited_data_mb_per_query": 241.51096533203125
+        }
+      ]
+    },
+    {
+      "nprobes": 20,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 7599.4988121565575,
+      "recall": 0.9449999999999964,
+      "visited_vectors_per_query": 1940338.208,
+      "peak_gpu_memory": 52084.0,
+      "samples_seconds": [
+        0.1317181377671659,
+        0.131587625015527,
+        0.1299042198807001
+      ],
+      "memory": {
+        "peak_total_mib": 52084.0,
+        "peak_per_gpu_mib": {
+          "0": 17374.0,
+          "1": 17368.0,
+          "2": 17342.0
+        },
+        "samples": 14,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16879.1640625,
+          "peak_torch_reserved_mib": 16894.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16874.25390625,
+          "peak_torch_reserved_mib": 16888.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16846.9765625,
+          "peak_torch_reserved_mib": 16862.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 639322481,
+          "visited_vectors_per_query": 639322.481,
+          "visited_vectors_min_per_query": 471491,
+          "visited_vectors_max_per_query": 1365675,
+          "visited_data_bytes_total": 327333110272,
+          "visited_data_mb_total": 312169.18017578125,
+          "visited_data_mb_per_query": 312.16918017578126
+        },
+        {
+          "visited_vectors_total": 646352548,
+          "visited_vectors_per_query": 646352.548,
+          "visited_vectors_min_per_query": 491704,
+          "visited_vectors_max_per_query": 1391720,
+          "visited_data_bytes_total": 330932504576,
+          "visited_data_mb_total": 315601.830078125,
+          "visited_data_mb_per_query": 315.601830078125
+        },
+        {
+          "visited_vectors_total": 654663179,
+          "visited_vectors_per_query": 654663.179,
+          "visited_vectors_min_per_query": 497735,
+          "visited_vectors_max_per_query": 1457834,
+          "visited_data_bytes_total": 335187547648,
+          "visited_data_mb_total": 319659.75537109375,
+          "visited_data_mb_per_query": 319.65975537109375
+        }
+      ]
+    },
+    {
+      "nprobes": 30,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 6323.60466267024,
+      "recall": 0.970299999999997,
+      "visited_vectors_per_query": 2888496.1500000004,
+      "peak_gpu_memory": 52360.0,
+      "samples_seconds": [
+        0.15781627222895622,
+        0.15813765302300453,
+        0.16356369806453586
+      ],
+      "memory": {
+        "peak_total_mib": 52360.0,
+        "peak_per_gpu_mib": {
+          "0": 17472.0,
+          "1": 17464.0,
+          "2": 17424.0
+        },
+        "samples": 17,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16980.22021484375,
+          "peak_torch_reserved_mib": 16992.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16972.177734375,
+          "peak_torch_reserved_mib": 16984.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16932.2421875,
+          "peak_torch_reserved_mib": 16944.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 951235680,
+          "visited_vectors_per_query": 951235.68,
+          "visited_vectors_min_per_query": 722400,
+          "visited_vectors_max_per_query": 1802296,
+          "visited_data_bytes_total": 487032668160,
+          "visited_data_mb_total": 464470.546875,
+          "visited_data_mb_per_query": 464.470546875
+        },
+        {
+          "visited_vectors_total": 961999910,
+          "visited_vectors_per_query": 961999.91,
+          "visited_vectors_min_per_query": 765502,
+          "visited_vectors_max_per_query": 1823569,
+          "visited_data_bytes_total": 492543953920,
+          "visited_data_mb_total": 469726.5185546875,
+          "visited_data_mb_per_query": 469.7265185546875
+        },
+        {
+          "visited_vectors_total": 975260560,
+          "visited_vectors_per_query": 975260.56,
+          "visited_vectors_min_per_query": 740449,
+          "visited_vectors_max_per_query": 1942631,
+          "visited_data_bytes_total": 499333406720,
+          "visited_data_mb_total": 476201.4453125,
+          "visited_data_mb_per_query": 476.2014453125
+        }
+      ]
+    },
+    {
+      "nprobes": 40,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 5266.226069871951,
+      "recall": 0.9825999999999981,
+      "visited_vectors_per_query": 3831230.666,
+      "peak_gpu_memory": 52618.0,
+      "samples_seconds": [
+        0.18988930340856314,
+        0.196903042960912,
+        0.1871763039380312
+      ],
+      "memory": {
+        "peak_total_mib": 52618.0,
+        "peak_per_gpu_mib": {
+          "0": 17564.0,
+          "1": 17554.0,
+          "2": 17500.0
+        },
+        "samples": 19,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 17080.47802734375,
+          "peak_torch_reserved_mib": 17084.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 17070.4755859375,
+          "peak_torch_reserved_mib": 17074.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 17016.578125,
+          "peak_torch_reserved_mib": 17020.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 1261136201,
+          "visited_vectors_per_query": 1261136.201,
+          "visited_vectors_min_per_query": 976167,
+          "visited_vectors_max_per_query": 2246215,
+          "visited_data_bytes_total": 645701734912,
+          "visited_data_mb_total": 615789.1606445312,
+          "visited_data_mb_per_query": 615.7891606445312
+        },
+        {
+          "visited_vectors_total": 1276555464,
+          "visited_vectors_per_query": 1276555.464,
+          "visited_vectors_min_per_query": 1020882,
+          "visited_vectors_max_per_query": 2252765,
+          "visited_data_bytes_total": 653596397568,
+          "visited_data_mb_total": 623318.09765625,
+          "visited_data_mb_per_query": 623.31809765625
+        },
+        {
+          "visited_vectors_total": 1293539001,
+          "visited_vectors_per_query": 1293539.001,
+          "visited_vectors_min_per_query": 1018504,
+          "visited_vectors_max_per_query": 2338940,
+          "visited_data_bytes_total": 662291968512,
+          "visited_data_mb_total": 631610.8403320312,
+          "visited_data_mb_per_query": 631.6108403320312
+        }
+      ]
+    },
+    {
+      "nprobes": 50,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 4721.487506390519,
+      "recall": 0.9874999999999985,
+      "visited_vectors_per_query": 4769352.65,
+      "peak_gpu_memory": 52896.0,
+      "samples_seconds": [
+        0.21179765881970525,
+        0.21108752815052867,
+        0.21620556665584445
+      ],
+      "memory": {
+        "peak_total_mib": 52896.0,
+        "peak_per_gpu_mib": {
+          "0": 17664.0,
+          "1": 17650.0,
+          "2": 17582.0
+        },
+        "samples": 22,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 17180.3623046875,
+          "peak_torch_reserved_mib": 17184.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 17168.12841796875,
+          "peak_torch_reserved_mib": 17170.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 17100.21630859375,
+          "peak_torch_reserved_mib": 17102.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 1569593256,
+          "visited_vectors_per_query": 1569593.256,
+          "visited_vectors_min_per_query": 1220540,
+          "visited_vectors_max_per_query": 2718468,
+          "visited_data_bytes_total": 803631747072,
+          "visited_data_mb_total": 766402.95703125,
+          "visited_data_mb_per_query": 766.40295703125
+        },
+        {
+          "visited_vectors_total": 1589724445,
+          "visited_vectors_per_query": 1589724.445,
+          "visited_vectors_min_per_query": 1280065,
+          "visited_vectors_max_per_query": 2640139,
+          "visited_data_bytes_total": 813938915840,
+          "visited_data_mb_total": 776232.6391601562,
+          "visited_data_mb_per_query": 776.2326391601563
+        },
+        {
+          "visited_vectors_total": 1610034949,
+          "visited_vectors_per_query": 1610034.949,
+          "visited_vectors_min_per_query": 1284145,
+          "visited_vectors_max_per_query": 2768896,
+          "visited_data_bytes_total": 824337893888,
+          "visited_data_mb_total": 786149.8774414062,
+          "visited_data_mb_per_query": 786.1498774414063
+        }
+      ]
+    },
+    {
+      "nprobes": 60,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 4082.933208852767,
+      "recall": 0.9914999999999989,
+      "visited_vectors_per_query": 5702610.749,
+      "peak_gpu_memory": 53180.0,
+      "samples_seconds": [
+        0.24164748704060912,
+        0.24828388029709458,
+        0.24492195900529623
+      ],
+      "memory": {
+        "peak_total_mib": 53180.0,
+        "peak_per_gpu_mib": {
+          "0": 17764.0,
+          "1": 17748.0,
+          "2": 17668.0
+        },
+        "samples": 25,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 17280.59765625,
+          "peak_torch_reserved_mib": 17284.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 17265.97265625,
+          "peak_torch_reserved_mib": 17268.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 17184.03515625,
+          "peak_torch_reserved_mib": 17188.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 1875871080,
+          "visited_vectors_per_query": 1875871.08,
+          "visited_vectors_min_per_query": 1508406,
+          "visited_vectors_max_per_query": 3110732,
+          "visited_data_bytes_total": 960445992960,
+          "visited_data_mb_total": 915952.67578125,
+          "visited_data_mb_per_query": 915.95267578125
+        },
+        {
+          "visited_vectors_total": 1901328587,
+          "visited_vectors_per_query": 1901328.587,
+          "visited_vectors_min_per_query": 1533347,
+          "visited_vectors_max_per_query": 3071117,
+          "visited_data_bytes_total": 973480236544,
+          "visited_data_mb_total": 928383.0991210938,
+          "visited_data_mb_per_query": 928.3830991210938
+        },
+        {
+          "visited_vectors_total": 1925411082,
+          "visited_vectors_per_query": 1925411.082,
+          "visited_vectors_min_per_query": 1537835,
+          "visited_vectors_max_per_query": 3126057,
+          "visited_data_bytes_total": 985810473984,
+          "visited_data_mb_total": 940142.1298828125,
+          "visited_data_mb_per_query": 940.1421298828125
+        }
+      ]
+    },
+    {
+      "nprobes": 70,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 3780.6864467631563,
+      "recall": 0.9941999999999992,
+      "visited_vectors_per_query": 6634502.426999999,
+      "peak_gpu_memory": 53516.0,
+      "samples_seconds": [
+        0.26415472012013197,
+        0.2656785808503628,
+        0.26450223103165627
+      ],
+      "memory": {
+        "peak_total_mib": 53516.0,
+        "peak_per_gpu_mib": {
+          "0": 17882.0,
+          "1": 17864.0,
+          "2": 17770.0
+        },
+        "samples": 27,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 17381.32275390625,
+          "peak_torch_reserved_mib": 17402.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 17363.39599609375,
+          "peak_torch_reserved_mib": 17384.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 17267.8828125,
+          "peak_torch_reserved_mib": 17290.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 2182066303,
+          "visited_vectors_per_query": 2182066.303,
+          "visited_vectors_min_per_query": 1777147,
+          "visited_vectors_max_per_query": 3521362,
+          "visited_data_bytes_total": 1117217947136,
+          "visited_data_mb_total": 1065462.0620117188,
+          "visited_data_mb_per_query": 1065.4620620117187
+        },
+        {
+          "visited_vectors_total": 2212324110,
+          "visited_vectors_per_query": 2212324.11,
+          "visited_vectors_min_per_query": 1801520,
+          "visited_vectors_max_per_query": 3465812,
+          "visited_data_bytes_total": 1132709944320,
+          "visited_data_mb_total": 1080236.3818359375,
+          "visited_data_mb_per_query": 1080.2363818359374
+        },
+        {
+          "visited_vectors_total": 2240112014,
+          "visited_vectors_per_query": 2240112.014,
+          "visited_vectors_min_per_query": 1818345,
+          "visited_vectors_max_per_query": 3472881,
+          "visited_data_bytes_total": 1146937351168,
+          "visited_data_mb_total": 1093804.6943359375,
+          "visited_data_mb_per_query": 1093.8046943359375
+        }
+      ]
+    },
+    {
+      "nprobes": 80,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 3402.9623685655397,
+      "recall": 0.9959999999999996,
+      "visited_vectors_per_query": 7564434.854,
+      "peak_gpu_memory": 53792.0,
+      "samples_seconds": [
+        0.29268671618774533,
+        0.29386160988360643,
+        0.29652127297595143
+      ],
+      "memory": {
+        "peak_total_mib": 53792.0,
+        "peak_per_gpu_mib": {
+          "0": 17980.0,
+          "1": 17960.0,
+          "2": 17852.0
+        },
+        "samples": 29,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 17480.98193359375,
+          "peak_torch_reserved_mib": 17500.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 17461.0859375,
+          "peak_torch_reserved_mib": 17480.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 17351.9150390625,
+          "peak_torch_reserved_mib": 17372.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 2487035087,
+          "visited_vectors_per_query": 2487035.087,
+          "visited_vectors_min_per_query": 2045605,
+          "visited_vectors_max_per_query": 3869922,
+          "visited_data_bytes_total": 1273361964544,
+          "visited_data_mb_total": 1214372.6010742188,
+          "visited_data_mb_per_query": 1214.3726010742187
+        },
+        {
+          "visited_vectors_total": 2523285709,
+          "visited_vectors_per_query": 2523285.709,
+          "visited_vectors_min_per_query": 2066598,
+          "visited_vectors_max_per_query": 3829591,
+          "visited_data_bytes_total": 1291922283008,
+          "visited_data_mb_total": 1232073.1000976562,
+          "visited_data_mb_per_query": 1232.0731000976562
+        },
+        {
+          "visited_vectors_total": 2554114058,
+          "visited_vectors_per_query": 2554114.058,
+          "visited_vectors_min_per_query": 2088242,
+          "visited_vectors_max_per_query": 3885209,
+          "visited_data_bytes_total": 1307706397696,
+          "visited_data_mb_total": 1247126.0048828125,
+          "visited_data_mb_per_query": 1247.1260048828126
+        }
+      ]
+    },
+    {
+      "nprobes": 90,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 3086.048877753193,
+      "recall": 0.9971999999999998,
+      "visited_vectors_per_query": 8492427.986,
+      "peak_gpu_memory": 54068.0,
+      "samples_seconds": [
+        0.32403893768787384,
+        0.3258938258513808,
+        0.3163493871688843
+      ],
+      "memory": {
+        "peak_total_mib": 54068.0,
+        "peak_per_gpu_mib": {
+          "0": 18078.0,
+          "1": 18056.0,
+          "2": 17934.0
+        },
+        "samples": 30,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 17581.61669921875,
+          "peak_torch_reserved_mib": 17598.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 17559.6181640625,
+          "peak_torch_reserved_mib": 17576.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 17437.615234375,
+          "peak_torch_reserved_mib": 17454.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 2793430138,
+          "visited_vectors_per_query": 2793430.138,
+          "visited_vectors_min_per_query": 2314134,
+          "visited_vectors_max_per_query": 4231551,
+          "visited_data_bytes_total": 1430236230656,
+          "visited_data_mb_total": 1363979.5595703125,
+          "visited_data_mb_per_query": 1363.9795595703124
+        },
+        {
+          "visited_vectors_total": 2833002395,
+          "visited_vectors_per_query": 2833002.395,
+          "visited_vectors_min_per_query": 2346822,
+          "visited_vectors_max_per_query": 4261609,
+          "visited_data_bytes_total": 1450497226240,
+          "visited_data_mb_total": 1383301.9506835938,
+          "visited_data_mb_per_query": 1383.3019506835938
+        },
+        {
+          "visited_vectors_total": 2865995453,
+          "visited_vectors_per_query": 2865995.453,
+          "visited_vectors_min_per_query": 2359468,
+          "visited_vectors_max_per_query": 4242231,
+          "visited_data_bytes_total": 1467389671936,
+          "visited_data_mb_total": 1399411.8422851562,
+          "visited_data_mb_per_query": 1399.4118422851564
+        }
+      ]
+    },
+    {
+      "nprobes": 100,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 2900.4785019637193,
+      "recall": 0.9974999999999997,
+      "visited_vectors_per_query": 9418861.125,
+      "peak_gpu_memory": 54346.0,
+      "samples_seconds": [
+        0.3387307012453675,
+        0.3447706988081336,
+        0.34495012601837516
+      ],
+      "memory": {
+        "peak_total_mib": 54346.0,
+        "peak_per_gpu_mib": {
+          "0": 18178.0,
+          "1": 18152.0,
+          "2": 18016.0
+        },
+        "samples": 34,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 17680.82666015625,
+          "peak_torch_reserved_mib": 17698.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 17656.5107421875,
+          "peak_torch_reserved_mib": 17672.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 17520.63671875,
+          "peak_torch_reserved_mib": 17536.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 3098366725,
+          "visited_vectors_per_query": 3098366.725,
+          "visited_vectors_min_per_query": 2559918,
+          "visited_vectors_max_per_query": 4568969,
+          "visited_data_bytes_total": 1586363763200,
+          "visited_data_mb_total": 1512874.3774414062,
+          "visited_data_mb_per_query": 1512.8743774414063
+        },
+        {
+          "visited_vectors_total": 3140942170,
+          "visited_vectors_per_query": 3140942.17,
+          "visited_vectors_min_per_query": 2611559,
+          "visited_vectors_max_per_query": 4593525,
+          "visited_data_bytes_total": 1608162391040,
+          "visited_data_mb_total": 1533663.1689453125,
+          "visited_data_mb_per_query": 1533.6631689453125
+        },
+        {
+          "visited_vectors_total": 3179552230,
+          "visited_vectors_per_query": 3179552.23,
+          "visited_vectors_min_per_query": 2644319,
+          "visited_vectors_max_per_query": 4573350,
+          "visited_data_bytes_total": 1627930741760,
+          "visited_data_mb_total": 1552515.7373046875,
+          "visited_data_mb_per_query": 1552.5157373046875
+        }
+      ]
+    },
+    {
+      "nprobes": 120,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 2572.364889260633,
+      "recall": 0.9986999999999999,
+      "visited_vectors_per_query": 11268110.753,
+      "peak_gpu_memory": 54900.0,
+      "samples_seconds": [
+        0.3887473368085921,
+        0.3867487828247249,
+        0.3889650711789727
+      ],
+      "memory": {
+        "peak_total_mib": 54900.0,
+        "peak_per_gpu_mib": {
+          "0": 18374.0,
+          "1": 18344.0,
+          "2": 18182.0
+        },
+        "samples": 37,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 17882.400390625,
+          "peak_torch_reserved_mib": 17894.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 17852.4267578125,
+          "peak_torch_reserved_mib": 17864.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 17688.5732421875,
+          "peak_torch_reserved_mib": 17702.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 3707441681,
+          "visited_vectors_per_query": 3707441.681,
+          "visited_vectors_min_per_query": 3083417,
+          "visited_vectors_max_per_query": 5336964,
+          "visited_data_bytes_total": 1898210140672,
+          "visited_data_mb_total": 1810274.2583007812,
+          "visited_data_mb_per_query": 1810.2742583007812
+        },
+        {
+          "visited_vectors_total": 3757251163,
+          "visited_vectors_per_query": 3757251.163,
+          "visited_vectors_min_per_query": 3145616,
+          "visited_vectors_max_per_query": 5305614,
+          "visited_data_bytes_total": 1923712595456,
+          "visited_data_mb_total": 1834595.2944335938,
+          "visited_data_mb_per_query": 1834.5952944335938
+        },
+        {
+          "visited_vectors_total": 3803417909,
+          "visited_vectors_per_query": 3803417.909,
+          "visited_vectors_min_per_query": 3176106,
+          "visited_vectors_max_per_query": 5325474,
+          "visited_data_bytes_total": 1947349969408,
+          "visited_data_mb_total": 1857137.6508789062,
+          "visited_data_mb_per_query": 1857.1376508789062
+        }
+      ]
+    },
+    {
+      "nprobes": 150,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 2163.76967808969,
+      "recall": 0.9992,
+      "visited_vectors_per_query": 14030214.059,
+      "peak_gpu_memory": 55730.0,
+      "samples_seconds": [
+        0.4609366445802152,
+        0.4650964019820094,
+        0.4621563977561891
+      ],
+      "memory": {
+        "peak_total_mib": 55730.0,
+        "peak_per_gpu_mib": {
+          "0": 18670.0,
+          "1": 18632.0,
+          "2": 18428.0
+        },
+        "samples": 45,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 18181.42626953125,
+          "peak_torch_reserved_mib": 18190.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 18146.1083984375,
+          "peak_torch_reserved_mib": 18152.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 17942.1552734375,
+          "peak_torch_reserved_mib": 17948.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 4616125343,
+          "visited_vectors_per_query": 4616125.343,
+          "visited_vectors_min_per_query": 3927929,
+          "visited_vectors_max_per_query": 6409331,
+          "visited_data_bytes_total": 2363456175616,
+          "visited_data_mb_total": 2253967.4526367188,
+          "visited_data_mb_per_query": 2253.967452636719
+        },
+        {
+          "visited_vectors_total": 4680814202,
+          "visited_vectors_per_query": 4680814.202,
+          "visited_vectors_min_per_query": 4021801,
+          "visited_vectors_max_per_query": 6405018,
+          "visited_data_bytes_total": 2396576871424,
+          "visited_data_mb_total": 2285553.8095703125,
+          "visited_data_mb_per_query": 2285.5538095703123
+        },
+        {
+          "visited_vectors_total": 4733274514,
+          "visited_vectors_per_query": 4733274.514,
+          "visited_vectors_min_per_query": 4011427,
+          "visited_vectors_max_per_query": 6407213,
+          "visited_data_bytes_total": 2423436551168,
+          "visited_data_mb_total": 2311169.1962890625,
+          "visited_data_mb_per_query": 2311.1691962890627
+        }
+      ]
+    },
+    {
+      "nprobes": 5,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 32177.848073279925,
+      "recall": 0.7616999999999985,
+      "visited_vectors_per_query": 497495.787,
+      "peak_gpu_memory": 52084.0,
+      "samples_seconds": [
+        0.031077280174940825,
+        0.031138925813138485,
+        0.03097571013495326
+      ],
+      "memory": {
+        "peak_total_mib": 52084.0,
+        "peak_per_gpu_mib": {
+          "0": 17374.0,
+          "1": 17368.0,
+          "2": 17342.0
+        },
+        "samples": 5,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 16880.3857421875,
+          "peak_torch_reserved_mib": 16894.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 16875.525390625,
+          "peak_torch_reserved_mib": 16888.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 16848.2861328125,
+          "peak_torch_reserved_mib": 16862.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 164599454,
+          "visited_vectors_per_query": 164599.454,
+          "visited_vectors_min_per_query": 109464,
+          "visited_vectors_max_per_query": 421256,
+          "visited_data_bytes_total": 84274920448,
+          "visited_data_mb_total": 80370.8271484375,
+          "visited_data_mb_per_query": 80.3708271484375
+        },
+        {
+          "visited_vectors_total": 165073254,
+          "visited_vectors_per_query": 165073.254,
+          "visited_vectors_min_per_query": 115817,
+          "visited_vectors_max_per_query": 418247,
+          "visited_data_bytes_total": 84517506048,
+          "visited_data_mb_total": 80602.1748046875,
+          "visited_data_mb_per_query": 80.6021748046875
+        },
+        {
+          "visited_vectors_total": 167823079,
+          "visited_vectors_per_query": 167823.079,
+          "visited_vectors_min_per_query": 114081,
+          "visited_vectors_max_per_query": 464291,
+          "visited_data_bytes_total": 85925416448,
+          "visited_data_mb_total": 81944.86279296875,
+          "visited_data_mb_per_query": 81.94486279296875
+        }
+      ]
+    },
+    {
+      "nprobes": 10,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 21360.071804603915,
+      "recall": 0.8734999999999968,
+      "visited_vectors_per_query": 985105.575,
+      "peak_gpu_memory": 52618.0,
+      "samples_seconds": [
+        0.04681632202118635,
+        0.04705696599557996,
+        0.046670061070472
+      ],
+      "memory": {
+        "peak_total_mib": 52618.0,
+        "peak_per_gpu_mib": {
+          "0": 17564.0,
+          "1": 17554.0,
+          "2": 17500.0
+        },
+        "samples": 6,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 17081.7587890625,
+          "peak_torch_reserved_mib": 17084.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 17071.83447265625,
+          "peak_torch_reserved_mib": 17074.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 17017.8662109375,
+          "peak_torch_reserved_mib": 17020.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 324871205,
+          "visited_vectors_per_query": 324871.205,
+          "visited_vectors_min_per_query": 225988,
+          "visited_vectors_max_per_query": 840927,
+          "visited_data_bytes_total": 166334056960,
+          "visited_data_mb_total": 158628.51806640625,
+          "visited_data_mb_per_query": 158.62851806640626
+        },
+        {
+          "visited_vectors_total": 327198012,
+          "visited_vectors_per_query": 327198.012,
+          "visited_vectors_min_per_query": 237988,
+          "visited_vectors_max_per_query": 796504,
+          "visited_data_bytes_total": 167525382144,
+          "visited_data_mb_total": 159764.654296875,
+          "visited_data_mb_per_query": 159.764654296875
+        },
+        {
+          "visited_vectors_total": 333036358,
+          "visited_vectors_per_query": 333036.358,
+          "visited_vectors_min_per_query": 240182,
+          "visited_vectors_max_per_query": 821938,
+          "visited_data_bytes_total": 170514615296,
+          "visited_data_mb_total": 162615.4091796875,
+          "visited_data_mb_per_query": 162.6154091796875
+        }
+      ]
+    },
+    {
+      "nprobes": 15,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 16509.25886262971,
+      "recall": 0.9179999999999962,
+      "visited_vectors_per_query": 1464678.4239999999,
+      "peak_gpu_memory": 53234.0,
+      "samples_seconds": [
+        0.06016061594709754,
+        0.06080241501331329,
+        0.06057207100093365
+      ],
+      "memory": {
+        "peak_total_mib": 53234.0,
+        "peak_per_gpu_mib": {
+          "0": 17782.0,
+          "1": 17766.0,
+          "2": 17686.0
+        },
+        "samples": 7,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 17281.79931640625,
+          "peak_torch_reserved_mib": 17302.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 17267.1962890625,
+          "peak_torch_reserved_mib": 17286.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 17185.32958984375,
+          "peak_torch_reserved_mib": 17206.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 482507899,
+          "visited_vectors_per_query": 482507.899,
+          "visited_vectors_min_per_query": 343029,
+          "visited_vectors_max_per_query": 1096113,
+          "visited_data_bytes_total": 247044044288,
+          "visited_data_mb_total": 235599.56005859375,
+          "visited_data_mb_per_query": 235.59956005859374
+        },
+        {
+          "visited_vectors_total": 487556068,
+          "visited_vectors_per_query": 487556.068,
+          "visited_vectors_min_per_query": 363088,
+          "visited_vectors_max_per_query": 1089625,
+          "visited_data_bytes_total": 249628706816,
+          "visited_data_mb_total": 238064.486328125,
+          "visited_data_mb_per_query": 238.064486328125
+        },
+        {
+          "visited_vectors_total": 494614457,
+          "visited_vectors_per_query": 494614.457,
+          "visited_vectors_min_per_query": 366047,
+          "visited_vectors_max_per_query": 1128556,
+          "visited_data_bytes_total": 253242601984,
+          "visited_data_mb_total": 241510.96533203125,
+          "visited_data_mb_per_query": 241.51096533203125
+        }
+      ]
+    },
+    {
+      "nprobes": 20,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 13478.130169251393,
+      "recall": 0.9449999999999964,
+      "visited_vectors_per_query": 1940338.208,
+      "peak_gpu_memory": 53786.0,
+      "samples_seconds": [
+        0.0741942678578198,
+        0.07457802956923842,
+        0.0730805010534823
+      ],
+      "memory": {
+        "peak_total_mib": 53786.0,
+        "peak_per_gpu_mib": {
+          "0": 17978.0,
+          "1": 17958.0,
+          "2": 17850.0
+        },
+        "samples": 9,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 17482.55712890625,
+          "peak_torch_reserved_mib": 17498.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 17462.62890625,
+          "peak_torch_reserved_mib": 17478.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 17353.513671875,
+          "peak_torch_reserved_mib": 17370.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 639322481,
+          "visited_vectors_per_query": 639322.481,
+          "visited_vectors_min_per_query": 471491,
+          "visited_vectors_max_per_query": 1365675,
+          "visited_data_bytes_total": 327333110272,
+          "visited_data_mb_total": 312169.18017578125,
+          "visited_data_mb_per_query": 312.16918017578126
+        },
+        {
+          "visited_vectors_total": 646352548,
+          "visited_vectors_per_query": 646352.548,
+          "visited_vectors_min_per_query": 491704,
+          "visited_vectors_max_per_query": 1391720,
+          "visited_data_bytes_total": 330932504576,
+          "visited_data_mb_total": 315601.830078125,
+          "visited_data_mb_per_query": 315.601830078125
+        },
+        {
+          "visited_vectors_total": 654663179,
+          "visited_vectors_per_query": 654663.179,
+          "visited_vectors_min_per_query": 497735,
+          "visited_vectors_max_per_query": 1457834,
+          "visited_data_bytes_total": 335187547648,
+          "visited_data_mb_total": 319659.75537109375,
+          "visited_data_mb_per_query": 319.65975537109375
+        }
+      ]
+    },
+    {
+      "nprobes": 30,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 9991.068349560921,
+      "recall": 0.970299999999997,
+      "visited_vectors_per_query": 2888496.1500000004,
+      "peak_gpu_memory": 54894.0,
+      "samples_seconds": [
+        0.09908577892929316,
+        0.10273983422666788,
+        0.10008939635008574
+      ],
+      "memory": {
+        "peak_total_mib": 54894.0,
+        "peak_per_gpu_mib": {
+          "0": 18372.0,
+          "1": 18342.0,
+          "2": 18180.0
+        },
+        "samples": 11,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 17884.37548828125,
+          "peak_torch_reserved_mib": 17892.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 17854.4013671875,
+          "peak_torch_reserved_mib": 17862.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 17690.5849609375,
+          "peak_torch_reserved_mib": 17700.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 951235680,
+          "visited_vectors_per_query": 951235.68,
+          "visited_vectors_min_per_query": 722400,
+          "visited_vectors_max_per_query": 1802296,
+          "visited_data_bytes_total": 487032668160,
+          "visited_data_mb_total": 464470.546875,
+          "visited_data_mb_per_query": 464.470546875
+        },
+        {
+          "visited_vectors_total": 961999910,
+          "visited_vectors_per_query": 961999.91,
+          "visited_vectors_min_per_query": 765502,
+          "visited_vectors_max_per_query": 1823569,
+          "visited_data_bytes_total": 492543953920,
+          "visited_data_mb_total": 469726.5185546875,
+          "visited_data_mb_per_query": 469.7265185546875
+        },
+        {
+          "visited_vectors_total": 975260560,
+          "visited_vectors_per_query": 975260.56,
+          "visited_vectors_min_per_query": 740449,
+          "visited_vectors_max_per_query": 1942631,
+          "visited_data_bytes_total": 499333406720,
+          "visited_data_mb_total": 476201.4453125,
+          "visited_data_mb_per_query": 476.2014453125
+        }
+      ]
+    },
+    {
+      "nprobes": 40,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 8123.883697058232,
+      "recall": 0.9825999999999981,
+      "visited_vectors_per_query": 3831230.666,
+      "peak_gpu_memory": 56048.0,
+      "samples_seconds": [
+        0.12309383507817984,
+        0.12290959805250168,
+        0.12329678796231747
+      ],
+      "memory": {
+        "peak_total_mib": 56048.0,
+        "peak_per_gpu_mib": {
+          "0": 18782.0,
+          "1": 18742.0,
+          "2": 18524.0
+        },
+        "samples": 13,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 18284.53369140625,
+          "peak_torch_reserved_mib": 18302.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 18244.86328125,
+          "peak_torch_reserved_mib": 18262.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 18026.96875,
+          "peak_torch_reserved_mib": 18044.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 1261136201,
+          "visited_vectors_per_query": 1261136.201,
+          "visited_vectors_min_per_query": 976167,
+          "visited_vectors_max_per_query": 2246215,
+          "visited_data_bytes_total": 645701734912,
+          "visited_data_mb_total": 615789.1606445312,
+          "visited_data_mb_per_query": 615.7891606445312
+        },
+        {
+          "visited_vectors_total": 1276555464,
+          "visited_vectors_per_query": 1276555.464,
+          "visited_vectors_min_per_query": 1020882,
+          "visited_vectors_max_per_query": 2252765,
+          "visited_data_bytes_total": 653596397568,
+          "visited_data_mb_total": 623318.09765625,
+          "visited_data_mb_per_query": 623.31809765625
+        },
+        {
+          "visited_vectors_total": 1293539001,
+          "visited_vectors_per_query": 1293539.001,
+          "visited_vectors_min_per_query": 1018504,
+          "visited_vectors_max_per_query": 2338940,
+          "visited_data_bytes_total": 662291968512,
+          "visited_data_mb_total": 631610.8403320312,
+          "visited_data_mb_per_query": 631.6108403320312
+        }
+      ]
+    },
+    {
+      "nprobes": 50,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 6760.176622299549,
+      "recall": 0.9874999999999985,
+      "visited_vectors_per_query": 4769352.65,
+      "peak_gpu_memory": 57162.0,
+      "samples_seconds": [
+        0.14771355083212256,
+        0.1482175700366497,
+        0.147925129160285
+      ],
+      "memory": {
+        "peak_total_mib": 57162.0,
+        "peak_per_gpu_mib": {
+          "0": 19178.0,
+          "1": 19128.0,
+          "2": 18856.0
+        },
+        "samples": 16,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 18684.66064453125,
+          "peak_torch_reserved_mib": 18698.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 18634.8671875,
+          "peak_torch_reserved_mib": 18648.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 18363.197265625,
+          "peak_torch_reserved_mib": 18376.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 1569593256,
+          "visited_vectors_per_query": 1569593.256,
+          "visited_vectors_min_per_query": 1220540,
+          "visited_vectors_max_per_query": 2718468,
+          "visited_data_bytes_total": 803631747072,
+          "visited_data_mb_total": 766402.95703125,
+          "visited_data_mb_per_query": 766.40295703125
+        },
+        {
+          "visited_vectors_total": 1589724445,
+          "visited_vectors_per_query": 1589724.445,
+          "visited_vectors_min_per_query": 1280065,
+          "visited_vectors_max_per_query": 2640139,
+          "visited_data_bytes_total": 813938915840,
+          "visited_data_mb_total": 776232.6391601562,
+          "visited_data_mb_per_query": 776.2326391601563
+        },
+        {
+          "visited_vectors_total": 1610034949,
+          "visited_vectors_per_query": 1610034.949,
+          "visited_vectors_min_per_query": 1284145,
+          "visited_vectors_max_per_query": 2768896,
+          "visited_data_bytes_total": 824337893888,
+          "visited_data_mb_total": 786149.8774414062,
+          "visited_data_mb_per_query": 786.1498774414063
+        }
+      ]
+    },
+    {
+      "nprobes": 60,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 5733.069707116662,
+      "recall": 0.9914999999999989,
+      "visited_vectors_per_query": 5702610.749,
+      "peak_gpu_memory": 58282.0,
+      "samples_seconds": [
+        0.1741493260487914,
+        0.17442662501707673,
+        0.174871024210006
+      ],
+      "memory": {
+        "peak_total_mib": 58282.0,
+        "peak_per_gpu_mib": {
+          "0": 19576.0,
+          "1": 19516.0,
+          "2": 19190.0
+        },
+        "samples": 18,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 19085.07373046875,
+          "peak_torch_reserved_mib": 19096.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 19025.2802734375,
+          "peak_torch_reserved_mib": 19036.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 18699.2001953125,
+          "peak_torch_reserved_mib": 18710.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 1875871080,
+          "visited_vectors_per_query": 1875871.08,
+          "visited_vectors_min_per_query": 1508406,
+          "visited_vectors_max_per_query": 3110732,
+          "visited_data_bytes_total": 960445992960,
+          "visited_data_mb_total": 915952.67578125,
+          "visited_data_mb_per_query": 915.95267578125
+        },
+        {
+          "visited_vectors_total": 1901328587,
+          "visited_vectors_per_query": 1901328.587,
+          "visited_vectors_min_per_query": 1533347,
+          "visited_vectors_max_per_query": 3071117,
+          "visited_data_bytes_total": 973480236544,
+          "visited_data_mb_total": 928383.0991210938,
+          "visited_data_mb_per_query": 928.3830991210938
+        },
+        {
+          "visited_vectors_total": 1925411082,
+          "visited_vectors_per_query": 1925411.082,
+          "visited_vectors_min_per_query": 1537835,
+          "visited_vectors_max_per_query": 3126057,
+          "visited_data_bytes_total": 985810473984,
+          "visited_data_mb_total": 940142.1298828125,
+          "visited_data_mb_per_query": 940.1421298828125
+        }
+      ]
+    },
+    {
+      "nprobes": 70,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 5017.170261110457,
+      "recall": 0.9941999999999992,
+      "visited_vectors_per_query": 6634502.426999999,
+      "peak_gpu_memory": 59394.0,
+      "samples_seconds": [
+        0.2004771837964654,
+        0.19902260275557637,
+        0.19931554002687335
+      ],
+      "memory": {
+        "peak_total_mib": 59394.0,
+        "peak_per_gpu_mib": {
+          "0": 19972.0,
+          "1": 19902.0,
+          "2": 19520.0
+        },
+        "samples": 21,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 19486.24072265625,
+          "peak_torch_reserved_mib": 19492.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 19416.42578125,
+          "peak_torch_reserved_mib": 19422.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 19037.3173828125,
+          "peak_torch_reserved_mib": 19040.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 2182066303,
+          "visited_vectors_per_query": 2182066.303,
+          "visited_vectors_min_per_query": 1777147,
+          "visited_vectors_max_per_query": 3521362,
+          "visited_data_bytes_total": 1117217947136,
+          "visited_data_mb_total": 1065462.0620117188,
+          "visited_data_mb_per_query": 1065.4620620117187
+        },
+        {
+          "visited_vectors_total": 2212324110,
+          "visited_vectors_per_query": 2212324.11,
+          "visited_vectors_min_per_query": 1801520,
+          "visited_vectors_max_per_query": 3465812,
+          "visited_data_bytes_total": 1132709944320,
+          "visited_data_mb_total": 1080236.3818359375,
+          "visited_data_mb_per_query": 1080.2363818359374
+        },
+        {
+          "visited_vectors_total": 2240112014,
+          "visited_vectors_per_query": 2240112.014,
+          "visited_vectors_min_per_query": 1818345,
+          "visited_vectors_max_per_query": 3472881,
+          "visited_data_bytes_total": 1146937351168,
+          "visited_data_mb_total": 1093804.6943359375,
+          "visited_data_mb_per_query": 1093.8046943359375
+        }
+      ]
+    },
+    {
+      "nprobes": 80,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 4466.502354146487,
+      "recall": 0.9959999999999996,
+      "visited_vectors_per_query": 7564434.854,
+      "peak_gpu_memory": 60570.0,
+      "samples_seconds": [
+        0.2238888330757618,
+        0.2237185169942677,
+        0.22649372601881623
+      ],
+      "memory": {
+        "peak_total_mib": 60570.0,
+        "peak_per_gpu_mib": {
+          "0": 20388.0,
+          "1": 20308.0,
+          "2": 19874.0
+        },
+        "samples": 23,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 19887.38818359375,
+          "peak_torch_reserved_mib": 19908.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 19807.5712890625,
+          "peak_torch_reserved_mib": 19828.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 19373.9228515625,
+          "peak_torch_reserved_mib": 19394.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 2487035087,
+          "visited_vectors_per_query": 2487035.087,
+          "visited_vectors_min_per_query": 2045605,
+          "visited_vectors_max_per_query": 3869922,
+          "visited_data_bytes_total": 1273361964544,
+          "visited_data_mb_total": 1214372.6010742188,
+          "visited_data_mb_per_query": 1214.3726010742187
+        },
+        {
+          "visited_vectors_total": 2523285709,
+          "visited_vectors_per_query": 2523285.709,
+          "visited_vectors_min_per_query": 2066598,
+          "visited_vectors_max_per_query": 3829591,
+          "visited_data_bytes_total": 1291922283008,
+          "visited_data_mb_total": 1232073.1000976562,
+          "visited_data_mb_per_query": 1232.0731000976562
+        },
+        {
+          "visited_vectors_total": 2554114058,
+          "visited_vectors_per_query": 2554114.058,
+          "visited_vectors_min_per_query": 2088242,
+          "visited_vectors_max_per_query": 3885209,
+          "visited_data_bytes_total": 1307706397696,
+          "visited_data_mb_total": 1247126.0048828125,
+          "visited_data_mb_per_query": 1247.1260048828126
+        }
+      ]
+    },
+    {
+      "nprobes": 90,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 4009.446473449332,
+      "recall": 0.9971999999999998,
+      "visited_vectors_per_query": 8492427.986,
+      "peak_gpu_memory": 61690.0,
+      "samples_seconds": [
+        0.24915593164041638,
+        0.2494109864346683,
+        0.25028708297759295
+      ],
+      "memory": {
+        "peak_total_mib": 61690.0,
+        "peak_per_gpu_mib": {
+          "0": 20786.0,
+          "1": 20696.0,
+          "2": 20208.0
+        },
+        "samples": 26,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 20287.12646484375,
+          "peak_torch_reserved_mib": 20306.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 20197.4970703125,
+          "peak_torch_reserved_mib": 20216.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 19708.302734375,
+          "peak_torch_reserved_mib": 19728.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 2793430138,
+          "visited_vectors_per_query": 2793430.138,
+          "visited_vectors_min_per_query": 2314134,
+          "visited_vectors_max_per_query": 4231551,
+          "visited_data_bytes_total": 1430236230656,
+          "visited_data_mb_total": 1363979.5595703125,
+          "visited_data_mb_per_query": 1363.9795595703124
+        },
+        {
+          "visited_vectors_total": 2833002395,
+          "visited_vectors_per_query": 2833002.395,
+          "visited_vectors_min_per_query": 2346822,
+          "visited_vectors_max_per_query": 4261609,
+          "visited_data_bytes_total": 1450497226240,
+          "visited_data_mb_total": 1383301.9506835938,
+          "visited_data_mb_per_query": 1383.3019506835938
+        },
+        {
+          "visited_vectors_total": 2865995453,
+          "visited_vectors_per_query": 2865995.453,
+          "visited_vectors_min_per_query": 2359468,
+          "visited_vectors_max_per_query": 4242231,
+          "visited_data_bytes_total": 1467389671936,
+          "visited_data_mb_total": 1399411.8422851562,
+          "visited_data_mb_per_query": 1399.4118422851564
+        }
+      ]
+    },
+    {
+      "nprobes": 100,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 3652.8771649779105,
+      "recall": 0.9974999999999997,
+      "visited_vectors_per_query": 9418861.125,
+      "peak_gpu_memory": 62808.0,
+      "samples_seconds": [
+        0.27375545678660274,
+        0.27392282523214817,
+        0.27375680999830365
+      ],
+      "memory": {
+        "peak_total_mib": 62808.0,
+        "peak_per_gpu_mib": {
+          "0": 21184.0,
+          "1": 21084.0,
+          "2": 20540.0
+        },
+        "samples": 28,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 20689.40771484375,
+          "peak_torch_reserved_mib": 20704.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 20589.63916015625,
+          "peak_torch_reserved_mib": 20604.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 20045.89404296875,
+          "peak_torch_reserved_mib": 20060.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 3098366725,
+          "visited_vectors_per_query": 3098366.725,
+          "visited_vectors_min_per_query": 2559918,
+          "visited_vectors_max_per_query": 4568969,
+          "visited_data_bytes_total": 1586363763200,
+          "visited_data_mb_total": 1512874.3774414062,
+          "visited_data_mb_per_query": 1512.8743774414063
+        },
+        {
+          "visited_vectors_total": 3140942170,
+          "visited_vectors_per_query": 3140942.17,
+          "visited_vectors_min_per_query": 2611559,
+          "visited_vectors_max_per_query": 4593525,
+          "visited_data_bytes_total": 1608162391040,
+          "visited_data_mb_total": 1533663.1689453125,
+          "visited_data_mb_per_query": 1533.6631689453125
+        },
+        {
+          "visited_vectors_total": 3179552230,
+          "visited_vectors_per_query": 3179552.23,
+          "visited_vectors_min_per_query": 2644319,
+          "visited_vectors_max_per_query": 4573350,
+          "visited_data_bytes_total": 1627930741760,
+          "visited_data_mb_total": 1552515.7373046875,
+          "visited_data_mb_per_query": 1552.5157373046875
+        }
+      ]
+    },
+    {
+      "nprobes": 120,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 3106.358018473862,
+      "recall": 0.9986999999999999,
+      "visited_vectors_per_query": 11268110.753,
+      "peak_gpu_memory": 65102.0,
+      "samples_seconds": [
+        0.32234473060816526,
+        0.32192039489746094,
+        0.32165291300043464
+      ],
+      "memory": {
+        "peak_total_mib": 65102.0,
+        "peak_per_gpu_mib": {
+          "0": 21998.0,
+          "1": 21878.0,
+          "2": 21226.0
+        },
+        "samples": 32,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 21490.17919921875,
+          "peak_torch_reserved_mib": 21518.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 21370.7314453125,
+          "peak_torch_reserved_mib": 21398.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 20717.78515625,
+          "peak_torch_reserved_mib": 20746.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 3707441681,
+          "visited_vectors_per_query": 3707441.681,
+          "visited_vectors_min_per_query": 3083417,
+          "visited_vectors_max_per_query": 5336964,
+          "visited_data_bytes_total": 1898210140672,
+          "visited_data_mb_total": 1810274.2583007812,
+          "visited_data_mb_per_query": 1810.2742583007812
+        },
+        {
+          "visited_vectors_total": 3757251163,
+          "visited_vectors_per_query": 3757251.163,
+          "visited_vectors_min_per_query": 3145616,
+          "visited_vectors_max_per_query": 5305614,
+          "visited_data_bytes_total": 1923712595456,
+          "visited_data_mb_total": 1834595.2944335938,
+          "visited_data_mb_per_query": 1834.5952944335938
+        },
+        {
+          "visited_vectors_total": 3803417909,
+          "visited_vectors_per_query": 3803417.909,
+          "visited_vectors_min_per_query": 3176106,
+          "visited_vectors_max_per_query": 5325474,
+          "visited_data_bytes_total": 1947349969408,
+          "visited_data_mb_total": 1857137.6508789062,
+          "visited_data_mb_per_query": 1857.1376508789062
+        }
+      ]
+    },
+    {
+      "nprobes": 150,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 2524.142336448753,
+      "recall": 0.9992,
+      "visited_vectors_per_query": 14030214.059,
+      "peak_gpu_memory": 68454.0,
+      "samples_seconds": [
+        0.3961741719394922,
+        0.39605888072401285,
+        0.39623114885762334
+      ],
+      "memory": {
+        "peak_total_mib": 68454.0,
+        "peak_per_gpu_mib": {
+          "0": 23190.0,
+          "1": 23040.0,
+          "2": 22224.0
+        },
+        "samples": 40,
+        "interval_seconds": 0.01
+      },
+      "torch_memory_per_gpu": [
+        {
+          "gpu": 0,
+          "peak_torch_allocated_mib": 22691.07373046875,
+          "peak_torch_reserved_mib": 22710.0
+        },
+        {
+          "gpu": 1,
+          "peak_torch_allocated_mib": 22541.74169921875,
+          "peak_torch_reserved_mib": 22560.0
+        },
+        {
+          "gpu": 2,
+          "peak_torch_allocated_mib": 21728.29833984375,
+          "peak_torch_reserved_mib": 21744.0
+        }
+      ],
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 4616125343,
+          "visited_vectors_per_query": 4616125.343,
+          "visited_vectors_min_per_query": 3927929,
+          "visited_vectors_max_per_query": 6409331,
+          "visited_data_bytes_total": 2363456175616,
+          "visited_data_mb_total": 2253967.4526367188,
+          "visited_data_mb_per_query": 2253.967452636719
+        },
+        {
+          "visited_vectors_total": 4680814202,
+          "visited_vectors_per_query": 4680814.202,
+          "visited_vectors_min_per_query": 4021801,
+          "visited_vectors_max_per_query": 6405018,
+          "visited_data_bytes_total": 2396576871424,
+          "visited_data_mb_total": 2285553.8095703125,
+          "visited_data_mb_per_query": 2285.5538095703123
+        },
+        {
+          "visited_vectors_total": 4733274514,
+          "visited_vectors_per_query": 4733274.514,
+          "visited_vectors_min_per_query": 4011427,
+          "visited_vectors_max_per_query": 6407213,
+          "visited_data_bytes_total": 2423436551168,
+          "visited_data_mb_total": 2311169.1962890625,
+          "visited_data_mb_per_query": 2311.1691962890627
+        }
+      ]
+    }
+  ],
+  "nlist_semantics": "1024 per shard by default; three independently trained quantizers",
+  "probe_semantics": "nprobes is applied independently to each shard",
+  "memory_unit": "MiB",
+  "memory_metric": "NVML worker-process memory; maximum simultaneous sum across 3 GPUs, sampled in a separate search sweep",
+  "timing": "median end-to-end full-query wall time, including IPC, GPU search, GPU-to-CPU result transfers and CPU global Top-K merge; excludes recall, visit statistics, query upload and memory sweep",
+  "workers": [
+    {
+      "state": "ready",
+      "reused": false,
+      "pid": 2116513,
+      "gpu_name": "NVIDIA GeForce RTX 4090"
+    },
+    {
+      "state": "ready",
+      "reused": false,
+      "pid": 2116514,
+      "gpu_name": "NVIDIA GeForce RTX 4090"
+    },
+    {
+      "state": "ready",
+      "reused": false,
+      "pid": 2116515,
+      "gpu_name": "NVIDIA GeForce RTX 4090"
+    }
+  ],
+  "indexes": [
+    {
+      "path": "/storage/vector_data/sift100M/GPUIndex/TensorVS_MultiGPU3/CUDA_TensorVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_build/shard0of3.bin",
+      "size_bytes": 18009005367,
+      "mtime_ns": 1794000849530465084
+    },
+    {
+      "path": "/storage/vector_data/sift100M/GPUIndex/TensorVS_MultiGPU3/CUDA_TensorVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_build/shard1of3.bin",
+      "size_bytes": 18009105975,
+      "mtime_ns": 1794001196134903053
+    },
+    {
+      "path": "/storage/vector_data/sift100M/GPUIndex/TensorVS_MultiGPU3/CUDA_TensorVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_build/shard2of3.bin",
+      "size_bytes": 18008904759,
+      "mtime_ns": 1794001556537772833
+    }
+  ],
+  "completed_rows": 42,
+  "expected_rows": 42
+}

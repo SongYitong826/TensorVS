@@ -1,0 +1,187 @@
+{
+  "status": "complete",
+  "build_config": {
+    "library": "faiss",
+    "kind": "ivfflat",
+    "base": {
+      "path": "/storage/vector_data/sift100M/base.bin",
+      "size_bytes": 12800000008,
+      "mtime_ns": 1772092852828585798
+    },
+    "dataset": "sift100m",
+    "shards": 3,
+    "nlist_per_shard": 1024,
+    "global_nlist": 3072,
+    "independent_quantizers": true,
+    "dtype": "float32",
+    "metric": "squared L2",
+    "bounds": [
+      [
+        0,
+        33333333
+      ],
+      [
+        33333333,
+        66666666
+      ],
+      [
+        66666666,
+        100000000
+      ]
+    ],
+    "coarse_iters": 25,
+    "train_fraction": 0.5,
+    "pq_dim": 16,
+    "pq_bits": 8,
+    "pq_train_points": 512,
+    "actual_pq_iters": 50,
+    "pq_restarts": 2,
+    "seed": 1234,
+    "add_batch_size": 65536,
+    "faiss_use_cuvs": false,
+    "source_hashes": {
+      "bench/sift100m_library_multigpu_bench.py": "90234a2230259ccc0a1c691ea3babdf383032a5471fa19ec8ec156d0a27671e8",
+      "bench/_sift100m_library_worker.py": "0363a4559c6193f42c7200482a16951887538521e0893b1c12f29e7824b98b5f",
+      "bench/_sift100m_library_protocol.py": "396b35c354a0f2b450f363bd3ccee38a8159ac9710a422f81260999fdc3ca285",
+      "bench/sift100m_multigpu_bench.py": "9fadef79d37cf955c6e337ab73a5d1d03781817c33aa87db843305443aea7863",
+      "bench/_benchmark_utils.py": "e1cf36e22d1a3c4b0fd12df29662e87a993d9374178483536bff7ca73ed73068"
+    }
+  },
+  "software": [
+    {
+      "library_version": "1.15.0",
+      "python": "3.12.14 | packaged by conda-forge | (main, Aug 21 2026, 22:48:28) [GCC 14.4.0]",
+      "environment": "/home/songyitong/miniconda3/envs/faiss",
+      "cuda_runtime_version": 13020,
+      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/faiss/lib/libcudart.so.13"
+    },
+    {
+      "library_version": "1.15.0",
+      "python": "3.12.14 | packaged by conda-forge | (main, Aug 21 2026, 22:48:28) [GCC 14.4.0]",
+      "environment": "/home/songyitong/miniconda3/envs/faiss",
+      "cuda_runtime_version": 13020,
+      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/faiss/lib/libcudart.so.13"
+    },
+    {
+      "library_version": "1.15.0",
+      "python": "3.12.14 | packaged by conda-forge | (main, Aug 21 2026, 22:48:28) [GCC 14.4.0]",
+      "environment": "/home/songyitong/miniconda3/envs/faiss",
+      "cuda_runtime_version": 13020,
+      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/faiss/lib/libcudart.so.13"
+    }
+  ],
+  "row": {
+    "dataset": "sift100m",
+    "method": "FaissGPU-MultiGPU3-ivfflat",
+    "nlist": 1024,
+    "n_vectors": 100000000,
+    "dim": 128,
+    "build_seconds": 81.32300822716206,
+    "save_seconds": 530.0203523980454,
+    "index_size_bytes": 52001597857,
+    "index_size_mib": 49592.58828830719,
+    "peak_build_gpu_memory_mib": 56044.0
+  },
+  "indexes": [
+    {
+      "path": "/storage/vector_data/sift100M/GPUIndex/FaissGPU_MultiGPU3/CUDA_FaissGPU_MultiGPU3_IVFFLAT_sift100m_nlist1024_build/shard0of3.index",
+      "size_bytes": 17333865779,
+      "mtime_ns": 1794038278221388979
+    },
+    {
+      "path": "/storage/vector_data/sift100M/GPUIndex/FaissGPU_MultiGPU3/CUDA_FaissGPU_MultiGPU3_IVFFLAT_sift100m_nlist1024_build/shard1of3.index",
+      "size_bytes": 17333865779,
+      "mtime_ns": 1794038453444997958
+    },
+    {
+      "path": "/storage/vector_data/sift100M/GPUIndex/FaissGPU_MultiGPU3/CUDA_FaissGPU_MultiGPU3_IVFFLAT_sift100m_nlist1024_build/shard2of3.index",
+      "size_bytes": 17333866299,
+      "mtime_ns": 1794038630050239390
+    }
+  ],
+  "shards": [
+    {
+      "train_seconds": 69.14070441806689,
+      "add_seconds": 9.806622473988682,
+      "actual_coarse_iterations": 25,
+      "actual_pq_iterations": null,
+      "use_cuvs": false,
+      "indices": "INDICES_64_BIT",
+      "metric": "squared L2",
+      "max_points_per_coarse_centroid": 16277,
+      "faiss_scratch_mib": 128,
+      "reserved_rows": 33333333,
+      "reclaimed_after_add": true,
+      "lookup_table_dtype": null,
+      "build_seconds": 79.30157466698438,
+      "rank": 0,
+      "gpu": 0,
+      "n_vectors": 33333333,
+      "save_seconds": 179.34832846093923,
+      "index_size_bytes": 17333865779,
+      "read_seconds": 74.682163733989,
+      "begin_id": 0,
+      "end_id": 33333333
+    },
+    {
+      "train_seconds": 75.06801480706781,
+      "add_seconds": 5.899899566080421,
+      "actual_coarse_iterations": 25,
+      "actual_pq_iterations": null,
+      "use_cuvs": false,
+      "indices": "INDICES_64_BIT",
+      "metric": "squared L2",
+      "max_points_per_coarse_centroid": 16277,
+      "faiss_scratch_mib": 128,
+      "reserved_rows": 33333333,
+      "reclaimed_after_add": true,
+      "lookup_table_dtype": null,
+      "build_seconds": 81.32221200084314,
+      "rank": 1,
+      "gpu": 1,
+      "n_vectors": 33333333,
+      "save_seconds": 172.59389412915334,
+      "index_size_bytes": 17333865779,
+      "read_seconds": 61.923049981705844,
+      "begin_id": 33333333,
+      "end_id": 66666666
+    },
+    {
+      "train_seconds": 63.825604503042996,
+      "add_seconds": 7.053374548908323,
+      "actual_coarse_iterations": 25,
+      "actual_pq_iterations": null,
+      "use_cuvs": false,
+      "indices": "INDICES_64_BIT",
+      "metric": "squared L2",
+      "max_points_per_coarse_centroid": 16277,
+      "faiss_scratch_mib": 128,
+      "reserved_rows": 33333334,
+      "reclaimed_after_add": true,
+      "lookup_table_dtype": null,
+      "build_seconds": 71.23277568584308,
+      "rank": 2,
+      "gpu": 2,
+      "n_vectors": 33333334,
+      "save_seconds": 176.07670861575752,
+      "index_size_bytes": 17333866299,
+      "read_seconds": 67.19021955877542,
+      "begin_id": 66666666,
+      "end_id": 100000000
+    }
+  ],
+  "memory": {
+    "peak_total_mib": 56044.0,
+    "peak_per_gpu_mib": {
+      "0": 19800.0,
+      "1": 19658.0,
+      "2": 19726.0
+    },
+    "samples": 55729,
+    "interval_seconds": 0.01
+  },
+  "global_nlist": 3072,
+  "build_time_definition": "parallel wall time for native training plus adding every shard vector; includes native allocations/transfers, excludes host input conversion and serialization",
+  "save_time_definition": "wall time for serialized native saves, including Faiss GPU-to-CPU cloning",
+  "memory_definition": "sampled simultaneous sum of native-worker NVML memory during construction and saving"
+}

@@ -53,7 +53,7 @@ class Config:
 
 def make_config(args: argparse.Namespace) -> Config:
     dataset = args.dataset.casefold()
-    dataset_dir = args.dataset_dir or DATA_ROOT / dataset
+    dataset_dir = args.dataset_dir or DATA_ROOT / ("sift100M" if dataset == "sift100m" else dataset)
     if dataset not in benchmark.DATASET_PROFILES:
         raise ValueError(
             f"No IVF-PQ profile for {dataset!r}; available profiles: "

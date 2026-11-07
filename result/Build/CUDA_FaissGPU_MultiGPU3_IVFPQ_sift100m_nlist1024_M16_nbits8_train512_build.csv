@@ -1,0 +1,2 @@
+dataset,method,nlist,n_vectors,dim,build_seconds,save_seconds,index_size_bytes,index_size_mib,peak_build_gpu_memory_mib
+sift100m,FaissGPU-MultiGPU3-ivfpq,1024,100000000,128,100.82576932478696,30.144173784647137,2401991196,2290.717311859131,4758.0

@@ -1893,6 +1893,17 @@ def search_ivfpq_index(
         use_cuda_graph=use_cuda_graph)
 
 
+def _cpu_residual_vectors(vectors, centroids, labels, chunk_size):
+    """Compute identical FP32 residual rows without a full gathered-centroid copy."""
+    if chunk_size <= 0:
+        raise ValueError("CPU residual chunk size must be positive")
+    residuals = torch.empty_like(vectors)
+    for start in range(0, len(vectors), chunk_size):
+        end = min(start + chunk_size, len(vectors))
+        torch.sub(vectors[start:end], centroids[labels[start:end]], out=residuals[start:end])
+    return residuals
+
+
 def build_ivfpq_index(
     vectors: torch.Tensor,
     nlist: int,
@@ -1919,6 +1930,7 @@ def build_ivfpq_index(
     pq_kmeans_method: str = "balanced",
     max_points_per_centroid: int | None = FAISS_DEFAULT_MAX_POINTS_PER_CENTROID,
     min_points_per_centroid: int = FAISS_DEFAULT_MIN_POINTS_PER_CENTROID,
+    cpu_residual_chunk_size: int | None = None,
 ) -> IVFPQBuildResult:
     """Cluster a dataset with IVF and train residual PQ codebooks.
 
@@ -1932,10 +1944,14 @@ def build_ivfpq_index(
     omitted. ``coarse_kmeans_method`` and ``pq_kmeans_method`` select the
     KMeans implementation independently for IVF and PQ. ``balanced`` selects
     the cuVS-style balancing loop. Labels and PQ codes are still generated for
-    the complete input dataset.
+    the complete input dataset. ``cpu_residual_chunk_size`` optionally bounds
+    the temporary centroid gather when preparing host residuals; it changes
+    allocation size only, leaving FP32 values and training settings unchanged.
     """
     if vectors.ndim != 2:
         raise ValueError(f"Dataset tensor must have shape (num_vectors, dim), got {tuple(vectors.shape)}")
+    if cpu_residual_chunk_size is not None and cpu_residual_chunk_size <= 0:
+        raise ValueError("CPU residual chunk size must be positive")
     if m <= 0:
         raise ValueError(f"m must be positive, got {m}")
     if nbits <= 0:
@@ -2043,7 +2059,11 @@ def build_ivfpq_index(
         residual_base = vectors.to(device="cpu", dtype=torch.float32, copy=False)
         residual_centroids = centroids.to(device="cpu", dtype=torch.float32, copy=True)
         residual_labels = labels_device.to(device="cpu", dtype=torch.int64, copy=True)
-        residual_vectors = (residual_base - residual_centroids[residual_labels]).contiguous()
+        residual_vectors = (
+            (residual_base - residual_centroids[residual_labels]).contiguous()
+            if cpu_residual_chunk_size is None else
+            _cpu_residual_vectors(residual_base, residual_centroids, residual_labels, cpu_residual_chunk_size)
+        )
         pq_rotation = (
             pq_rotation_matrix.to(device="cpu", dtype=torch.float32, copy=True)
             if pq_rotation_matrix is not None

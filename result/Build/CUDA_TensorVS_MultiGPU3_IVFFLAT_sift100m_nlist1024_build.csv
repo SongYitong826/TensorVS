@@ -1,0 +1,2 @@
+dataset,method,nlist,n_vectors,dim,build_seconds,save_seconds,index_size_bytes,index_size_mib,peak_build_gpu_memory_mib
+sift100m,TensorVS-MultiGPU3-ivfflat,1024,100000000,128,12.342858543153852,1065.6590523142368,54027016101,51524.17764759064,6804.0

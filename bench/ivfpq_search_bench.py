@@ -17,8 +17,6 @@ import torch
 from tensorvs import (
     build_ivfpq_index,
     compute_recall_at_k,
-    load_dataset,
-    load_ivecs,
     load_ivfpq_index,
     save_ivfpq_index,
     search_ivfpq_index,
@@ -28,6 +26,8 @@ from tensorvs._ivfpq_triton import can_run_topk as can_run_triton_topk
 try:
     from ._benchmark_utils import (
         process_gpu_memory_bytes,
+        load_benchmark_vectors,
+        load_benchmark_groundtruth,
         probe_visit_statistics,
         print_result,
         run_one_nprobe,
@@ -35,6 +35,8 @@ try:
 except ImportError:  # Direct execution: ``python bench/ivfpq_search_bench.py``.
     from _benchmark_utils import (
         process_gpu_memory_bytes,
+        load_benchmark_vectors,
+        load_benchmark_groundtruth,
         probe_visit_statistics,
         print_result,
         run_one_nprobe,
@@ -58,6 +60,11 @@ DATASET_PROFILES = {
         "nprobes": (5, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150),
     },
     "sift10m": {
+        "nlist": 1024,
+        "pq_dim": 16,
+        "nprobes": (5, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150),
+    },
+    "sift100m": {
         "nlist": 1024,
         "pq_dim": 16,
         "nprobes": (5, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150),
@@ -157,6 +164,7 @@ INDEX_PATH = (
 RESULT_TRAIN_LABELS = {
     "sift1m": 256,
     "sift10m": 256,
+    "sift100m": 256,
     "glove1.2m": 512,
     "deep1m": 256,
     "tiny5m": 256,
@@ -258,7 +266,7 @@ def load_or_build_index() -> object:
         return load_ivfpq_index(INDEX_PATH, load_lists=True)
 
     print(f"Index not found; building IVF-PQ index at {INDEX_PATH}")
-    base_vectors = load_dataset(DATASET_PATH)
+    base_vectors = load_benchmark_vectors(DATASET_PATH)
     build_start = time.perf_counter()
     build_result = build_ivfpq_index(
         vectors=base_vectors,
@@ -342,8 +350,8 @@ def main() -> None:
     index.reside_on_device(DEVICE)
     torch.cuda.synchronize(DEVICE)
     memory_baseline_process_mb = process_gpu_memory_bytes(DEVICE) / (1 << 20)
-    queries = load_dataset(QUERY_PATH)
-    groundtruth = load_ivecs(GROUNDTRUTH_PATH)
+    queries = load_benchmark_vectors(QUERY_PATH)
+    groundtruth = load_benchmark_groundtruth(GROUNDTRUTH_PATH)
     if queries.shape[0] != groundtruth.shape[0]:
         raise ValueError(
             f"Query count {queries.shape[0]} does not match groundtruth count "
@@ -363,7 +371,7 @@ def main() -> None:
     autotuned_representatives: set[int] = set()
     if int(TOPK) <= 0:
         raise ValueError(f"TOPK must be positive, got {TOPK}")
-    refine_vectors = load_dataset(DATASET_PATH) if REFINE_FACTOR > 1 else None
+    refine_vectors = load_benchmark_vectors(DATASET_PATH) if REFINE_FACTOR > 1 else None
 
     ksub = int(index.metadata["ksub"])
     search_topk = TOPK * REFINE_FACTOR if refine_vectors is not None else TOPK

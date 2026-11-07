@@ -65,3 +65,15 @@ dist/
 /tables/*.fls
 /tables/*.log
 /tables/*.out
+
+!/bench/run_sift100m_multigpu_bench.sh
+
+!/bench/run_sift100m_suite.sh
+
+!/bench/SIFT100M_MULTIGPU.md
+
+!/bench/run_sift100m_library_bench.sh
+
+!/bench/run_sift100m_library_suite.sh
+
+!/bench/SIFT100M_LIBRARY_MULTIGPU.md

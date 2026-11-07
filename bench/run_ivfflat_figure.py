@@ -104,6 +104,13 @@ def resolve_input_file(dataset_dir: Path, preferred: str, pattern: str) -> Path:
     if len(candidates) == 1:
         print(f"Using non-standard dataset filename: {candidates[0]}")
         return candidates[0]
+    binary_name = {
+        "*_base.fvecs": "base.bin",
+        "*_query.fvecs": "query.bin",
+        "*_groundtruth.ivecs": "groundtruth.bin",
+    }.get(pattern)
+    if not candidates and binary_name and (dataset_dir / binary_name).is_file():
+        return dataset_dir / binary_name
     raise FileNotFoundError(
         f"Could not resolve {preferred_path}; {pattern!r} matched {len(candidates)} files"
     )
@@ -111,7 +118,7 @@ def resolve_input_file(dataset_dir: Path, preferred: str, pattern: str) -> Path:
 
 def make_config(args: argparse.Namespace) -> Config:
     dataset = args.dataset.casefold()
-    dataset_dir = args.dataset_dir or DATA_ROOT / dataset
+    dataset_dir = args.dataset_dir or DATA_ROOT / ("sift100M" if dataset == "sift100m" else dataset)
     if dataset not in profile_source.DATASET_PROFILES:
         raise ValueError(
             f"No dataset profile for {dataset!r} in bench/ivfpq_search_bench.py; "

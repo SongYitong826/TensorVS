@@ -1,0 +1,2036 @@
+{
+  "status": "complete",
+  "config": {
+    "build": {
+      "library": "cuvs",
+      "kind": "ivfflat",
+      "base": {
+        "path": "/storage/vector_data/sift100M/base.bin",
+        "size_bytes": 12800000008,
+        "mtime_ns": 1772092852828585798
+      },
+      "dataset": "sift100m",
+      "shards": 3,
+      "nlist_per_shard": 1024,
+      "global_nlist": 3072,
+      "independent_quantizers": true,
+      "dtype": "uint8",
+      "metric": "squared L2",
+      "bounds": [
+        [
+          0,
+          33333333
+        ],
+        [
+          33333333,
+          66666666
+        ],
+        [
+          66666666,
+          100000000
+        ]
+      ],
+      "coarse_iters": 25,
+      "train_fraction": 0.5,
+      "pq_dim": 16,
+      "pq_bits": 8,
+      "pq_train_points": 512,
+      "actual_pq_iters": 25,
+      "pq_restarts": "native library default",
+      "seed": "native library default (API has no seed parameter)",
+      "add_batch_size": 65536,
+      "faiss_use_cuvs": null,
+      "source_hashes": {
+        "bench/sift100m_library_multigpu_bench.py": "d765bb0d463a474ef47fd1cbf1a868628d2de370477796dab7be27efc1507aae",
+        "bench/_sift100m_library_worker.py": "4788fc6e39eb309e007357dfc2378082d7c242c5c6182cbadef93214563d30fc",
+        "bench/_sift100m_library_protocol.py": "7a697404cd3c8615939e3818c5b72c196649199ff3f384eabaa9ddef86a3a01f",
+        "bench/sift100m_multigpu_bench.py": "9fadef79d37cf955c6e337ab73a5d1d03781817c33aa87db843305443aea7863",
+        "bench/_benchmark_utils.py": "e1cf36e22d1a3c4b0fd12df29662e87a993d9374178483536bff7ca73ed73068"
+      }
+    },
+    "gpus": [
+      0,
+      1,
+      2
+    ],
+    "worker_env": "cuvs",
+    "queries": {
+      "path": "/storage/vector_data/sift100M/query.bin",
+      "size_bytes": 128008,
+      "mtime_ns": 1772092853816565822
+    },
+    "truth": {
+      "path": "/storage/vector_data/sift100M/groundtruth.bin",
+      "size_bytes": 400008,
+      "mtime_ns": 1772094075497161617
+    },
+    "nq": 1000,
+    "topk": 10,
+    "q_batches": [
+      32,
+      128,
+      512
+    ],
+    "nprobes": [
+      5,
+      10,
+      15,
+      20,
+      30,
+      40,
+      50,
+      60,
+      70,
+      80,
+      90,
+      100,
+      120,
+      150
+    ],
+    "warmup": 2,
+    "repetitions": 3,
+    "query_input": "resident-gpu",
+    "lut_dtype": "fp32",
+    "cpu_threads": 4,
+    "faiss_temp_memory_mib": 128,
+    "index_paths": [
+      "/storage/vector_data/sift100M/GPUIndex/cuVS_MultiGPU3/CUDA_cuVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_UInt8_build/shard0of3.bin",
+      "/storage/vector_data/sift100M/GPUIndex/cuVS_MultiGPU3/CUDA_cuVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_UInt8_build/shard1of3.bin",
+      "/storage/vector_data/sift100M/GPUIndex/cuVS_MultiGPU3/CUDA_cuVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_UInt8_build/shard2of3.bin"
+    ]
+  },
+  "results": [
+    {
+      "nprobes": 5,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 19102.04501335339,
+      "recall": 0.7669999999999977,
+      "visited_vectors_per_query": 531955.6159999999,
+      "peak_gpu_memory": 17652.0,
+      "samples_seconds": [
+        0.0440506967715919,
+        0.05235041584819555,
+        0.05254652909934521
+      ],
+      "memory": {
+        "peak_total_mib": 17652.0,
+        "peak_per_gpu_mib": {
+          "0": 5910.0,
+          "1": 5880.0,
+          "2": 5862.0
+        },
+        "samples": 6,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 174813.724,
+          "minimum": 131338,
+          "maximum": 270719,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 181189.886,
+          "minimum": 131469,
+          "maximum": 320010,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 175952.006,
+          "minimum": 116551,
+          "maximum": 272980,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 10,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 17806.06327313987,
+      "recall": 0.8780999999999969,
+      "visited_vectors_per_query": 1049656.25,
+      "peak_gpu_memory": 17652.0,
+      "samples_seconds": [
+        0.056160645093768835,
+        0.05957220960408449,
+        0.05528765730559826
+      ],
+      "memory": {
+        "peak_total_mib": 17652.0,
+        "peak_per_gpu_mib": {
+          "0": 5910.0,
+          "1": 5880.0,
+          "2": 5862.0
+        },
+        "samples": 7,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 345927.78,
+          "minimum": 270626,
+          "maximum": 546040,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 355238.057,
+          "minimum": 267976,
+          "maximum": 535765,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 348490.413,
+          "minimum": 260334,
+          "maximum": 506216,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 15,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 14337.32928926103,
+      "recall": 0.923299999999996,
+      "visited_vectors_per_query": 1559360.363,
+      "peak_gpu_memory": 17652.0,
+      "samples_seconds": [
+        0.07114801788702607,
+        0.06974799698218703,
+        0.06728239124640822
+      ],
+      "memory": {
+        "peak_total_mib": 17652.0,
+        "peak_per_gpu_mib": {
+          "0": 5910.0,
+          "1": 5880.0,
+          "2": 5862.0
+        },
+        "samples": 8,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 514917.143,
+          "minimum": 424845,
+          "maximum": 777000,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 525364.199,
+          "minimum": 408828,
+          "maximum": 740810,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 519079.021,
+          "minimum": 409227,
+          "maximum": 712046,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 20,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 13165.722778824038,
+      "recall": 0.9488999999999967,
+      "visited_vectors_per_query": 2067056.258,
+      "peak_gpu_memory": 17652.0,
+      "samples_seconds": [
+        0.07595481211319566,
+        0.07584938826039433,
+        0.07630961528047919
+      ],
+      "memory": {
+        "peak_total_mib": 17652.0,
+        "peak_per_gpu_mib": {
+          "0": 5910.0,
+          "1": 5880.0,
+          "2": 5862.0
+        },
+        "samples": 8,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 683832.71,
+          "minimum": 564993,
+          "maximum": 971852,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 694683.23,
+          "minimum": 562626,
+          "maximum": 930189,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 688540.318,
+          "minimum": 560136,
+          "maximum": 908829,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 30,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 10305.94011508773,
+      "recall": 0.9718999999999977,
+      "visited_vectors_per_query": 3072878.085,
+      "peak_gpu_memory": 17652.0,
+      "samples_seconds": [
+        0.0986108360812068,
+        0.09635603195056319,
+        0.09703141963109374
+      ],
+      "memory": {
+        "peak_total_mib": 17652.0,
+        "peak_per_gpu_mib": {
+          "0": 5910.0,
+          "1": 5880.0,
+          "2": 5862.0
+        },
+        "samples": 10,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 1018572.245,
+          "minimum": 851477,
+          "maximum": 1334853,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1030895.037,
+          "minimum": 866001,
+          "maximum": 1317696,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1023410.803,
+          "minimum": 852699,
+          "maximum": 1330728,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 40,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 9580.336821689534,
+      "recall": 0.9842999999999983,
+      "visited_vectors_per_query": 4073078.8720000004,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.10658435523509979,
+        0.10438046371564269,
+        0.1036845687776804
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 11,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 1351539.599,
+          "minimum": 1143258,
+          "maximum": 1708157,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1364469.141,
+          "minimum": 1170844,
+          "maximum": 1673330,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1357070.132,
+          "minimum": 1148289,
+          "maximum": 1690040,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 50,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 6604.548159306409,
+      "recall": 0.9895999999999989,
+      "visited_vectors_per_query": 5069488.2639999995,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.15141081204637885,
+        0.15256044501438737,
+        0.14974987413734198
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 15,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 1683270.14,
+          "minimum": 1454758,
+          "maximum": 2117838,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1698023.846,
+          "minimum": 1492708,
+          "maximum": 2080566,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1688194.278,
+          "minimum": 1454606,
+          "maximum": 2038222,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 60,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 5228.802572449233,
+      "recall": 0.9929999999999992,
+      "visited_vectors_per_query": 6063111.1620000005,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.19124837592244148,
+        0.1876148940064013,
+        0.1922376467846334
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 19,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 2013507.553,
+          "minimum": 1787096,
+          "maximum": 2458716,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2030667.143,
+          "minimum": 1795336,
+          "maximum": 2466514,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2018936.466,
+          "minimum": 1751812,
+          "maximum": 2417428,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 70,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 4356.227847880234,
+      "recall": 0.9952999999999994,
+      "visited_vectors_per_query": 7055041.350000001,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.22926075290888548,
+        0.23018693970516324,
+        0.2295564040541649
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 22,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 2344354.709,
+          "minimum": 2092522,
+          "maximum": 2831177,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2361467.896,
+          "minimum": 2101116,
+          "maximum": 2808121,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2349218.745,
+          "minimum": 2061424,
+          "maximum": 2788372,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 80,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 3685.0591293045873,
+      "recall": 0.9964999999999996,
+      "visited_vectors_per_query": 8045452.737000001,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.27136606629937887,
+        0.27050056867301464,
+        0.2733522732742131
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 25,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 2674517.004,
+          "minimum": 2384234,
+          "maximum": 3161931,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2692641.034,
+          "minimum": 2392772,
+          "maximum": 3139090,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2678294.699,
+          "minimum": 2373760,
+          "maximum": 3138677,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 90,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 3214.9696570500105,
+      "recall": 0.9971999999999995,
+      "visited_vectors_per_query": 9033270.490999999,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.31421319488435984,
+        0.3101280187256634,
+        0.311044926289469
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 30,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 3002803.814,
+          "minimum": 2710845,
+          "maximum": 3520404,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3022716.158,
+          "minimum": 2715505,
+          "maximum": 3543588,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3007750.519,
+          "minimum": 2673605,
+          "maximum": 3485974,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 100,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 2855.6831063090085,
+      "recall": 0.9979999999999998,
+      "visited_vectors_per_query": 10020736.33,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.35535290511325,
+        0.3501789108850062,
+        0.35008277697488666
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 34,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 3331940.429,
+          "minimum": 3035111,
+          "maximum": 3881228,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3352588.431,
+          "minimum": 3038548,
+          "maximum": 3875410,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3336207.47,
+          "minimum": 3009171,
+          "maximum": 3808567,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 120,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 2310.993030526789,
+      "recall": 0.9989999999999998,
+      "visited_vectors_per_query": 11986609.159,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.432714416179806,
+        0.4326848806813359,
+        0.4338953588157892
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 41,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 3985135.691,
+          "minimum": 3665272,
+          "maximum": 4611266,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 4010228.197,
+          "minimum": 3683474,
+          "maximum": 4556776,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3991245.271,
+          "minimum": 3640174,
+          "maximum": 4528545,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 150,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 1820.7482219791912,
+      "recall": 0.9993999999999998,
+      "visited_vectors_per_query": 14928555.363,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.5495093860663474,
+        0.5492247571237385,
+        0.5481974817812443
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 52,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 4964959.375,
+          "minimum": 4564831,
+          "maximum": 5653107,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 4992197.612,
+          "minimum": 4599385,
+          "maximum": 5624931,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 4971398.376,
+          "minimum": 4569491,
+          "maximum": 5571545,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 5,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 53405.171972802076,
+      "recall": 0.7669999999999977,
+      "visited_vectors_per_query": 531955.6159999999,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.018724778201431036,
+        0.01876202132552862,
+        0.01853638095781207
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 3,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 174813.724,
+          "minimum": 131338,
+          "maximum": 270719,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 181189.886,
+          "minimum": 131469,
+          "maximum": 320010,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 175952.006,
+          "minimum": 116551,
+          "maximum": 272980,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 10,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 41094.88727677484,
+      "recall": 0.8780999999999969,
+      "visited_vectors_per_query": 1049656.25,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.02427572477608919,
+        0.0243339273147285,
+        0.024361636955291033
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 4,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 345927.78,
+          "minimum": 270626,
+          "maximum": 546040,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 355238.057,
+          "minimum": 267976,
+          "maximum": 535765,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 348490.413,
+          "minimum": 260334,
+          "maximum": 506216,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 15,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 23085.752435815368,
+      "recall": 0.923299999999996,
+      "visited_vectors_per_query": 1559367.896,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.04442155687138438,
+        0.04331676010042429,
+        0.04309538612142205
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 5,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 514917.143,
+          "minimum": 424845,
+          "maximum": 777000,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 525368.715,
+          "minimum": 408828,
+          "maximum": 740810,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 519082.038,
+          "minimum": 409227,
+          "maximum": 712046,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 20,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 16109.284296443575,
+      "recall": 0.9488999999999967,
+      "visited_vectors_per_query": 2067051.5529999998,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.06207600422203541,
+        0.06213297974318266,
+        0.06157428398728371
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 7,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 683830.491,
+          "minimum": 564993,
+          "maximum": 971852,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 694680.744,
+          "minimum": 562626,
+          "maximum": 930189,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 688540.318,
+          "minimum": 560136,
+          "maximum": 908829,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 30,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 9588.84740015679,
+      "recall": 0.9718999999999977,
+      "visited_vectors_per_query": 3072878.085,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.1042878208681941,
+        0.10410476941615343,
+        0.10447460832074285
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 11,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 1018572.245,
+          "minimum": 851477,
+          "maximum": 1334853,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1030895.037,
+          "minimum": 866001,
+          "maximum": 1317696,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1023410.803,
+          "minimum": 852699,
+          "maximum": 1330728,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 40,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 6832.855975296914,
+      "recall": 0.9842999999999983,
+      "visited_vectors_per_query": 4073081.381,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.1463516871444881,
+        0.14654371701180935,
+        0.14622310968115926
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 15,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 1351531.279,
+          "minimum": 1143258,
+          "maximum": 1708157,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1364475.864,
+          "minimum": 1170844,
+          "maximum": 1673330,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1357074.238,
+          "minimum": 1148289,
+          "maximum": 1690040,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 50,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 5423.260682342303,
+      "recall": 0.9895999999999989,
+      "visited_vectors_per_query": 5069500.061,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.18419708823785186,
+        0.18439091509208083,
+        0.18461364740505815
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 18,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 1683270.14,
+          "minimum": 1454758,
+          "maximum": 2117838,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1698023.846,
+          "minimum": 1492708,
+          "maximum": 2080566,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1688206.075,
+          "minimum": 1454606,
+          "maximum": 2038222,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 60,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 4429.830106934747,
+      "recall": 0.9929999999999992,
+      "visited_vectors_per_query": 6063103.694,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.22574229165911674,
+        0.22537334403023124,
+        0.22576167806982994
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 22,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 2013501.037,
+          "minimum": 1787096,
+          "maximum": 2458716,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2030667.143,
+          "minimum": 1795336,
+          "maximum": 2466514,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2018935.514,
+          "minimum": 1751812,
+          "maximum": 2417428,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 70,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 3714.815939259545,
+      "recall": 0.9952999999999994,
+      "visited_vectors_per_query": 7055041.350000001,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.26946702832356095,
+        0.26919234124943614,
+        0.26907493406906724
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 26,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 2344354.709,
+          "minimum": 2092522,
+          "maximum": 2831177,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2361467.896,
+          "minimum": 2101116,
+          "maximum": 2808121,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2349218.745,
+          "minimum": 2061424,
+          "maximum": 2788372,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 80,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 3222.0694850464342,
+      "recall": 0.9964999999999996,
+      "visited_vectors_per_query": 8045452.737000001,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.31104538263753057,
+        0.3103595389984548,
+        0.30753360502421856
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 29,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 2674517.004,
+          "minimum": 2384234,
+          "maximum": 3161931,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2692641.034,
+          "minimum": 2392772,
+          "maximum": 3139090,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2678294.699,
+          "minimum": 2373760,
+          "maximum": 3138677,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 90,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 2833.5149598365756,
+      "recall": 0.9971999999999995,
+      "visited_vectors_per_query": 9033270.490999999,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.35291855316609144,
+        0.3525818130001426,
+        0.35388519894331694
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 33,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 3002803.814,
+          "minimum": 2710845,
+          "maximum": 3520404,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3022716.158,
+          "minimum": 2715505,
+          "maximum": 3543588,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3007750.519,
+          "minimum": 2673605,
+          "maximum": 3485974,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 100,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 2552.4354072865485,
+      "recall": 0.9979999999999998,
+      "visited_vectors_per_query": 10020736.33,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.39416520902886987,
+        0.3917826861143112,
+        0.3910713428631425
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 37,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 3331940.429,
+          "minimum": 3035111,
+          "maximum": 3881228,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3352588.431,
+          "minimum": 3038548,
+          "maximum": 3875410,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3336207.47,
+          "minimum": 3009171,
+          "maximum": 3808567,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 120,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 2092.152523680658,
+      "recall": 0.9989999999999998,
+      "visited_vectors_per_query": 11986609.159,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.47804875718429685,
+        0.47797662392258644,
+        0.4776962692849338
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 44,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 3985135.691,
+          "minimum": 3665272,
+          "maximum": 4611266,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 4010228.197,
+          "minimum": 3683474,
+          "maximum": 4556776,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3991245.271,
+          "minimum": 3640174,
+          "maximum": 4528545,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 150,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 1661.632330888668,
+      "recall": 0.9993999999999998,
+      "visited_vectors_per_query": 14928555.363,
+      "peak_gpu_memory": 17658.0,
+      "samples_seconds": [
+        0.6031279866583645,
+        0.6018178518861532,
+        0.6014998028986156
+      ],
+      "memory": {
+        "peak_total_mib": 17658.0,
+        "peak_per_gpu_mib": {
+          "0": 5912.0,
+          "1": 5882.0,
+          "2": 5864.0
+        },
+        "samples": 56,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 4964959.375,
+          "minimum": 4564831,
+          "maximum": 5653107,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 4992197.612,
+          "minimum": 4599385,
+          "maximum": 5624931,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 4971398.376,
+          "minimum": 4569491,
+          "maximum": 5571545,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 5,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 62450.93378161474,
+      "recall": 0.7669999999999977,
+      "visited_vectors_per_query": 531955.6159999999,
+      "peak_gpu_memory": 17664.0,
+      "samples_seconds": [
+        0.016062264796346426,
+        0.016012570820748806,
+        0.015934555791318417
+      ],
+      "memory": {
+        "peak_total_mib": 17664.0,
+        "peak_per_gpu_mib": {
+          "0": 5914.0,
+          "1": 5884.0,
+          "2": 5866.0
+        },
+        "samples": 3,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 174813.724,
+          "minimum": 131338,
+          "maximum": 270719,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 181189.886,
+          "minimum": 131469,
+          "maximum": 320010,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 175952.006,
+          "minimum": 116551,
+          "maximum": 272980,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 10,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 26863.14293434918,
+      "recall": 0.8780999999999969,
+      "visited_vectors_per_query": 1049662.698,
+      "peak_gpu_memory": 17664.0,
+      "samples_seconds": [
+        0.0371147720143199,
+        0.037327751982957125,
+        0.037225726060569286
+      ],
+      "memory": {
+        "peak_total_mib": 17664.0,
+        "peak_per_gpu_mib": {
+          "0": 5914.0,
+          "1": 5884.0,
+          "2": 5866.0
+        },
+        "samples": 5,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 345927.78,
+          "minimum": 270626,
+          "maximum": 546040,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 355238.057,
+          "minimum": 267976,
+          "maximum": 535765,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 348496.861,
+          "minimum": 260334,
+          "maximum": 506216,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 15,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 17350.562771303565,
+      "recall": 0.923299999999996,
+      "visited_vectors_per_query": 1559384.223,
+      "peak_gpu_memory": 17664.0,
+      "samples_seconds": [
+        0.0576350181363523,
+        0.0575859509408474,
+        0.05764608317986131
+      ],
+      "memory": {
+        "peak_total_mib": 17664.0,
+        "peak_per_gpu_mib": {
+          "0": 5914.0,
+          "1": 5884.0,
+          "2": 5866.0
+        },
+        "samples": 7,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 514917.143,
+          "minimum": 424845,
+          "maximum": 777000,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 525368.715,
+          "minimum": 408828,
+          "maximum": 740810,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 519098.365,
+          "minimum": 409227,
+          "maximum": 712046,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 20,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 12813.212400269713,
+      "recall": 0.9488999999999967,
+      "visited_vectors_per_query": 2067051.5529999998,
+      "peak_gpu_memory": 17664.0,
+      "samples_seconds": [
+        0.07791408896446228,
+        0.07804444106295705,
+        0.07817459292709827
+      ],
+      "memory": {
+        "peak_total_mib": 17664.0,
+        "peak_per_gpu_mib": {
+          "0": 5914.0,
+          "1": 5884.0,
+          "2": 5866.0
+        },
+        "samples": 9,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 683830.491,
+          "minimum": 564993,
+          "maximum": 971852,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 694680.744,
+          "minimum": 562626,
+          "maximum": 930189,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 688540.318,
+          "minimum": 560136,
+          "maximum": 908829,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 30,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 8395.607050290018,
+      "recall": 0.9718999999999977,
+      "visited_vectors_per_query": 3072875.695,
+      "peak_gpu_memory": 17664.0,
+      "samples_seconds": [
+        0.11980022396892309,
+        0.11910990998148918,
+        0.11894766893237829
+      ],
+      "memory": {
+        "peak_total_mib": 17664.0,
+        "peak_per_gpu_mib": {
+          "0": 5914.0,
+          "1": 5884.0,
+          "2": 5866.0
+        },
+        "samples": 12,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 1018572.245,
+          "minimum": 851477,
+          "maximum": 1334853,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1030892.647,
+          "minimum": 866001,
+          "maximum": 1317696,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1023410.803,
+          "minimum": 852699,
+          "maximum": 1330728,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 40,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 6251.419528428211,
+      "recall": 0.9842999999999983,
+      "visited_vectors_per_query": 4073075.671,
+      "peak_gpu_memory": 17664.0,
+      "samples_seconds": [
+        0.15977899124845862,
+        0.16006685979664326,
+        0.1599636683240533
+      ],
+      "memory": {
+        "peak_total_mib": 17664.0,
+        "peak_per_gpu_mib": {
+          "0": 5914.0,
+          "1": 5884.0,
+          "2": 5866.0
+        },
+        "samples": 16,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 1351539.884,
+          "minimum": 1143258,
+          "maximum": 1708157,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1364475.111,
+          "minimum": 1170844,
+          "maximum": 1673330,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1357060.676,
+          "minimum": 1148289,
+          "maximum": 1690040,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 50,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 4972.217429215095,
+      "recall": 0.9895999999999989,
+      "visited_vectors_per_query": 5069500.061,
+      "peak_gpu_memory": 17664.0,
+      "samples_seconds": [
+        0.20160871278494596,
+        0.2008888009004295,
+        0.20111751230433583
+      ],
+      "memory": {
+        "peak_total_mib": 17664.0,
+        "peak_per_gpu_mib": {
+          "0": 5914.0,
+          "1": 5884.0,
+          "2": 5866.0
+        },
+        "samples": 20,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 1683270.14,
+          "minimum": 1454758,
+          "maximum": 2117838,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1698023.846,
+          "minimum": 1492708,
+          "maximum": 2080566,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 1688206.075,
+          "minimum": 1454606,
+          "maximum": 2038222,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 60,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 4120.081962685621,
+      "recall": 0.9929999999999992,
+      "visited_vectors_per_query": 6063111.882,
+      "peak_gpu_memory": 17664.0,
+      "samples_seconds": [
+        0.24209255818277597,
+        0.2427136180922389,
+        0.24277890799567103
+      ],
+      "memory": {
+        "peak_total_mib": 17664.0,
+        "peak_per_gpu_mib": {
+          "0": 5914.0,
+          "1": 5884.0,
+          "2": 5866.0
+        },
+        "samples": 23,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 2013507.553,
+          "minimum": 1787096,
+          "maximum": 2458716,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2030667.143,
+          "minimum": 1795336,
+          "maximum": 2466514,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2018937.186,
+          "minimum": 1751812,
+          "maximum": 2417428,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 70,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 3513.6023955624128,
+      "recall": 0.9952999999999994,
+      "visited_vectors_per_query": 7055041.350000001,
+      "peak_gpu_memory": 17664.0,
+      "samples_seconds": [
+        0.284608184825629,
+        0.28314122976735234,
+        0.284701538272202
+      ],
+      "memory": {
+        "peak_total_mib": 17664.0,
+        "peak_per_gpu_mib": {
+          "0": 5914.0,
+          "1": 5884.0,
+          "2": 5866.0
+        },
+        "samples": 27,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 2344354.709,
+          "minimum": 2092522,
+          "maximum": 2831177,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2361467.896,
+          "minimum": 2101116,
+          "maximum": 2808121,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2349218.745,
+          "minimum": 2061424,
+          "maximum": 2788372,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 80,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 3060.78296758556,
+      "recall": 0.9964999999999996,
+      "visited_vectors_per_query": 8045452.737000001,
+      "peak_gpu_memory": 17664.0,
+      "samples_seconds": [
+        0.32549295481294394,
+        0.327127693220973,
+        0.32671378878876567
+      ],
+      "memory": {
+        "peak_total_mib": 17664.0,
+        "peak_per_gpu_mib": {
+          "0": 5914.0,
+          "1": 5884.0,
+          "2": 5866.0
+        },
+        "samples": 31,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 2674517.004,
+          "minimum": 2384234,
+          "maximum": 3161931,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2692641.034,
+          "minimum": 2392772,
+          "maximum": 3139090,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 2678294.699,
+          "minimum": 2373760,
+          "maximum": 3138677,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 90,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 2726.554670171655,
+      "recall": 0.9971999999999995,
+      "visited_vectors_per_query": 9033270.490999999,
+      "peak_gpu_memory": 17664.0,
+      "samples_seconds": [
+        0.36582712503150105,
+        0.36877044197171926,
+        0.36676323087885976
+      ],
+      "memory": {
+        "peak_total_mib": 17664.0,
+        "peak_per_gpu_mib": {
+          "0": 5914.0,
+          "1": 5884.0,
+          "2": 5866.0
+        },
+        "samples": 35,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 3002803.814,
+          "minimum": 2710845,
+          "maximum": 3520404,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3022716.158,
+          "minimum": 2715505,
+          "maximum": 3543588,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3007750.519,
+          "minimum": 2673605,
+          "maximum": 3485974,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 100,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 2449.2420744725787,
+      "recall": 0.9979999999999998,
+      "visited_vectors_per_query": 10020736.33,
+      "peak_gpu_memory": 17664.0,
+      "samples_seconds": [
+        0.4085164926946163,
+        0.4080550200305879,
+        0.40828957268968225
+      ],
+      "memory": {
+        "peak_total_mib": 17664.0,
+        "peak_per_gpu_mib": {
+          "0": 5914.0,
+          "1": 5884.0,
+          "2": 5866.0
+        },
+        "samples": 38,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 3331940.429,
+          "minimum": 3035111,
+          "maximum": 3881228,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3352588.431,
+          "minimum": 3038548,
+          "maximum": 3875410,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3336207.47,
+          "minimum": 3009171,
+          "maximum": 3808567,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 120,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 2032.5515279279416,
+      "recall": 0.9989999999999998,
+      "visited_vectors_per_query": 11986609.159,
+      "peak_gpu_memory": 17664.0,
+      "samples_seconds": [
+        0.49236577469855547,
+        0.49199244705960155,
+        0.49100659787654877
+      ],
+      "memory": {
+        "peak_total_mib": 17664.0,
+        "peak_per_gpu_mib": {
+          "0": 5914.0,
+          "1": 5884.0,
+          "2": 5866.0
+        },
+        "samples": 46,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 3985135.691,
+          "minimum": 3665272,
+          "maximum": 4611266,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 4010228.197,
+          "minimum": 3683474,
+          "maximum": 4556776,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 3991245.271,
+          "minimum": 3640174,
+          "maximum": 4528545,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    },
+    {
+      "nprobes": 150,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 1620.8842870208302,
+      "recall": 0.9993999999999998,
+      "visited_vectors_per_query": 14928555.363,
+      "peak_gpu_memory": 17664.0,
+      "samples_seconds": [
+        0.6165431658737361,
+        0.6173953749239445,
+        0.6169471861794591
+      ],
+      "memory": {
+        "peak_total_mib": 17664.0,
+        "peak_per_gpu_mib": {
+          "0": 5914.0,
+          "1": 5884.0,
+          "2": 5866.0
+        },
+        "samples": 57,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 4964959.375,
+          "minimum": 4564831,
+          "maximum": 5653107,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 4992197.612,
+          "minimum": 4599385,
+          "maximum": 5624931,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        },
+        {
+          "visited_vectors_per_query": 4971398.376,
+          "minimum": 4569491,
+          "maximum": 5571545,
+          "source": "native list occupancy and cuVS brute-force nearest coarse centers"
+        }
+      ]
+    }
+  ],
+  "timing": "median full-query wall time: dispatch to three workers, GPU search, output device-to-host copies, response IPC, CPU global Top-K and final concatenation; excludes warmup, recall, visit statistics and memory sweep",
+  "query_input": "resident-gpu",
+  "query_transfer": "queries pre-uploaded before timing",
+  "memory_unit": "MiB",
+  "memory_metric": "maximum sampled simultaneous sum of the three native-worker NVML process memories in a separate sweep",
+  "nlist_semantics": "1024 per independent shard by default; global list count is 3072",
+  "probe_semantics": "nprobes applies independently to each shard",
+  "workers": [
+    {
+      "state": "ready",
+      "rank": 0,
+      "pid": 1101692,
+      "library_version": "26.08.00",
+      "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+      "environment": "/home/songyitong/miniconda3/envs/cuvs",
+      "cuda_runtime_version": 13030,
+      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/cuvs/lib/libcudart.so",
+      "cuda_visible_devices": "0"
+    },
+    {
+      "state": "ready",
+      "rank": 1,
+      "pid": 1101646,
+      "library_version": "26.08.00",
+      "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+      "environment": "/home/songyitong/miniconda3/envs/cuvs",
+      "cuda_runtime_version": 13030,
+      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/cuvs/lib/libcudart.so",
+      "cuda_visible_devices": "1"
+    },
+    {
+      "state": "ready",
+      "rank": 2,
+      "pid": 1101694,
+      "library_version": "26.08.00",
+      "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+      "environment": "/home/songyitong/miniconda3/envs/cuvs",
+      "cuda_runtime_version": 13030,
+      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/cuvs/lib/libcudart.so",
+      "cuda_visible_devices": "2"
+    }
+  ],
+  "software": [
+    {
+      "library_version": "26.08.00",
+      "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+      "environment": "/home/songyitong/miniconda3/envs/cuvs",
+      "cuda_runtime_version": 13030,
+      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/cuvs/lib/libcudart.so"
+    },
+    {
+      "library_version": "26.08.00",
+      "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+      "environment": "/home/songyitong/miniconda3/envs/cuvs",
+      "cuda_runtime_version": 13030,
+      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/cuvs/lib/libcudart.so"
+    },
+    {
+      "library_version": "26.08.00",
+      "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+      "environment": "/home/songyitong/miniconda3/envs/cuvs",
+      "cuda_runtime_version": 13030,
+      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/cuvs/lib/libcudart.so"
+    }
+  ],
+  "indexes": [
+    {
+      "path": "/storage/vector_data/sift100M/GPUIndex/cuVS_MultiGPU3/CUDA_cuVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_UInt8_build/shard0of3.bin",
+      "size_bytes": 4536459423,
+      "mtime_ns": 1794041079116297465
+    },
+    {
+      "path": "/storage/vector_data/sift100M/GPUIndex/cuVS_MultiGPU3/CUDA_cuVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_UInt8_build/shard1of3.bin",
+      "size_bytes": 4536498591,
+      "mtime_ns": 1794041121123428337
+    },
+    {
+      "path": "/storage/vector_data/sift100M/GPUIndex/cuVS_MultiGPU3/CUDA_cuVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_UInt8_build/shard2of3.bin",
+      "size_bytes": 4536311455,
+      "mtime_ns": 1794041162294355537
+    }
+  ],
+  "completed_rows": 42,
+  "expected_rows": 42
+}

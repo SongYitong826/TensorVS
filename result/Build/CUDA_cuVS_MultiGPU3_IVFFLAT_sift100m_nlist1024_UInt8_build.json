@@ -1,0 +1,541 @@
+{
+  "status": "complete",
+  "build_config": {
+    "library": "cuvs",
+    "kind": "ivfflat",
+    "base": {
+      "path": "/storage/vector_data/sift100M/base.bin",
+      "size_bytes": 12800000008,
+      "mtime_ns": 1772092852828585798
+    },
+    "dataset": "sift100m",
+    "shards": 3,
+    "nlist_per_shard": 1024,
+    "global_nlist": 3072,
+    "independent_quantizers": true,
+    "dtype": "uint8",
+    "metric": "squared L2",
+    "bounds": [
+      [
+        0,
+        33333333
+      ],
+      [
+        33333333,
+        66666666
+      ],
+      [
+        66666666,
+        100000000
+      ]
+    ],
+    "coarse_iters": 25,
+    "train_fraction": 0.5,
+    "pq_dim": 16,
+    "pq_bits": 8,
+    "pq_train_points": 512,
+    "actual_pq_iters": 25,
+    "pq_restarts": "native library default",
+    "seed": "native library default (API has no seed parameter)",
+    "add_batch_size": 65536,
+    "faiss_use_cuvs": null,
+    "source_hashes": {
+      "bench/sift100m_library_multigpu_bench.py": "d765bb0d463a474ef47fd1cbf1a868628d2de370477796dab7be27efc1507aae",
+      "bench/_sift100m_library_worker.py": "4788fc6e39eb309e007357dfc2378082d7c242c5c6182cbadef93214563d30fc",
+      "bench/_sift100m_library_protocol.py": "7a697404cd3c8615939e3818c5b72c196649199ff3f384eabaa9ddef86a3a01f",
+      "bench/sift100m_multigpu_bench.py": "9fadef79d37cf955c6e337ab73a5d1d03781817c33aa87db843305443aea7863",
+      "bench/_benchmark_utils.py": "e1cf36e22d1a3c4b0fd12df29662e87a993d9374178483536bff7ca73ed73068"
+    }
+  },
+  "software": [
+    {
+      "library_version": "26.08.00",
+      "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+      "environment": "/home/songyitong/miniconda3/envs/cuvs",
+      "cuda_runtime_version": 13030,
+      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/cuvs/lib/libcudart.so"
+    },
+    {
+      "library_version": "26.08.00",
+      "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+      "environment": "/home/songyitong/miniconda3/envs/cuvs",
+      "cuda_runtime_version": 13030,
+      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/cuvs/lib/libcudart.so"
+    },
+    {
+      "library_version": "26.08.00",
+      "python": "3.12.13 | packaged by conda-forge | (main, Mar  5 2026, 16:50:00) [GCC 14.3.0]",
+      "environment": "/home/songyitong/miniconda3/envs/cuvs",
+      "cuda_runtime_version": 13030,
+      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/cuvs/lib/libcudart.so"
+    }
+  ],
+  "row": {
+    "dataset": "sift100m",
+    "method": "cuVS-MultiGPU3-ivfflat",
+    "nlist": 1024,
+    "n_vectors": 100000000,
+    "dim": 128,
+    "build_seconds": 197.9425096330233,
+    "save_seconds": 129.39551340602338,
+    "index_size_bytes": 13609269469,
+    "index_size_mib": 12978.810757637024,
+    "peak_build_gpu_memory_mib": 28334.0
+  },
+  "indexes": [
+    {
+      "path": "/storage/vector_data/sift100M/GPUIndex/cuVS_MultiGPU3/CUDA_cuVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_UInt8_build/shard0of3.bin",
+      "size_bytes": 4536459423,
+      "mtime_ns": 1794041079116297465
+    },
+    {
+      "path": "/storage/vector_data/sift100M/GPUIndex/cuVS_MultiGPU3/CUDA_cuVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_UInt8_build/shard1of3.bin",
+      "size_bytes": 4536498591,
+      "mtime_ns": 1794041121123428337
+    },
+    {
+      "path": "/storage/vector_data/sift100M/GPUIndex/cuVS_MultiGPU3/CUDA_cuVS_MultiGPU3_IVFFLAT_sift100m_nlist1024_UInt8_build/shard2of3.bin",
+      "size_bytes": 4536311455,
+      "mtime_ns": 1794041162294355537
+    }
+  ],
+  "shards": [
+    {
+      "train_seconds": 6.474172726739198,
+      "add_seconds": 185.87168740993366,
+      "input_prepare_seconds": 3.2539072278887033,
+      "native_build_options": {
+        "n_lists": 1024,
+        "metric": "sqeuclidean",
+        "kmeans_n_iters": 25,
+        "kmeans_trainset_fraction": 1.0,
+        "add_data_on_build": false,
+        "conservative_memory_allocation": true,
+        "adaptive_centers": false
+      },
+      "actual_coarse_iterations": 25,
+      "actual_pq_iterations": null,
+      "coarse_train_target_fraction": 0.5,
+      "external_regular_train_rows": 16666666,
+      "external_regular_train_stride": 2,
+      "resource_policy": "dedicated training Resources released before add; one persistent Resources for add/search",
+      "device_memory_after_training": {
+        "free_bytes": 24775950336,
+        "total_bytes": 25252724736,
+        "used_bytes": 476774400
+      },
+      "trained_checkpoint_seconds": 0.01921617006883025,
+      "trained_checkpoint_centroids_bitwise_verified": true,
+      "add_device_memory_snapshots": [
+        {
+          "added_rows": 65536,
+          "free_bytes": 24761270272,
+          "total_bytes": 25252724736,
+          "used_bytes": 491454464
+        },
+        {
+          "added_rows": 2162688,
+          "free_bytes": 24367005696,
+          "total_bytes": 25252724736,
+          "used_bytes": 885719040
+        },
+        {
+          "added_rows": 4259840,
+          "free_bytes": 23884660736,
+          "total_bytes": 25252724736,
+          "used_bytes": 1368064000
+        },
+        {
+          "added_rows": 6356992,
+          "free_bytes": 23205183488,
+          "total_bytes": 25252724736,
+          "used_bytes": 2047541248
+        },
+        {
+          "added_rows": 8454144,
+          "free_bytes": 22901096448,
+          "total_bytes": 25252724736,
+          "used_bytes": 2351628288
+        },
+        {
+          "added_rows": 10551296,
+          "free_bytes": 22479568896,
+          "total_bytes": 25252724736,
+          "used_bytes": 2773155840
+        },
+        {
+          "added_rows": 12648448,
+          "free_bytes": 22414557184,
+          "total_bytes": 25252724736,
+          "used_bytes": 2838167552
+        },
+        {
+          "added_rows": 14745600,
+          "free_bytes": 22139830272,
+          "total_bytes": 25252724736,
+          "used_bytes": 3112894464
+        },
+        {
+          "added_rows": 16842752,
+          "free_bytes": 21013659648,
+          "total_bytes": 25252724736,
+          "used_bytes": 4239065088
+        },
+        {
+          "added_rows": 18939904,
+          "free_bytes": 20405485568,
+          "total_bytes": 25252724736,
+          "used_bytes": 4847239168
+        },
+        {
+          "added_rows": 21037056,
+          "free_bytes": 20206256128,
+          "total_bytes": 25252724736,
+          "used_bytes": 5046468608
+        },
+        {
+          "added_rows": 23134208,
+          "free_bytes": 20080427008,
+          "total_bytes": 25252724736,
+          "used_bytes": 5172297728
+        },
+        {
+          "added_rows": 25231360,
+          "free_bytes": 19973472256,
+          "total_bytes": 25252724736,
+          "used_bytes": 5279252480
+        },
+        {
+          "added_rows": 27328512,
+          "free_bytes": 19868614656,
+          "total_bytes": 25252724736,
+          "used_bytes": 5384110080
+        },
+        {
+          "added_rows": 29425664,
+          "free_bytes": 19705036800,
+          "total_bytes": 25252724736,
+          "used_bytes": 5547687936
+        },
+        {
+          "added_rows": 31522816,
+          "free_bytes": 19361103872,
+          "total_bytes": 25252724736,
+          "used_bytes": 5891620864
+        },
+        {
+          "added_rows": 33333333,
+          "free_bytes": 18987810816,
+          "total_bytes": 25252724736,
+          "used_bytes": 6264913920
+        }
+      ],
+      "pq_iteration_note": "cuVS exposes one kmeans_n_iters for both quantizers",
+      "build_seconds": 195.60044432617724,
+      "rank": 0,
+      "gpu": 0,
+      "n_vectors": 33333333,
+      "save_seconds": 42.189460523892194,
+      "index_size_bytes": 4536459423,
+      "read_seconds": 4.695902077946812,
+      "begin_id": 0,
+      "end_id": 33333333
+    },
+    {
+      "train_seconds": 6.675527515821159,
+      "add_seconds": 188.00030388170853,
+      "input_prepare_seconds": 3.2646520966663957,
+      "native_build_options": {
+        "n_lists": 1024,
+        "metric": "sqeuclidean",
+        "kmeans_n_iters": 25,
+        "kmeans_trainset_fraction": 1.0,
+        "add_data_on_build": false,
+        "conservative_memory_allocation": true,
+        "adaptive_centers": false
+      },
+      "actual_coarse_iterations": 25,
+      "actual_pq_iterations": null,
+      "coarse_train_target_fraction": 0.5,
+      "external_regular_train_rows": 16666666,
+      "external_regular_train_stride": 2,
+      "resource_policy": "dedicated training Resources released before add; one persistent Resources for add/search",
+      "device_memory_after_training": {
+        "free_bytes": 24779554816,
+        "total_bytes": 25252724736,
+        "used_bytes": 473169920
+      },
+      "trained_checkpoint_seconds": 0.018902699928730726,
+      "trained_checkpoint_centroids_bitwise_verified": true,
+      "add_device_memory_snapshots": [
+        {
+          "added_rows": 65536,
+          "free_bytes": 24764874752,
+          "total_bytes": 25252724736,
+          "used_bytes": 487849984
+        },
+        {
+          "added_rows": 2162688,
+          "free_bytes": 24351735808,
+          "total_bytes": 25252724736,
+          "used_bytes": 900988928
+        },
+        {
+          "added_rows": 4259840,
+          "free_bytes": 23812767744,
+          "total_bytes": 25252724736,
+          "used_bytes": 1439956992
+        },
+        {
+          "added_rows": 6356992,
+          "free_bytes": 23171039232,
+          "total_bytes": 25252724736,
+          "used_bytes": 2081685504
+        },
+        {
+          "added_rows": 8454144,
+          "free_bytes": 22894215168,
+          "total_bytes": 25252724736,
+          "used_bytes": 2358509568
+        },
+        {
+          "added_rows": 10551296,
+          "free_bytes": 22468493312,
+          "total_bytes": 25252724736,
+          "used_bytes": 2784231424
+        },
+        {
+          "added_rows": 12648448,
+          "free_bytes": 22418161664,
+          "total_bytes": 25252724736,
+          "used_bytes": 2834563072
+        },
+        {
+          "added_rows": 14745600,
+          "free_bytes": 22109880320,
+          "total_bytes": 25252724736,
+          "used_bytes": 3142844416
+        },
+        {
+          "added_rows": 16842752,
+          "free_bytes": 21105344512,
+          "total_bytes": 25252724736,
+          "used_bytes": 4147380224
+        },
+        {
+          "added_rows": 18939904,
+          "free_bytes": 20400701440,
+          "total_bytes": 25252724736,
+          "used_bytes": 4852023296
+        },
+        {
+          "added_rows": 21037056,
+          "free_bytes": 20195180544,
+          "total_bytes": 25252724736,
+          "used_bytes": 5057544192
+        },
+        {
+          "added_rows": 23134208,
+          "free_bytes": 20060962816,
+          "total_bytes": 25252724736,
+          "used_bytes": 5191761920
+        },
+        {
+          "added_rows": 25231360,
+          "free_bytes": 19977076736,
+          "total_bytes": 25252724736,
+          "used_bytes": 5275648000
+        },
+        {
+          "added_rows": 27328512,
+          "free_bytes": 19857539072,
+          "total_bytes": 25252724736,
+          "used_bytes": 5395185664
+        },
+        {
+          "added_rows": 29425664,
+          "free_bytes": 19677184000,
+          "total_bytes": 25252724736,
+          "used_bytes": 5575540736
+        },
+        {
+          "added_rows": 31522816,
+          "free_bytes": 19373096960,
+          "total_bytes": 25252724736,
+          "used_bytes": 5879627776
+        },
+        {
+          "added_rows": 33333333,
+          "free_bytes": 19022872576,
+          "total_bytes": 25252724736,
+          "used_bytes": 6229852160
+        }
+      ],
+      "pq_iteration_note": "cuVS exposes one kmeans_n_iters for both quantizers",
+      "build_seconds": 197.9407330849208,
+      "rank": 1,
+      "gpu": 1,
+      "n_vectors": 33333333,
+      "save_seconds": 41.602984379045665,
+      "index_size_bytes": 4536498591,
+      "read_seconds": 11.750590031966567,
+      "begin_id": 33333333,
+      "end_id": 66666666
+    },
+    {
+      "train_seconds": 6.587141410913318,
+      "add_seconds": 185.55725092906505,
+      "input_prepare_seconds": 3.2645911602303386,
+      "native_build_options": {
+        "n_lists": 1024,
+        "metric": "sqeuclidean",
+        "kmeans_n_iters": 25,
+        "kmeans_trainset_fraction": 1.0,
+        "add_data_on_build": false,
+        "conservative_memory_allocation": true,
+        "adaptive_centers": false
+      },
+      "actual_coarse_iterations": 25,
+      "actual_pq_iterations": null,
+      "coarse_train_target_fraction": 0.5,
+      "external_regular_train_rows": 16666667,
+      "external_regular_train_stride": 2,
+      "resource_policy": "dedicated training Resources released before add; one persistent Resources for add/search",
+      "device_memory_after_training": {
+        "free_bytes": 24778899456,
+        "total_bytes": 25252724736,
+        "used_bytes": 473825280
+      },
+      "trained_checkpoint_seconds": 0.019274780061095953,
+      "trained_checkpoint_centroids_bitwise_verified": true,
+      "add_device_memory_snapshots": [
+        {
+          "added_rows": 65536,
+          "free_bytes": 24764219392,
+          "total_bytes": 25252724736,
+          "used_bytes": 488505344
+        },
+        {
+          "added_rows": 2162688,
+          "free_bytes": 24363663360,
+          "total_bytes": 25252724736,
+          "used_bytes": 889061376
+        },
+        {
+          "added_rows": 4259840,
+          "free_bytes": 23889707008,
+          "total_bytes": 25252724736,
+          "used_bytes": 1363017728
+        },
+        {
+          "added_rows": 6356992,
+          "free_bytes": 23277338624,
+          "total_bytes": 25252724736,
+          "used_bytes": 1975386112
+        },
+        {
+          "added_rows": 8454144,
+          "free_bytes": 22899851264,
+          "total_bytes": 25252724736,
+          "used_bytes": 2352873472
+        },
+        {
+          "added_rows": 10551296,
+          "free_bytes": 22482518016,
+          "total_bytes": 25252724736,
+          "used_bytes": 2770206720
+        },
+        {
+          "added_rows": 12648448,
+          "free_bytes": 22409117696,
+          "total_bytes": 25252724736,
+          "used_bytes": 2843607040
+        },
+        {
+          "added_rows": 14745600,
+          "free_bytes": 22102933504,
+          "total_bytes": 25252724736,
+          "used_bytes": 3149791232
+        },
+        {
+          "added_rows": 16842752,
+          "free_bytes": 21001928704,
+          "total_bytes": 25252724736,
+          "used_bytes": 4250796032
+        },
+        {
+          "added_rows": 18939904,
+          "free_bytes": 20433600512,
+          "total_bytes": 25252724736,
+          "used_bytes": 4819124224
+        },
+        {
+          "added_rows": 21037056,
+          "free_bytes": 20181942272,
+          "total_bytes": 25252724736,
+          "used_bytes": 5070782464
+        },
+        {
+          "added_rows": 23134208,
+          "free_bytes": 20072890368,
+          "total_bytes": 25252724736,
+          "used_bytes": 5179834368
+        },
+        {
+          "added_rows": 25231360,
+          "free_bytes": 19974324224,
+          "total_bytes": 25252724736,
+          "used_bytes": 5278400512
+        },
+        {
+          "added_rows": 27328512,
+          "free_bytes": 19863175168,
+          "total_bytes": 25252724736,
+          "used_bytes": 5389549568
+        },
+        {
+          "added_rows": 29425664,
+          "free_bytes": 19684917248,
+          "total_bytes": 25252724736,
+          "used_bytes": 5567807488
+        },
+        {
+          "added_rows": 31522816,
+          "free_bytes": 19376635904,
+          "total_bytes": 25252724736,
+          "used_bytes": 5876088832
+        },
+        {
+          "added_rows": 33333334,
+          "free_bytes": 19041091584,
+          "total_bytes": 25252724736,
+          "used_bytes": 6211633152
+        }
+      ],
+      "pq_iteration_note": "cuVS exposes one kmeans_n_iters for both quantizers",
+      "build_seconds": 195.40961525589228,
+      "rank": 2,
+      "gpu": 2,
+      "n_vectors": 33333334,
+      "save_seconds": 45.503007432911545,
+      "index_size_bytes": 4536311455,
+      "read_seconds": 6.164008652791381,
+      "begin_id": 66666666,
+      "end_id": 100000000
+    }
+  ],
+  "memory": {
+    "peak_total_mib": 28334.0,
+    "peak_per_gpu_mib": {
+      "0": 10882.0,
+      "1": 10806.0,
+      "2": 10782.0
+    },
+    "samples": 28568,
+    "interval_seconds": 0.01
+  },
+  "global_nlist": 3072,
+  "build_time_definition": "parallel wall time for native training plus adding every shard vector; includes native allocations/transfers, excludes host input conversion and serialization",
+  "save_time_definition": "wall time for serialized native saves, including Faiss GPU-to-CPU cloning",
+  "memory_definition": "sampled simultaneous sum of native-worker NVML memory during construction and saving"
+}

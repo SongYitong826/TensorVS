@@ -16,8 +16,6 @@ import torch
 from tensorvs import (
     build_ivfflat_index,
     compute_recall_at_k,
-    load_dataset,
-    load_ivecs,
     load_ivfflat_index,
     save_ivfflat_index,
     search_ivfflat_index,
@@ -26,6 +24,8 @@ from tensorvs._ivfflat_triton import can_run_topk as can_run_triton_topk
 
 try:
     from ._benchmark_utils import (
+        load_benchmark_vectors,
+        load_benchmark_groundtruth,
         probe_visit_statistics,
         print_result,
         run_one_nprobe,
@@ -33,6 +33,8 @@ try:
     )
 except ImportError:  # Direct execution: ``python bench/ivfflat_search_bench.py``.
     from _benchmark_utils import (
+        load_benchmark_vectors,
+        load_benchmark_groundtruth,
         probe_visit_statistics,
         print_result,
         run_one_nprobe,
@@ -122,7 +124,7 @@ def load_or_build_index() -> object:
         return load_ivfflat_index(INDEX_PATH, load_lists=True)
 
     print(f"Index not found; building IVF-Flat index at {INDEX_PATH}")
-    base_vectors = load_dataset(DATASET_PATH)
+    base_vectors = load_benchmark_vectors(DATASET_PATH)
     build_start = time.perf_counter()
     build_result = build_ivfflat_index(
         vectors=base_vectors,
@@ -175,8 +177,8 @@ def main() -> None:
             f"{INDEX_PATH}"
         )
     index.reside_on_device(DEVICE)
-    queries = load_dataset(QUERY_PATH)
-    groundtruth = load_ivecs(GROUNDTRUTH_PATH)
+    queries = load_benchmark_vectors(QUERY_PATH)
+    groundtruth = load_benchmark_groundtruth(GROUNDTRUTH_PATH)
     if queries.shape[0] != groundtruth.shape[0]:
         raise ValueError(
             f"Query count {queries.shape[0]} does not match groundtruth count "

@@ -16,6 +16,48 @@ from typing import Any, Callable
 import torch
 
 
+
+def _load_headered_binary(path: Path, dtype: str) -> torch.Tensor:
+    """Read a uint32 (rows, columns) header followed by a dense matrix.
+
+    SIFT100M base/query payloads are uint8; ground-truth IDs are uint32.
+    Map the source so conversion does not allocate another full input copy.
+    """
+    import numpy as np
+
+    header = np.fromfile(path, dtype="<u4", count=2)
+    if header.size != 2:
+        raise ValueError(f"Binary matrix header is truncated: {path}")
+    rows, columns = map(int, header)
+    if rows <= 0 or columns <= 0:
+        raise ValueError(f"Binary matrix dimensions must be positive: {path}")
+    expected = 8 + rows * columns * np.dtype(dtype).itemsize
+    if path.stat().st_size != expected:
+        raise ValueError(f"Binary matrix payload size does not match its header: {path}")
+    matrix = np.memmap(path, dtype=dtype, mode="c", offset=8, shape=(rows, columns))
+    return torch.from_numpy(matrix)
+
+
+def load_benchmark_vectors(path: str | Path) -> torch.Tensor:
+    """Load regular TensorVS vectors or headered uint8 .bin benchmark data."""
+    from tensorvs import load_dataset
+
+    path = Path(path)
+    if path.suffix == ".bin":
+        return _load_headered_binary(path, "u1").to(dtype=torch.float32)
+    return load_dataset(path)
+
+
+def load_benchmark_groundtruth(path: str | Path) -> torch.Tensor:
+    """Load .ivecs or headered uint32 .bin neighbor IDs."""
+    from tensorvs import load_ivecs
+
+    path = Path(path)
+    if path.suffix == ".bin":
+        return _load_headered_binary(path, "<u4").to(dtype=torch.int64)
+    return load_ivecs(path)
+
+
 MEBIBYTE = 1024 * 1024
 _NVML_SUCCESS = 0
 _NVML_ERROR_ALREADY_INITIALIZED = 5
@@ -94,8 +136,8 @@ def _nvml_device_handle(cuda_device_id: int) -> ctypes.c_void_p:
     return handle
 
 
-def process_gpu_memory_bytes(device: torch.device) -> int:
-    """Return this process's resident memory on one GPU using NVML."""
+def process_gpu_memory_bytes(device: torch.device, *, pid: int | None = None) -> int:
+    """Return one process's resident GPU memory using NVML (default: self)."""
     if device.type != "cuda":
         return 0
     device_id = device.index if device.index is not None else torch.cuda.current_device()
@@ -120,7 +162,7 @@ def process_gpu_memory_bytes(device: torch.device) -> int:
         raise RuntimeError(
             f"nvmlDeviceGetComputeRunningProcesses_v3 failed with status {status}"
         )
-    process_id = os.getpid()
+    process_id = os.getpid() if pid is None else int(pid)
     memory_values = [
         int(processes[index].used_gpu_memory)
         for index in range(count.value)
