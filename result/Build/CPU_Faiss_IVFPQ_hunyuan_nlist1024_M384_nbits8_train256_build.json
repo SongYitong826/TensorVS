@@ -1,0 +1,42 @@
+{
+  "dataset": "hunyuan",
+  "method": "Faiss-CPU",
+  "nlist": 1024,
+  "n_vectors": 1000000,
+  "dim": 768,
+  "original_dim": 768,
+  "padded_dim": 768,
+  "pq_m": 384,
+  "nbits": 8,
+  "pq_train_points": 256,
+  "cpu_threads": 64,
+  "build_threads": 64,
+  "query_threads": 1,
+  "build_time_seconds": 202.9084761729464,
+  "train_seconds": 187.71301503898576,
+  "add_seconds": 15.194050967693329,
+  "serialize_seconds": 3.848543234169483,
+  "index_size_bytes": 395940532,
+  "index_size_mb": 377.59831619262695,
+  "peak_build_cpu_memory_mib": 6816.48828125,
+  "preparation_seconds": 2.4121132818982005,
+  "index_path": "/storage/vector_data/hunyuan/CPUIndex/Faiss/CPU_Faiss_IVFPQ_hunyuan_nlist1024_M384_nbits8_train256.faiss",
+  "memory_definition": "10ms sampled process RSS including base loading, padding, training, add and serialization; may miss shorter peaks",
+  "timing_definition": "index creation + training + add, excluding input load and serialization",
+  "cpu_information": {
+    "architecture": "x86_64",
+    "processor": "x86_64",
+    "logical_cpu_count": 192,
+    "available_cpu_threads": 192,
+    "cpuinfo": {
+      "model name": "Intel(R) Xeon(R) Platinum 8457C"
+    }
+  },
+  "faiss_version": "1.15.0",
+  "base": {
+    "path": "/storage/vector_data/hunyuan/hunyuan_base.fvecs",
+    "size_bytes": 3076000000,
+    "mtime_ns": 1793176870383409454
+  },
+  "metric": "squared_l2"
+}

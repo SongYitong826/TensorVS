@@ -1,0 +1,538 @@
+{
+  "status": "complete",
+  "build": {
+    "dataset": "hunyuan",
+    "method": "Faiss-CPU",
+    "nlist": 1024,
+    "n_vectors": 1000000,
+    "dim": 768,
+    "original_dim": 768,
+    "padded_dim": 768,
+    "pq_m": null,
+    "nbits": null,
+    "pq_train_points": null,
+    "cpu_threads": 64,
+    "build_threads": 64,
+    "query_threads": 1,
+    "build_time_seconds": 159.6866289251484,
+    "train_seconds": 147.78943060012534,
+    "add_seconds": 11.896705893799663,
+    "serialize_seconds": 35.5799826788716,
+    "index_size_bytes": 3083154059,
+    "index_size_mb": 2940.32483959198,
+    "peak_build_cpu_memory_mib": 7327.4296875,
+    "preparation_seconds": 2.0462357411161065,
+    "index_path": "/storage/vector_data/hunyuan/CPUIndex/Faiss/CPU_Faiss_IVFFLAT_hunyuan_nlist1024.faiss",
+    "memory_definition": "10ms sampled process RSS including base loading, padding, training, add and serialization; may miss shorter peaks",
+    "timing_definition": "index creation + training + add, excluding input load and serialization",
+    "cpu_information": {
+      "architecture": "x86_64",
+      "processor": "x86_64",
+      "logical_cpu_count": 192,
+      "available_cpu_threads": 192,
+      "cpuinfo": {
+        "model name": "Intel(R) Xeon(R) Platinum 8457C"
+      }
+    },
+    "faiss_version": "1.15.0",
+    "base": {
+      "path": "/storage/vector_data/hunyuan/hunyuan_base.fvecs",
+      "size_bytes": 3076000000,
+      "mtime_ns": 1793176870383409454
+    },
+    "metric": "squared_l2"
+  },
+  "config": {
+    "dataset": "hunyuan",
+    "kind": "ivfflat",
+    "build_threads": 64,
+    "query_threads": 16,
+    "index_loaded_from_cache": true,
+    "nq": 512,
+    "topk": 10,
+    "q_batches": [
+      32,
+      128,
+      512
+    ],
+    "nprobes": [
+      350,
+      380,
+      400,
+      450,
+      500,
+      550,
+      600,
+      700,
+      800,
+      900
+    ],
+    "warmup": 2,
+    "repetitions": 3,
+    "query": {
+      "path": "/storage/vector_data/hunyuan/hunyuan_query.fvecs",
+      "size_bytes": 3076000,
+      "mtime_ns": 1793176870501407741
+    },
+    "truth": {
+      "path": "/storage/vector_data/hunyuan/hunyuan_groundtruth.ivecs",
+      "size_bytes": 404000,
+      "mtime_ns": 1793176911372815501
+    }
+  },
+  "results": [
+    {
+      "nprobes": 350,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 40.77374835535049,
+      "recall": 0.7068359375000001,
+      "visited_vectors_per_query": 524759.376953125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        13.447305002715439,
+        12.557099130004644,
+        12.305607848800719
+      ],
+      "peak_rss_memory_mib": 3166.80859375
+    },
+    {
+      "nprobes": 380,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 39.732770893215346,
+      "recall": 0.744921875,
+      "visited_vectors_per_query": 569117.9375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        12.886088447645307,
+        12.811428096145391,
+        13.085959877353162
+      ],
+      "peak_rss_memory_mib": 3167.73046875
+    },
+    {
+      "nprobes": 400,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 37.78255437439178,
+      "recall": 0.76953125,
+      "visited_vectors_per_query": 598545.236328125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        13.467875172384083,
+        13.551227768417448,
+        13.673958632163703
+      ],
+      "peak_rss_memory_mib": 3167.8359375
+    },
+    {
+      "nprobes": 450,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 33.45462115872695,
+      "recall": 0.8251953125000001,
+      "visited_vectors_per_query": 671428.833984375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        15.263154337182641,
+        15.42412310745567,
+        15.304313194006681
+      ],
+      "peak_rss_memory_mib": 3167.859375
+    },
+    {
+      "nprobes": 500,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 30.447579931694012,
+      "recall": 0.8738281250000002,
+      "visited_vectors_per_query": 743646.72265625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        17.074323712382466,
+        16.815786382649094,
+        16.720238872803748
+      ],
+      "peak_rss_memory_mib": 3167.95703125
+    },
+    {
+      "nprobes": 550,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 29.903152008727837,
+      "recall": 0.9167968750000002,
+      "visited_vectors_per_query": 814611.005859375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        17.27441684063524,
+        16.813598774839193,
+        17.12194085260853
+      ],
+      "peak_rss_memory_mib": 3167.9921875
+    },
+    {
+      "nprobes": 600,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 28.368658315126908,
+      "recall": 0.9548828125000002,
+      "visited_vectors_per_query": 883731.51953125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        17.94921809947118,
+        18.04808652959764,
+        18.226354451850057
+      ],
+      "peak_rss_memory_mib": 3168.14453125
+    },
+    {
+      "nprobes": 700,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 25.012301670029167,
+      "recall": 0.9984375,
+      "visited_vectors_per_query": 995120.068359375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        20.464981796219945,
+        20.469927428290248,
+        20.90098196733743
+      ],
+      "peak_rss_memory_mib": 3168.28125
+    },
+    {
+      "nprobes": 800,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 24.548710223136744,
+      "recall": 0.9998046875,
+      "visited_vectors_per_query": 998834.333984375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        20.874701851978898,
+        20.85649288073182,
+        20.626819803845137
+      ],
+      "peak_rss_memory_mib": 3169.33203125
+    },
+    {
+      "nprobes": 900,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 24.475820331653416,
+      "recall": 0.9998046875,
+      "visited_vectors_per_query": 999684.421875,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        20.61281461501494,
+        20.91860428219661,
+        20.921229150611907
+      ],
+      "peak_rss_memory_mib": 3169.52734375
+    },
+    {
+      "nprobes": 350,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 46.100031382099914,
+      "recall": 0.7068359375000001,
+      "visited_vectors_per_query": 524759.376953125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        11.150069514289498,
+        11.095784227829427,
+        11.106283111963421
+      ],
+      "peak_rss_memory_mib": 3170.3828125
+    },
+    {
+      "nprobes": 380,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 37.71205523059744,
+      "recall": 0.744921875,
+      "visited_vectors_per_query": 569117.9375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        13.380090908147395,
+        16.716914480552077,
+        13.576560515444726
+      ],
+      "peak_rss_memory_mib": 3170.38671875
+    },
+    {
+      "nprobes": 400,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 36.508500867142864,
+      "recall": 0.76953125,
+      "visited_vectors_per_query": 598545.236328125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        13.937684447038919,
+        14.245560792274773,
+        14.024131033569574
+      ],
+      "peak_rss_memory_mib": 3170.390625
+    },
+    {
+      "nprobes": 450,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 26.161904983566195,
+      "recall": 0.8251953125000001,
+      "visited_vectors_per_query": 671428.833984375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        19.57044031471014,
+        21.633463769219816,
+        15.845529698301107
+      ],
+      "peak_rss_memory_mib": 3170.453125
+    },
+    {
+      "nprobes": 500,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 29.534398721043523,
+      "recall": 0.8738281250000002,
+      "visited_vectors_per_query": 743646.72265625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        17.335717745125294,
+        17.20240343688056,
+        19.48060870030895
+      ],
+      "peak_rss_memory_mib": 3170.5703125
+    },
+    {
+      "nprobes": 550,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 22.297979855261588,
+      "recall": 0.9167968750000002,
+      "visited_vectors_per_query": 814611.005859375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        22.96172134531662,
+        19.235312963835895,
+        23.23662624740973
+      ],
+      "peak_rss_memory_mib": 3170.640625
+    },
+    {
+      "nprobes": 600,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 32.93661819661934,
+      "recall": 0.9548828125000002,
+      "visited_vectors_per_query": 883731.51953125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        15.545008201617748,
+        16.631155971903354,
+        14.862674632575363
+      ],
+      "peak_rss_memory_mib": 3170.69921875
+    },
+    {
+      "nprobes": 700,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 33.94613993460521,
+      "recall": 0.9984375,
+      "visited_vectors_per_query": 995120.068359375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        14.992010877933353,
+        15.082716355565935,
+        15.302565203048289
+      ],
+      "peak_rss_memory_mib": 3170.88671875
+    },
+    {
+      "nprobes": 800,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 33.95548332957665,
+      "recall": 0.9998046875,
+      "visited_vectors_per_query": 998834.333984375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        15.10458417609334,
+        15.078566104639322,
+        15.063849989324808
+      ],
+      "peak_rss_memory_mib": 3171.8515625
+    },
+    {
+      "nprobes": 900,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 33.36590215486714,
+      "recall": 0.9998046875,
+      "visited_vectors_per_query": 999684.421875,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        15.567499744705856,
+        15.313724947627634,
+        15.345006936229765
+      ],
+      "peak_rss_memory_mib": 3172.125
+    },
+    {
+      "nprobes": 350,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 63.42023301347604,
+      "recall": 0.7068359375000001,
+      "visited_vectors_per_query": 524759.376953125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        8.183829459361732,
+        8.07313337828964,
+        8.038417130708694
+      ],
+      "peak_rss_memory_mib": 3173.14453125
+    },
+    {
+      "nprobes": 380,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 57.81600832120417,
+      "recall": 0.744921875,
+      "visited_vectors_per_query": 569117.9375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        8.942226897459477,
+        8.855678813997656,
+        8.80847459519282
+      ],
+      "peak_rss_memory_mib": 3173.328125
+    },
+    {
+      "nprobes": 400,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 55.08042803560194,
+      "recall": 0.76953125,
+      "visited_vectors_per_query": 598545.236328125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        9.399033398833126,
+        9.295497843064368,
+        9.270973357837647
+      ],
+      "peak_rss_memory_mib": 3172.28125
+    },
+    {
+      "nprobes": 450,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 50.126806075897406,
+      "recall": 0.8251953125000001,
+      "visited_vectors_per_query": 671428.833984375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        10.121426572091877,
+        10.237883215304464,
+        10.214095811825246
+      ],
+      "peak_rss_memory_mib": 3172.7734375
+    },
+    {
+      "nprobes": 500,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 45.45442400739661,
+      "recall": 0.8738281250000002,
+      "visited_vectors_per_query": 743646.72265625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        11.171353854238987,
+        11.264030095655471,
+        11.300581217743456
+      ],
+      "peak_rss_memory_mib": 3175.23046875
+    },
+    {
+      "nprobes": 550,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 40.83031989208254,
+      "recall": 0.9167968750000002,
+      "visited_vectors_per_query": 814611.005859375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        12.16811715066433,
+        12.53970092209056,
+        12.8689403552562
+      ],
+      "peak_rss_memory_mib": 3175.1640625
+    },
+    {
+      "nprobes": 600,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 37.10539645968704,
+      "recall": 0.9548828125000002,
+      "visited_vectors_per_query": 883731.51953125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        14.009931145701557,
+        13.791573177557439,
+        13.79853198863566
+      ],
+      "peak_rss_memory_mib": 3174.265625
+    },
+    {
+      "nprobes": 700,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 33.20498193412339,
+      "recall": 0.9984375,
+      "visited_vectors_per_query": 995120.068359375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        15.546154627110809,
+        15.419372942764312,
+        15.38821280375123
+      ],
+      "peak_rss_memory_mib": 3176.83984375
+    },
+    {
+      "nprobes": 800,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 33.200096351512556,
+      "recall": 0.9998046875,
+      "visited_vectors_per_query": 998834.333984375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        15.420548896770924,
+        15.421641991008073,
+        15.733508908189833
+      ],
+      "peak_rss_memory_mib": 3176.19140625
+    },
+    {
+      "nprobes": 900,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 32.74019617033206,
+      "recall": 0.9998046875,
+      "visited_vectors_per_query": 999684.421875,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        15.658466501161456,
+        15.63826915808022,
+        15.635390101000667
+      ],
+      "peak_rss_memory_mib": 3177.17578125
+    }
+  ],
+  "timing": "median of full-query sweeps; sum of per-batch index.search wall times, excluding statistics",
+  "memory": "CPU process RSS in JSON per query; peak_gpu_memory=0 because CPU-only",
+  "completed_rows": 30
+}

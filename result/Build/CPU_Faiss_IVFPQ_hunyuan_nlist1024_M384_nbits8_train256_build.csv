@@ -1,0 +1,2 @@
+dataset,method,nlist,n_vectors,dim,cpu_threads,build_time_seconds,train_seconds,add_seconds,serialize_seconds,index_size_bytes,index_size_mb,peak_build_cpu_memory_mib
+hunyuan,Faiss-CPU,1024,1000000,768,64,202.9084761729464,187.71301503898576,15.194050967693329,3.848543234169483,395940532,377.59831619262695,6816.48828125
