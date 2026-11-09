@@ -1,2 +1,2 @@
 dataset,method,nlist,n_vectors,dim,build_seconds,save_seconds,index_size_bytes,index_size_mib,peak_build_gpu_memory_mib
-sift100m,FaissGPU-MultiGPU3-ivfflat,1024,100000000,128,81.32300822716206,530.0203523980454,52001597857,49592.58828830719,56044.0
+sift100m,FaissGPU_SQ8Direct-MultiGPU3-ivfflat,1024,100000000,128,90.20335530722514,149.35419049020857,13601597992,12971.494667053223,17446.0
