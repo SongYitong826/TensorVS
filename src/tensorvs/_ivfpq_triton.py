@@ -13,9 +13,12 @@ import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import torch
+
+if TYPE_CHECKING:
+    from ._ivfpq_pruned import PruneLayout
 
 try:
     import triton
@@ -59,6 +62,19 @@ _AUTOTUNE_TIMED_RUNS = 3
 # launch performance contract. Invalidate persisted choices when either
 # specialization changes so cached choices are retuned for the current kernel.
 _AUTOTUNE_CACHE_FORMAT_VERSION = 7
+_PRUNE_MIN_MEAN_LIST_LENGTH = 8192
+_PRUNE_MIN_BATCH_VISITS = 24_000_000
+
+
+def should_prune_scan(num_vectors: int, nlist: int, nprobe: int, num_queries: int) -> bool:
+    """Use index statistics to estimate the candidate work for one shard."""
+    return (
+        nlist > 0
+        and nprobe > 1
+        and num_queries > 0
+        and num_vectors >= _PRUNE_MIN_MEAN_LIST_LENGTH * nlist
+        and num_vectors * min(nprobe, nlist) * num_queries >= _PRUNE_MIN_BATCH_VISITS * nlist
+    )
 
 
 @dataclass(frozen=True)
@@ -981,6 +997,31 @@ def _hierarchical_merge_partial_keys(
     return current_keys, final_groups, final_width
 
 
+def _write_topk_outputs(
+    partial_keys: torch.Tensor,
+    list_ids: torch.Tensor,
+    output_distances: torch.Tensor,
+    output_ids: torch.Tensor,
+    topk: int,
+) -> None:
+    local_k = partial_keys.shape[-1]
+    merged, final_groups, final_width = _hierarchical_merge_partial_keys(
+        partial_keys=partial_keys, local_k=local_k,
+    )
+    _finalize_direct_pq_topk_kernel[(partial_keys.shape[0],)](
+        merged,
+        list_ids,
+        output_distances,
+        output_ids,
+        topk,
+        GRID_X=final_groups,
+        LOCAL_K=local_k,
+        FINAL_WIDTH=final_width,
+        INF_KEY=_INF_KEY,
+        num_warps=4,
+    )
+
+
 def _autotune_topk_launch_config(
     *,
     cache_key: tuple[object, ...],
@@ -1136,6 +1177,7 @@ def triton_topk(
     autotune: bool = False,
     autotune_key: tuple[object, ...] | None = None,
     on_list_scan_complete: Callable[[], None] | None = None,
+    prune_layout: PruneLayout | None = None,
 ) -> torch.Tensor:
     """Run exact IVF-PQ ADC with query/probe-chunk CTA groups.
 
@@ -1290,6 +1332,19 @@ def triton_topk(
     if list_codes_packed_16b is not None:
         list_codes_packed_16b = list_codes_packed_16b.contiguous()
 
+    if prune_layout is not None:
+        from ._ivfpq_pruned import launch_pruned_scan
+
+        assert probe_cids is not None and list_group_prefix is not None and list_count is not None
+        list_partial_keys = launch_pruned_scan(
+            prune_layout, global_query_luts, static_vector_corrections, probe_distance_bias,
+            probe_cids, list_group_prefix, list_count, topk, list_partial_keys, _INF_KEY,
+        )
+        if on_list_scan_complete is not None:
+            on_list_scan_complete()
+        _write_topk_outputs(list_partial_keys, list_ids_interleaved, output_distances, output_ids, topk)
+        return list_partial_keys
+
     cache_key = autotune_key or (
         str(global_query_luts.device),
         m,
@@ -1373,20 +1428,5 @@ def triton_topk(
     if on_list_scan_complete is not None:
         on_list_scan_complete()
 
-    partial_keys, final_groups, final_width = _hierarchical_merge_partial_keys(
-        partial_keys=list_partial_keys,
-        local_k=local_k,
-    )
-    _finalize_direct_pq_topk_kernel[(num_queries,)](
-        partial_keys,
-        list_ids_interleaved,
-        output_distances,
-        output_ids,
-        topk,
-        GRID_X=final_groups,
-        LOCAL_K=local_k,
-        FINAL_WIDTH=final_width,
-        INF_KEY=_INF_KEY,
-        num_warps=4,
-    )
+    _write_topk_outputs(list_partial_keys, list_ids_interleaved, output_distances, output_ids, topk)
     return list_partial_keys

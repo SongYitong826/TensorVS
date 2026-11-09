@@ -4,7 +4,7 @@ import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import torch
 
@@ -26,6 +26,7 @@ from ._coarse_triton import restore_selected_squared_l2
 from ._ivfpq_triton import (
     can_run_topk as can_run_ivfpq_triton_topk,
     plan_probe_chunks,
+    should_prune_scan,
 )
 from ._ivfpq_triton import triton_topk as triton_ivfpq_topk
 from ._ivfpq_triton import triton as _triton
@@ -34,6 +35,9 @@ from .refine import refine_search_results
 from ._layout_cache import (LayoutCache, logical_lists, normalize_device, packed_pq_layout,
                             prepare_torch_layout, record_triton_layout)
 from ._torch_search import search_torch, search_device, validate_backend
+
+if TYPE_CHECKING:
+    from ._ivfpq_pruned import PruneLayout
 
 
 _LUT_STORAGE_DTYPES = {
@@ -584,6 +588,7 @@ class IVFPQIndex:
     search_workspace_key: tuple[object, ...] | None = field(default=None, repr=False)
     search_workspace: _IVFPQSearchWorkspace | None = field(default=None, repr=False)
     layout_cache: LayoutCache = field(default_factory=LayoutCache, repr=False)
+    triton_prune_layout: PruneLayout | Literal[False] | None = field(default=None, init=False, repr=False)
 
     @property
     def logical_lists(self):
@@ -689,6 +694,7 @@ class IVFPQIndex:
             )
         )
         self.triton_partial_keys = None
+        self.triton_prune_layout = None
         self.search_workspace_key = None
         self.search_workspace = None
         self.resident_device = target_device
@@ -734,6 +740,7 @@ class IVFPQIndex:
         self.list_group_prefix = None
         self.list_pq_static_corrections_interleaved = None
         self.triton_partial_keys = None
+        self.triton_prune_layout = None
         self.search_workspace_key = None
         self.search_workspace = None
         self.resident_device = None
@@ -768,6 +775,7 @@ class IVFPQIndex:
         self.list_group_prefix = None
         self.list_pq_static_corrections_interleaved = None
         self.triton_partial_keys = None
+        self.triton_prune_layout = None
         self.search_workspace_key = None
         self.search_workspace = None
         self.resident_device = None
@@ -1248,6 +1256,7 @@ def _search_ivfpq_index_eager(
     refine_factor: int = 1,
     lut_dtype: str = "fp32",
     _workspace: _IVFPQSearchWorkspace | None = None,
+    prune_layout: PruneLayout | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Search IVF-PQ, optionally reranking an expanded candidate set exactly.
 
@@ -1583,6 +1592,7 @@ def _search_ivfpq_index_eager(
             autotune=triton_autotune,
             autotune_key=autotune_key,
             on_list_scan_complete=record_triton_scan_complete,
+            prune_layout=prune_layout,
         )
         if _workspace is not None:
             _workspace.triton_partial_keys = partial_keys
@@ -1623,6 +1633,7 @@ def _search_ivfpq_index_triton(
     lut_dtype: str = "fp32",
     use_preallocated_workspace: bool = False,
     use_cuda_graph: bool = False,
+    prune_layout: PruneLayout | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Search IVF-PQ with optional fixed-shape workspace and CUDA Graph replay.
 
@@ -1663,6 +1674,7 @@ def _search_ivfpq_index_triton(
             refine_vectors=refine_vectors,
             refine_factor=refine_factor,
             lut_dtype=lut_dtype,
+            prune_layout=prune_layout,
         )
 
     if queries.ndim != 2:
@@ -1722,6 +1734,7 @@ def _search_ivfpq_index_triton(
         triton_autotune_cache_nprobe,
         bool(triton_autotune),
         bool(graph_eligible),
+        prune_layout is not None,
     )
     if index.search_workspace_key != workspace_key or index.search_workspace is None:
         index.search_workspace_key = workspace_key
@@ -1760,6 +1773,7 @@ def _search_ivfpq_index_triton(
             refine_factor=normalized_refine_factor,
             lut_dtype=lut_dtype,
             _workspace=workspace,
+            prune_layout=prune_layout,
         )
 
     if not graph_eligible:
@@ -1787,6 +1801,37 @@ def _search_ivfpq_index_triton(
     workspace.graph.replay()
     assert workspace.graph_outputs is not None
     return workspace.graph_outputs
+
+
+def _get_prune_layout(index: IVFPQIndex, device: torch.device) -> PruneLayout | None:
+    """Keep pruning's derived data with the current device residency."""
+    if index.triton_prune_layout is False:
+        return None
+    if index.triton_prune_layout is not None:
+        return index.triton_prune_layout
+    if torch.version.hip is not None or torch.cuda.get_device_capability(device) < (8, 0):
+        index.triton_prune_layout = False
+        return None
+    try:
+        from ._ivfpq_pruned import prepare_layout
+    except ImportError:
+        index.triton_prune_layout = False
+        return None
+    codes = index.list_codes_interleaved_by_subspace
+    gamma = index.list_pq_static_corrections_interleaved
+    counts = index.list_count
+    groups = index.list_group_prefix
+    assert codes is not None and gamma is not None and counts is not None and groups is not None
+    assert index.triton_list_count_stats is not None
+    centroids = index.pq_centroids if index.pq_centroids is not None else index.centroids
+    try:
+        layout = prepare_layout(
+            codes, gamma, counts, groups, centroids, index.pq_codebooks, index.triton_list_count_stats[2],
+        )
+    except torch.OutOfMemoryError:
+        layout = None
+    index.triton_prune_layout = layout if layout is not None else False
+    return layout
 
 
 def search_ivfpq_index(
@@ -1842,6 +1887,8 @@ def search_ivfpq_index(
     Packed codes, autotuning, reusable outputs and
     CUDA Graph options apply to the Triton path; torch returns owned outputs.
     Layout conversions are cached separately from the source index.
+    Supported 16-byte codes can use conservative filtering when the index's
+    mean list length and the estimated batch candidate count are both large.
     """
     validate_backend(backend)
     if selection_mode != "triton_topk":
@@ -1885,12 +1932,24 @@ def search_ivfpq_index(
     if not supported:
         raise RuntimeError("The requested Triton IVF-PQ backend does not support this device or shape")
     index.reside_on_device(target, persist_layout=persist_layout)
+    prune_layout = None
+    if (
+        use_packed_16b_codes
+        and int(index.metadata["m"]) == 16
+        and int(index.metadata["ksub"]) == 256
+        and scan_k <= 16
+        and 16 * queries.shape[0] * probe_count < 1 << 31
+        and should_prune_scan(
+            int(index.metadata["num_vectors"]), index.centroids.shape[0], probe_count, queries.shape[0],
+        )
+    ):
+        prune_layout = _get_prune_layout(index, target)
     return _search_ivfpq_index_triton(
         index, queries, topk=topk, nprobe=nprobe, device=target, selection_mode=selection_mode,
         profile=profile, use_packed_16b_codes=use_packed_16b_codes, triton_autotune=triton_autotune,
         triton_autotune_cache_nprobe=triton_autotune_cache_nprobe, refine_vectors=refine_vectors,
         refine_factor=refine_factor, lut_dtype=lut_dtype, use_preallocated_workspace=use_preallocated_workspace,
-        use_cuda_graph=use_cuda_graph)
+        use_cuda_graph=use_cuda_graph, prune_layout=prune_layout)
 
 
 def _cpu_residual_vectors(vectors, centroids, labels, chunk_size):

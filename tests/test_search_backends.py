@@ -14,7 +14,23 @@ from tensorvs import (IVFFlatBuildResult, IVFPQBuildResult, load_ivfflat_index,
                       load_ivfpq_index, save_ivfflat_index, save_ivfpq_index,
                       search_ivfflat_index, search_ivfpq_index, get_default_device)
 from tensorvs.index_ivfpq import _make_pq_rotation_matrix
+from tensorvs._ivfpq_triton import should_prune_scan
 from tensorvs._torch_search import search_device
+
+
+@pytest.mark.parametrize(
+    "vectors,nlist,nprobe,queries,expected",
+    [
+        (8_191_999, 1000, 50, 512, False),
+        (10_000_000, 1000, 20, 119, False),
+        (10_000_000, 1000, 20, 120, True),
+        (33_333_333, 1024, 5, 128, False),
+        (33_333_333, 1024, 5, 512, True),
+        (33_333_333, 1024, 1, 4096, False),
+    ],
+)
+def test_prune_gate_requires_both_work_thresholds(vectors, nlist, nprobe, queries, expected):
+    assert should_prune_scan(vectors, nlist, nprobe, queries) is expected
 
 
 @pytest.fixture
