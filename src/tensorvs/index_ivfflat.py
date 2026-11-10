@@ -22,6 +22,7 @@ from ._ivf_interleaved import (
     interleaved_vector_width,
 )
 from ._ivfflat_triton import can_run_topk as can_run_ivfflat_triton_topk
+from ._ivfflat_triton import can_use_uint8_scan, prepare_uint8_centered_norms
 from ._ivfflat_triton import triton_topk
 from ._ivfflat_triton import triton as _triton
 from ._layout_cache import (LayoutCache, logical_lists, normalize_device,
@@ -115,7 +116,6 @@ def _get_interleaved_flat_lists(
         assert index.persisted_list_vector_norms_interleaved is not None
         return (
             index.persisted_list_vectors_interleaved.to(
-                dtype=torch.float32,
                 device=search_device,
                 copy=False,
             ),
@@ -165,7 +165,7 @@ def _get_interleaved_flat_lists(
         index.list_vector_norms_interleaved,
     ):
         return (
-            index.list_vectors_interleaved.to(dtype=torch.float32, device=search_device, copy=False),
+            index.list_vectors_interleaved.to(device=search_device, copy=False),
             index.list_ids_interleaved.to(dtype=torch.int64, device=search_device, copy=False),
             index.list_group_prefix.to(dtype=torch.int64, device=search_device, copy=False),
             index.list_vector_norms_interleaved.to(dtype=torch.float32, device=search_device, copy=False),
@@ -205,6 +205,9 @@ class IVFFlatIndex:
     triton_max_list_group_count: int | None = None
     resident_device: torch.device | None = None
     layout_cache: LayoutCache = field(default_factory=LayoutCache, repr=False)
+    _uint8_norm_cache: tuple[torch.Tensor, torch.Tensor] | None = field(
+        default=None, init=False, repr=False, compare=False,
+    )
 
     @property
     def logical_lists(self):
@@ -252,6 +255,7 @@ class IVFFlatIndex:
             record_triton_layout(self, target_device)
         if self.resident_device == target_device and has_resident_layout:
             return self
+        self._uint8_norm_cache = None
         self.centroids = self.centroids.to(dtype=torch.float32, device=target_device, copy=False)
         self.centroid_norms = self.centroid_norms.to(
             dtype=torch.float32,
@@ -261,7 +265,6 @@ class IVFFlatIndex:
         self.list_count = self.list_count.to(dtype=torch.int64, device=target_device, copy=False)
         if has_persisted_layout:
             self.list_vectors_interleaved = self.persisted_list_vectors_interleaved.to(
-                dtype=torch.float32,
                 device=target_device,
                 copy=False,
             )
@@ -282,7 +285,6 @@ class IVFFlatIndex:
             )
         else:
             self.list_vectors_interleaved = self.list_vectors_interleaved.to(
-                dtype=torch.float32,
                 device=target_device,
                 copy=False,
             )
@@ -314,6 +316,7 @@ class IVFFlatIndex:
         self.list_ids_interleaved = None
         self.list_group_prefix = None
         self.list_vector_norms_interleaved = None
+        self._uint8_norm_cache = None
         self.resident_device = None
         self.layout_cache.torch_layout = None
         self.layout_cache.triton_fingerprint = None
@@ -351,14 +354,22 @@ def save_ivfflat_index(
     if labels_cpu.numel() > 0:
         sort_perm = torch.argsort(labels_cpu, stable=True)
         labels_sorted = labels_cpu[sort_perm]
-        list_vectors = vectors_cpu[sort_perm].to(torch.float32)
+        list_vectors = vectors_cpu[sort_perm]
         list_ids_flat = ids[sort_perm]
-        list_vector_norms = (list_vectors ** 2).sum(dim=1)
+        if list_vectors.dtype == torch.uint8:
+            # Compute norms in FP32 without expanding the entire stored index.
+            list_vector_norms = torch.empty(len(list_vectors), dtype=torch.float32)
+            for offset in range(0, len(list_vectors), 65536):
+                rows = list_vectors[offset:offset + 65536].to(torch.float32)
+                list_vector_norms[offset:offset + len(rows)] = rows.square().sum(dim=1)
+        else:
+            list_vectors = list_vectors.to(torch.float32)
+            list_vector_norms = list_vectors.square().sum(dim=1)
         list_count = torch.bincount(labels_sorted, minlength=centroids_cpu.shape[0]).to(torch.int64)
         list_prefix = torch.cumsum(list_count, dim=0) - list_count
     else:
         dim = int(centroids_cpu.shape[1])
-        list_vectors = torch.empty((0, dim), dtype=torch.float32)
+        list_vectors = torch.empty((0, dim), dtype=torch.uint8 if vectors_cpu.dtype == torch.uint8 else torch.float32)
         list_ids_flat = torch.empty((0,), dtype=torch.int64)
         list_vector_norms = torch.empty((0,), dtype=torch.float32)
         list_count = torch.zeros((centroids_cpu.shape[0],), dtype=torch.int64)
@@ -401,6 +412,7 @@ def save_ivfflat_index(
         "default_runtime_layout": "interleaved",
         "cluster_sizes": cluster_sizes,
         "storage_format": "single_file" if is_single_file else "directory_interleaved",
+        "vector_storage_dtype": str(list_vectors.dtype).removeprefix("torch."),
         "interleaved_layout": {
             "available": interleaved_layout is not None,
             "group_size": INTERLEAVED_GROUP_SIZE,
@@ -490,7 +502,8 @@ def load_ivfflat_index(index_dir: str | Path, load_lists: bool = True) -> IVFFla
             persisted_list_group_prefix = payload.get("list_group_prefix")
             persisted_list_vector_norms_interleaved = payload.get("list_vector_norms_interleaved")
             if persisted_list_vectors_interleaved is not None:
-                persisted_list_vectors_interleaved = persisted_list_vectors_interleaved.to(torch.float32)
+                if persisted_list_vectors_interleaved.dtype != torch.uint8:
+                    persisted_list_vectors_interleaved = persisted_list_vectors_interleaved.to(torch.float32)
                 persisted_list_ids_interleaved = persisted_list_ids_interleaved.to(torch.int64)
                 persisted_list_group_prefix = persisted_list_group_prefix.to(torch.int64)
                 if persisted_list_vector_norms_interleaved is None:
@@ -498,7 +511,7 @@ def load_ivfflat_index(index_dir: str | Path, load_lists: bool = True) -> IVFFla
                     # norm cache can be reconstructed without restoring the
                     # removed row-major layout.
                     persisted_list_vector_norms_interleaved = (
-                        persisted_list_vectors_interleaved.square().sum(dim=(1, 3)).reshape(-1)
+                        persisted_list_vectors_interleaved.to(torch.float32).square().sum(dim=(1, 3)).reshape(-1)
                     )
                 else:
                     persisted_list_vector_norms_interleaved = persisted_list_vector_norms_interleaved.to(
@@ -572,7 +585,9 @@ def load_ivfflat_index(index_dir: str | Path, load_lists: bool = True) -> IVFFla
         persisted_list_vectors_interleaved = torch.load(
             list_vectors_interleaved_path,
             map_location="cpu",
-        ).to(torch.float32)
+        )
+        if persisted_list_vectors_interleaved.dtype != torch.uint8:
+            persisted_list_vectors_interleaved = persisted_list_vectors_interleaved.to(torch.float32)
         persisted_list_ids_interleaved = torch.load(
             list_ids_interleaved_path,
             map_location="cpu",
@@ -588,7 +603,7 @@ def load_ivfflat_index(index_dir: str | Path, load_lists: bool = True) -> IVFFla
             ).to(torch.float32)
         else:
             persisted_list_vector_norms_interleaved = (
-                persisted_list_vectors_interleaved.square().sum(dim=(1, 3)).reshape(-1)
+                persisted_list_vectors_interleaved.to(torch.float32).square().sum(dim=(1, 3)).reshape(-1)
             )
     else:
         list_count = None
@@ -680,6 +695,8 @@ def _search_ivfflat_index_triton(
         search_device = torch.device(device)
 
     step_start = start_timing()
+    if queries.dtype == torch.uint8:
+        queries = queries.to(device=search_device, copy=False).contiguous()
     Q = queries.to(dtype=torch.float32, device=search_device, copy=False).contiguous()
     if index.resident_device is not None and index.resident_device == search_device:
         centroids = index.centroids
@@ -737,6 +754,18 @@ def _search_ivfflat_index_triton(
         list_group_prefix,
         interleaved_vector_norms,
     ) = _get_interleaved_flat_lists(index, search_device)
+    scan_queries = Q
+    uint8_centered_norms = None
+    if can_use_uint8_scan(queries, interleaved_vectors, topk):
+        cached = index._uint8_norm_cache
+        if cached is None or cached[0] is not interleaved_vectors:
+            uint8_centered_norms = prepare_uint8_centered_norms(interleaved_vectors)
+            # Publish the cache only once its data is ready on any search stream.
+            torch.cuda.current_stream(search_device).synchronize()
+            index._uint8_norm_cache = (interleaved_vectors, uint8_centered_norms)
+        else:
+            uint8_centered_norms = cached[1]
+        scan_queries = queries
     record_timing("triton_prepare_layout", step_start)
 
     step_start = start_timing()
@@ -749,7 +778,7 @@ def _search_ivfflat_index_triton(
             ).item()
         )
     topk_distances, topk_ids = triton_topk(
-        queries=Q,
+        queries=scan_queries,
         list_vectors_interleaved=interleaved_vectors,
         list_ids_interleaved=interleaved_ids,
         list_group_prefix=list_group_prefix,
@@ -758,6 +787,7 @@ def _search_ivfflat_index_triton(
         probe_cids=probe_cids,
         topk=topk,
         max_list_group_count=index.triton_max_list_group_count,
+        uint8_centered_norms=uint8_centered_norms,
     )
     result_distances.copy_(topk_distances)
     result_ids.copy_(topk_ids)
@@ -845,6 +875,7 @@ def build_ivfflat_index(
     *,
     max_points_per_centroid: int | None = FAISS_DEFAULT_MAX_POINTS_PER_CENTROID,
     min_points_per_centroid: int = FAISS_DEFAULT_MIN_POINTS_PER_CENTROID,
+    store_uint8: bool = False,
 ) -> IVFFlatBuildResult:
     """Train an IVF-Flat coarse quantizer.
 
@@ -854,6 +885,9 @@ def build_ivfflat_index(
     """
     if vectors.ndim != 2:
         raise ValueError(f"Dataset tensor must have shape (num_vectors, dim), got {tuple(vectors.shape)}")
+    if store_uint8 and vectors.dtype != torch.uint8:
+        raise ValueError("UInt8 IVF-Flat storage requires UInt8 source vectors")
+    raw_vectors = vectors if store_uint8 else None
     vectors = vectors.to(dtype=torch.float32, copy=False).contiguous()
     dim = int(vectors.shape[1])
     target_device = torch.device(device)
@@ -873,7 +907,7 @@ def build_ivfflat_index(
     )
 
     return IVFFlatBuildResult(
-        vectors=vectors,
+        vectors=raw_vectors if raw_vectors is not None else vectors,
         labels=trained.labels,
         centroids=trained.centroids,
         device=target_device,

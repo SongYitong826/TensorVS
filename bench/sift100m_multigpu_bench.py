@@ -88,6 +88,8 @@ def stem(args, *, build=False):
     name = f'CUDA_TensorVS_{route}MultiGPU3_{args.kind.upper()}_{args.dataset_label}_nlist{args.nlist}'
     if args.kind == 'ivfpq':
         name += f'_M{args.pq_dim}_nbits{args.pq_bits}_train{args.pq_train_points}'
+    if getattr(args, 'flat_storage', 'float32') == 'uint8':
+        name += '_UInt8'
     return name + ('_build' if build else '')
 
 
@@ -187,7 +189,8 @@ def worker(connection, args, rank, bounds, index_path, build_config, serialize_l
                 raise FileNotFoundError(index_path)
             started = time.perf_counter()
             mapped = _load_headered_binary(args.dataset_dir / 'base.bin', 'u1')
-            base = mapped[begin_id:end_id].to(dtype=torch.float32)
+            storage_dtype = torch.uint8 if args.flat_storage == 'uint8' else torch.float32
+            base = mapped[begin_id:end_id].to(dtype=storage_dtype)
             del mapped
             read_seconds = time.perf_counter() - started
             progress(f'GPU {args.gpus[rank]} read shard {rank}: IDs [{begin_id}, {end_id}); {read_seconds:.1f}s')
@@ -210,7 +213,8 @@ def worker(connection, args, rank, bounds, index_path, build_config, serialize_l
                 common = dict(vectors=base, nlist=args.nlist, niter=args.coarse_iters,
                               use_triton=True, device=device, seed=args.seed, n_init=1)
                 if args.kind == 'ivfflat':
-                    built = build_ivfflat_index(**common, max_points_per_centroid=256)
+                    built = build_ivfflat_index(**common, max_points_per_centroid=256,
+                                                store_uint8=args.flat_storage == 'uint8')
                 else:
                     built = build_ivfpq_index(**common, m=args.pq_dim, nbits=args.pq_bits,
                         coarse_niter=args.coarse_iters, coarse_n_init=1,
@@ -260,13 +264,18 @@ def worker(connection, args, rank, bounds, index_path, build_config, serialize_l
                 if int(index.metadata['num_vectors']) != end_id-begin_id:
                     raise ValueError('Loaded shard has the wrong row count')
                 index.reside_on_device(device, backend=args.backend, persist_layout=False)
-                queries = load_benchmark_vectors(args.dataset_dir / 'query.bin')[:args.actual_nq]
+                if args.flat_storage == 'uint8' and index.list_vectors_interleaved.dtype != torch.uint8:
+                    raise ValueError('Expected UInt8 vectors in the resident IVF-Flat index')
+                query_path = args.dataset_dir / 'query.bin'
+                queries = (_load_headered_binary(query_path, 'u1')
+                           if args.flat_storage == 'uint8' else load_benchmark_vectors(query_path))
+                queries = queries[:args.actual_nq]
                 torch.cuda.synchronize(device)
                 connection.send(dict(state='prepared'))
             elif action == 'configure':
                 batches.clear()
                 q_batch, probe = command['q_batch'], command['nprobe']
-                batches = [_make_padded_batch(queries, start, q_batch, device)
+                batches = [_make_padded_batch(queries, start, q_batch, device, dtype=queries.dtype)
                            for start in range(0, len(queries), q_batch)]
                 options = dict(device=device, backend=args.backend, persist_layout=False)
                 if args.backend == 'torch':
@@ -276,8 +285,10 @@ def worker(connection, args, rank, bounds, index_path, build_config, serialize_l
                     if args.backend == 'triton':
                         options.update(use_preallocated_workspace=True, use_cuda_graph=True,
                                        triton_autotune=True)
-                visits = probe_visit_statistics(index, queries, probe, device,
-                    128*4 if args.kind == 'ivfflat' else args.pq_dim)
+                bytes_per_vector = (128 * index.list_vectors_interleaved.element_size()
+                                    if args.kind == 'ivfflat' and args.backend == 'triton'
+                                    else 128 * 4 if args.kind == 'ivfflat' else args.pq_dim)
+                visits = probe_visit_statistics(index, queries, probe, device, bytes_per_vector)
                 torch.cuda.synchronize(device)
                 torch.cuda.empty_cache()
                 connection.send(dict(state='configured', visits=visits))
@@ -354,6 +365,8 @@ def benchmark(args):
         pq_dim=args.pq_dim, pq_bits=args.pq_bits, pq_iters=args.pq_iters,
         pq_restarts=args.pq_restarts, pq_train_points=args.pq_train_points,
         cpu_residual_chunk_size=65536, source_hashes=hashes)
+    if args.flat_storage == 'uint8':
+        build_config.update(vector_storage_dtype='uint8', query_dtype='float32')
     index_dir = args.index_dir or args.dataset_dir/'GPUIndex'/'TensorVS_MultiGPU3'/stem(args, build=True)
     index_paths = [index_dir/f'shard{rank}of3.bin' for rank in range(3)]
     query_csv = args.output_dir/(stem(args)+'.csv')
@@ -361,6 +374,15 @@ def benchmark(args):
     build_csv = args.output_dir/'Build'/(stem(args, build=True)+'.csv')
     build_json = build_csv.with_suffix('.json')
     build_manifest = index_dir/'build.json'
+    if args.phase == 'query':
+        recorded_build = json.loads(build_manifest.read_text())['build_config']
+        # Query-only runs retain the index's original build provenance.
+        # Current search sources are recorded independently for result resume checks.
+        build_inputs = {key: value for key, value in build_config.items() if key != 'source_hashes'}
+        recorded_inputs = {key: value for key, value in recorded_build.items() if key != 'source_hashes'}
+        if build_inputs != recorded_inputs:
+            raise ValueError('Existing index build settings do not match the requested configuration')
+        build_config = recorded_build
     config = dict(build=build_config, gpus=args.gpus, backend=args.backend,
         q_batches=args.q_batches, nprobes=args.nprobes, nq=args.actual_nq,
         topk=args.topk, warmup=args.warmup, repetitions=args.repetitions,
@@ -370,6 +392,10 @@ def benchmark(args):
         index_paths=[str(path) for path in index_paths],
         torch_version=str(torch.__version__), cuda_version=torch.version.cuda,
         cuda_visible_devices=os.environ.get('CUDA_VISIBLE_DEVICES'))
+    if args.phase == 'query':
+        config['query_source_hashes'] = hashes
+    if args.flat_storage == 'uint8':
+        config['query_dtype'] = 'uint8'
     # Normalize tuples/Paths before comparison with a saved JSON document.
     config = json.loads(json.dumps(config))
     metadata = dict(status='running', config=config, results=[],
@@ -541,6 +567,7 @@ def parse_args(argv=None):
     parser.add_argument('--index-dir', type=Path)
     parser.add_argument('--output-dir', type=Path, default=ROOT/'result')
     parser.add_argument('--backend', choices=('triton', 'torch'), default='triton')
+    parser.add_argument('--flat-storage', choices=('float32', 'uint8'), default='float32')
     parser.add_argument('--nlist', type=int, default=1024)
     parser.add_argument('--pq-dim', type=int, default=16)
     parser.add_argument('--pq-bits', type=int, choices=(4, 8), default=8)
@@ -560,6 +587,8 @@ def parse_args(argv=None):
     parser.add_argument('--cpu-threads', type=int, default=4)
     parser.add_argument('--resume', action='store_true')
     args = parser.parse_args(argv)
+    if args.flat_storage == 'uint8' and (args.kind != 'ivfflat' or args.backend != 'triton'):
+        parser.error('--flat-storage uint8 requires IVFFlat and the Triton backend')
     positive = [args.nlist, args.pq_dim, args.coarse_iters, args.pq_iters,
                 args.pq_restarts, args.pq_train_points, args.nq, args.topk,
                 args.repetitions, args.cpu_threads, args.expected_vectors,

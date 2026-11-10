@@ -545,6 +545,22 @@ if triton is not None:
 
 
     @triton.jit
+    def _u8_centered_norms_kernel(
+        vectors_ptr, norms_ptr, N: tl.constexpr, D: tl.constexpr,
+        VECTOR_WIDTH: tl.constexpr, GROUP: tl.constexpr, BLOCK: tl.constexpr,
+    ):
+        row = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
+        dim = tl.arange(0, D)
+        addr = (
+            ((row[None, :].to(tl.int64) // GROUP * (D // VECTOR_WIDTH) + dim[:, None] // VECTOR_WIDTH)
+             * GROUP + row[None, :] % GROUP) * VECTOR_WIDTH
+            + dim[:, None] % VECTOR_WIDTH
+        )
+        values = tl.load(vectors_ptr + addr, row[None, :] < N, other=128).to(tl.int32) - 128
+        tl.store(norms_ptr + row, tl.sum(values * values, axis=0), row < N)
+
+
+    @triton.jit
     def _list_grouped_tasked_gemm_topk_kernel(
         queries_ptr,
         interleaved_vectors_ptr,
@@ -570,6 +586,7 @@ if triton is not None:
         GROUPS_PER_CHUNK: tl.constexpr,
         MAX_VECTOR_CHUNKS: tl.constexpr,
         USE_PRECOMPUTED_NORMS: tl.constexpr,
+        INTEGER_SCAN: tl.constexpr,
         LOCAL_K: tl.constexpr,
         INF_KEY: tl.constexpr,
     ):
@@ -605,7 +622,8 @@ if triton is not None:
             other=0,
         ).to(tl.int64)
 
-        query_norms = tl.zeros((QUERY_TILE,), tl.float32)
+        ACC_DTYPE: tl.constexpr = tl.int32 if INTEGER_SCAN else tl.float32
+        query_norms = tl.zeros((QUERY_TILE,), ACC_DTYPE)
         # This is deliberately a runtime loop.  A static loop over every
         # dimension tile makes compilation and register allocation
         # unnecessarily expensive.  Every iteration still evaluates a fixed
@@ -617,22 +635,24 @@ if triton is not None:
                 queries_ptr + query_ids[:, None] * D + current_dim_offsets[None, :],
                 mask=valid_queries[:, None] & valid_dimensions[None, :],
                 other=0.0,
-            ).to(tl.float32)
+            ).to(ACC_DTYPE)
+            if INTEGER_SCAN:
+                query_values -= 128
             query_norms += tl.sum(query_values * query_values, axis=1)
 
         best_keys = tl.full((QUERY_TILE, LOCAL_K), INF_KEY, tl.int64)
         for local_group_idx in tl.range(group_start, group_end, 1):
             valid_vectors = local_group_idx * GROUP_SIZE + vector_offsets < vector_count
-            dot_products = tl.zeros((QUERY_TILE, VECTOR_TILE), tl.float32)
+            dot_products = tl.zeros((QUERY_TILE, VECTOR_TILE), ACC_DTYPE)
             physical_positions = (group_prefix + local_group_idx.to(tl.int64)) * GROUP_SIZE + vector_offsets
             if USE_PRECOMPUTED_NORMS:
                 vector_norms = tl.load(
                     interleaved_vector_norms_ptr + physical_positions,
                     mask=valid_vectors,
                     other=0.0,
-                ).to(tl.float32)
+                ).to(ACC_DTYPE)
             else:
-                vector_norms = tl.zeros((VECTOR_TILE,), tl.float32)
+                vector_norms = tl.zeros((VECTOR_TILE,), ACC_DTYPE)
 
             for dim_tile_idx in tl.range(0, NUM_DIM_TILES, 1):
                 current_dim_offsets = dim_tile_idx * DIM_TILE + dim_offsets
@@ -643,7 +663,7 @@ if triton is not None:
                     queries_ptr + query_ids[:, None] * D + current_dim_offsets[None, :],
                     mask=valid_queries[:, None] & valid_dimensions[None, :],
                     other=0.0,
-                ).to(tl.float32)
+                )
                 vector_values = tl.load(
                     interleaved_vectors_ptr
                     + (
@@ -658,20 +678,29 @@ if triton is not None:
                     + component_offsets[:, None],
                     mask=valid_dimensions[:, None] & valid_vectors[None, :],
                     other=0.0,
-                ).to(tl.float32)
-                dot_products = tl.dot(
-                    query_values,
-                    vector_values,
-                    dot_products,
-                    input_precision="ieee",
                 )
+                if INTEGER_SCAN:
+                    # Flip the sign bit to represent each byte minus 128 as int8.
+                    q = (query_values ^ 128).to(tl.uint8).to(tl.int8, bitcast=True)
+                    x = (vector_values ^ 128).to(tl.uint8).to(tl.int8, bitcast=True)
+                    dot_products = tl.dot(q, x, dot_products, out_dtype=tl.int32)
+                else:
+                    dot_products = tl.dot(
+                        query_values.to(tl.float32),
+                        vector_values.to(tl.float32),
+                        dot_products,
+                        input_precision="ieee",
+                    )
                 if not USE_PRECOMPUTED_NORMS:
-                    vector_norms += tl.sum(vector_values * vector_values, axis=0)
+                    vectors_f32 = vector_values.to(tl.float32)
+                    vector_norms += tl.sum(vectors_f32 * vectors_f32, axis=0)
 
-            distances = (
-                query_norms[:, None] + vector_norms[None, :] - 2.0 * dot_products
-            ).to(tl.float32)
-            distances = tl.maximum(distances, 0.0)
+            if INTEGER_SCAN:
+                # Both operands and norms use the same translation, preserving squared L2.
+                distances = (query_norms[:, None] + vector_norms[None, :] - 2 * dot_products).to(tl.float32)
+            else:
+                distances = (query_norms[:, None] + vector_norms[None, :] - 2.0 * dot_products).to(tl.float32)
+                distances = tl.maximum(distances, 0.0)
             distance_bits = distances.to(tl.uint32, bitcast=True).to(tl.int64)
             candidate_keys = (distance_bits << 32) | physical_positions[None, :]
             valid_candidates = valid_queries[:, None] & valid_vectors[None, :]
@@ -1514,6 +1543,7 @@ def _run_list_grouped_tasked_gemm_topk(
     plan: tuple[int, int, int],
     groups_per_chunk: int = LIST_GROUPED_TASK_VECTOR_GROUPS,
     return_chunk_partials: bool = False,
+    integer_scan: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor] | torch.Tensor:
     """Use one Triton program per active list/query-tile/group-chunk task."""
     num_queries, nprobe = probe_cids.shape
@@ -1627,6 +1657,7 @@ def _run_list_grouped_tasked_gemm_topk(
         GROUPS_PER_CHUNK=groups_per_chunk,
         MAX_VECTOR_CHUNKS=max_vector_chunks,
         USE_PRECOMPUTED_NORMS=use_precomputed_norms,
+        INTEGER_SCAN=integer_scan,
         LOCAL_K=local_k,
         INF_KEY=_INF_KEY,
         num_warps=4,
@@ -1665,6 +1696,37 @@ def _run_list_grouped_tasked_gemm_topk(
     return output_distances, output_ids
 
 
+def can_use_uint8_scan(queries: torch.Tensor, vectors: torch.Tensor, topk: int) -> bool:
+    """Check the native CUDA integer scan's supported input and tile shape."""
+    return (
+        queries.dtype == vectors.dtype == torch.uint8
+        and queries.shape[1] == 128
+        and topk <= MAX_LOCAL_K
+        and queries.device.type == "cuda"
+        and torch.version.cuda is not None
+        and torch.cuda.get_device_capability(queries.device)[0] >= 8
+    )
+
+
+def prepare_uint8_centered_norms(vectors: torch.Tensor) -> torch.Tensor:
+    """Compute one int32 squared norm per interleaved row on the resident device."""
+    vectors = vectors.contiguous()
+    rows = vectors.shape[0] * INTERLEAVED_GROUP_SIZE
+    norms = torch.empty(rows, dtype=torch.int32, device=vectors.device)
+    if rows:
+        _u8_centered_norms_kernel[(triton.cdiv(rows, 128),)](
+            vectors,
+            norms,
+            N=rows,
+            D=128,
+            VECTOR_WIDTH=vectors.shape[3],
+            GROUP=INTERLEAVED_GROUP_SIZE,
+            BLOCK=128,
+            num_warps=4,
+        )
+    return norms
+
+
 def triton_topk(
     *,
     queries: torch.Tensor,
@@ -1676,6 +1738,7 @@ def triton_topk(
     topk: int,
     list_vector_norms_interleaved: torch.Tensor | None = None,
     max_list_group_count: int | None = None,
+    uint8_centered_norms: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Run exact IVF-Flat top-k with GPU list-grouped C @ V.T blocks.
 
@@ -1807,13 +1870,16 @@ def triton_topk(
         return _run_list_grouped_tasked_gemm_topk(
             queries=queries,
             list_vectors_interleaved=list_vectors_interleaved,
-            list_vector_norms_interleaved=list_vector_norms_interleaved,
+            list_vector_norms_interleaved=(
+                list_vector_norms_interleaved if uint8_centered_norms is None else uint8_centered_norms
+            ),
             list_ids_interleaved=list_ids_interleaved,
             list_group_prefix=list_group_prefix,
             list_count=list_count,
             probe_cids=probe_cids,
             topk=topk,
             plan=task_plan,
+            integer_scan=uint8_centered_norms is not None,
         )
     if grouped_plan is not None:
         return _run_list_grouped_gemm_topk(

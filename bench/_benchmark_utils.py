@@ -298,10 +298,12 @@ def _make_padded_batch(
     start: int,
     q_batch: int,
     device: torch.device,
+    *,
+    dtype: torch.dtype = torch.float32,
 ) -> tuple[torch.Tensor, int]:
     end = min(start + q_batch, int(queries.shape[0]))
     batch_size = end - start
-    query_batch = queries[start:end].to(device=device, dtype=torch.float32, copy=False)
+    query_batch = queries[start:end].to(device=device, dtype=dtype, copy=False)
     if batch_size < q_batch:
         query_batch = torch.cat(
             (query_batch, query_batch[-1:].expand(q_batch - batch_size, -1)),
