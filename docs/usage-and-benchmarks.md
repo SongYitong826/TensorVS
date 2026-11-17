@@ -109,8 +109,8 @@ Here refinement selects up to 20 approximate candidates per query and returns th
 | Backend | Devices | Behavior |
 | --- | --- | --- |
 | `auto` | CPU, MPS, CUDA | Selects Triton for supported configurations; otherwise uses PyTorch. |
-| `torch` | CPU, MPS, CUDA | Uses standard PyTorch operations and bounded scan/merge workspaces. |
-| `triton` | Supported CUDA configurations | Uses fused Triton search; unsupported devices or shapes raise an error. |
+| `torch` | CPU, MPS, CUDA, ROCm, Ascend NPU | Uses standard PyTorch operations and bounded scan/merge workspaces. |
+| `triton` | Supported CUDA and ROCm configurations | Uses fused Triton search. Unsupported devices or shapes raise an error. |
 
 Set `device` explicitly to choose where search runs. If omitted, queries already on a non-CPU device keep that device; otherwise TensorVS chooses CUDA, then MPS, then CPU. `backend` and `device` are independent settings. The examples train on CPU when using MPS for search because some training operations are unavailable on MPS.
 
@@ -120,11 +120,12 @@ Execution layouts are cached by default under `~/.cache/tensorvs/layouts`. Set `
 
 ## Benchmarks
 
-### README figures
+### Reproduce the benchmark figures
 
-The README figures show GloVe 1.2M and Tencent Hunyuan with top-k 10 and 1,024
-IVF lists. IVF-Flat uses query batches 32, 128, and 512 on NVIDIA, AMD, and
-Apple Silicon. Ascend IVF-Flat and all IVF-PQ plots use batch 128.
+The benchmark figures show GloVe 1.2M and Tencent Hunyuan with top-k 10 and
+1,024 IVF lists. IVF-Flat uses query batches 32, 128, and 512 on NVIDIA, AMD,
+and Apple Silicon. Ascend IVF-Flat and all IVF-PQ plots use batch 128.
+[Benchmark summary and curves](benchmarks.md)
 
 The AMD, Apple, and Ascend plots reuse the paper's plotting scripts and
 the completed CSV/JSON pairs in [`result/`](../result/). The NVIDIA plots
