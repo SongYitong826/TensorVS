@@ -13,8 +13,9 @@ import sys
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 from bench._mps_results import comparison_rows
+from bench._cuda_build_results import load_build
 
-DATA_ROOT = Path("/storage/vector_data")
+BUILD_RESULT_ROOT = PROJECT_ROOT / "result" / "Build"
 DEFAULT_OUTPUT = PROJECT_ROOT / "tables" / "ivf_resource_statistics.tex"
 TOPK = 10
 Q_BATCH = 128
@@ -36,7 +37,6 @@ class Dataset:
 class Method:
     label: str
     stats_name: str
-    result_root: Path
     flat_index_name: str
 
 
@@ -64,6 +64,7 @@ class Record:
     size_gib: float
     build_seconds: float
     peak_memory_gib: float | None
+    source_path: Path | None = None
 
 
 DATASETS = (
@@ -79,19 +80,16 @@ METHODS = (
     Method(
         "cuVS",
         "cuvs",
-        Path("/home/songyitong/cuvs/python/cuvs/cuvs/result"),
         "cuVS_IVFFlat_nlist1024.bin",
     ),
     Method(
         "Faiss GPU",
         "faiss",
-        Path("/home/songyitong/faiss/result"),
         "Faiss_IVFFlat_nlist1024.index",
     ),
     Method(
         "TensorVS",
         "tensorvs",
-        PROJECT_ROOT / "result",
         "TenVS_IVFFlat_nlist1024.bin",
     ),
 )
@@ -209,64 +207,6 @@ def normalize(text: str) -> str:
     return "".join(character for character in text.lower() if character.isalnum())
 
 
-def index_path(dataset: Dataset, filename: str) -> Path:
-    return DATA_ROOT / dataset.key / "GPUIndex" / filename
-
-
-def matching_build_time(
-    dataset: Dataset,
-    method: Method,
-    index_type: str,
-    path: Path,
-) -> float:
-    """Match a statistic row to the actual file despite legacy MB units."""
-    stats_path = DATA_ROOT / dataset.key / "GPUIndex" / "statistic.csv"
-    candidates: list[tuple[float, float]] = []
-    # Accept both the legacy decimal-MB rows and the current MiB rows.
-    actual_sizes = (
-        path.stat().st_size / (1024 * 1024),
-        path.stat().st_size / 1_000_000,
-    )
-    with stats_path.open(newline="") as source:
-        for row in csv.DictReader(source):
-            if normalize(row["Index Type"]) != normalize(index_type):
-                continue
-            if normalize(row["Method Name"]) != method.stats_name:
-                continue
-            recorded_size = float(row["Index Size (MB)"])
-            size_error = min(abs(recorded_size - size) for size in actual_sizes)
-            candidates.append((size_error, float(row["Build Time (s)"])))
-    if not candidates:
-        raise ValueError(
-            f"Missing {index_type} build statistics for {method.label} in {stats_path}"
-        )
-    size_error, build_seconds = min(candidates)
-    if size_error > 0.05:
-        raise ValueError(
-            f"No {index_type} statistic matches {path}; closest size error={size_error:.4f} MB"
-        )
-    return build_seconds
-
-
-def peak_memory_by_nprobe_gib(result_path: Path) -> dict[int, float]:
-    candidates: dict[int, float] = {}
-    with result_path.open(newline="") as source:
-        for row in csv.DictReader(source):
-            k = int(float(row.get("K", row.get("k", "-1"))))
-            q_batch = int(float(row["q_batch"]))
-            if k != TOPK or q_batch != Q_BATCH:
-                continue
-            nprobe = int(float(row["nprobes"]))
-            if nprobe in candidates:
-                raise ValueError(
-                    f"Duplicate K={TOPK}, QBatch={Q_BATCH}, nprobe={nprobe} in {result_path}"
-                )
-            candidates[nprobe] = float(row["peak_gpu_memory"]) / 1024.0
-    if not candidates:
-        raise ValueError(f"No K={TOPK}, QBatch={Q_BATCH} rows in {result_path}")
-    return candidates
-
-
 def collect_records(
     dataset: Dataset,
     kind: str,
@@ -274,50 +214,50 @@ def collect_records(
     if kind == "IVF-PQ" and dataset.key not in PQ_SPECS:
         return {}
 
-    paths: dict[str, Path] = {}
+    sources: dict[str, Path] = {}
+    builds: dict[str, dict] = {}
     configs: dict[str, tuple[int, int | None, int | None]] = {}
     config_texts: dict[str, str] = {}
     memory_rows: dict[str, dict[int, float]] = {}
+    legacy_peaks: dict[str, float | None] = {}
     for method in METHODS:
         if kind == "IVF-Flat":
-            path = index_path(dataset, method.flat_index_name)
-            # This section reports CUDA memory; AMD results belong to AMD figures.
-            result_path = method.result_root / f"IVFFLAT_{dataset.key}_nlist1024.csv"
+            index_name = method.flat_index_name
             configs[method.label] = (1024, None, None)
             config_texts[method.label] = "1024/--/--"
         else:
             spec = PQ_SPECS[dataset.key][method.label]
-            path = index_path(dataset, spec.index_name)
+            index_name = spec.index_name
             configs[method.label] = spec.config
             config_texts[method.label] = spec.config_text
-        paths[method.label] = path
-        if kind == "IVF-Flat":
-            memory_rows[method.label] = peak_memory_by_nprobe_gib(result_path)
-        elif spec.result_name is not None:
-            result_path = method.result_root / spec.result_name
-            memory_rows[method.label] = peak_memory_by_nprobe_gib(result_path)
+        nlist, m, bits = configs[method.label]
+        token = {"cuVS": "cuVS", "Faiss GPU": "FaissGPU", "TensorVS": "TensorVS_Triton"}[method.label]
+        source, data = load_build(dataset.key, token, "ivfflat" if kind == "IVF-Flat" else "ivfpq",
+                                  nlist, m=m, nbits=bits, index_name=index_name, build_dir=BUILD_RESULT_ROOT)
+        sources[method.label], builds[method.label] = source, data
+        legacy = data.get("legacy_table_statistics")
+        if legacy is not None:
+            legacy_peaks[method.label] = legacy["peak_gpu_memory_gib"]
+        else:
+            values = (data.get("query_statistics") or {}).get("peak_gpu_memory_mib_by_nprobe", {})
+            if values:
+                memory_rows[method.label] = {int(probe): value / 1024 for probe, value in values.items()}
 
-    common_nprobes = set.intersection(
-        *(set(values) for values in memory_rows.values())
-    )
-    if not common_nprobes:
-        raise ValueError(
-            f"No common K={TOPK}, QBatch={Q_BATCH} nprobe for {dataset.key} {kind}"
-        )
+    common_nprobes = set.intersection(*(set(values) for values in memory_rows.values())) if memory_rows else set()
+    if memory_rows and not common_nprobes:
+        raise ValueError(f"No common query nprobe for {dataset.key} {kind}")
 
     return {
         method.label: Record(
             config=configs[method.label],
             config_text=config_texts[method.label],
-            size_gib=paths[method.label].stat().st_size / (1024.0**3),
-            build_seconds=matching_build_time(
-                dataset, method, kind, paths[method.label]
-            ),
+            size_gib=builds[method.label]["index_size_bytes"] / (1024.0**3),
+            build_seconds=float(builds[method.label]["build_seconds"]),
             peak_memory_gib=(
-                max(memory_rows[method.label][nprobe] for nprobe in common_nprobes)
-                if method.label in memory_rows
-                else None
+                legacy_peaks[method.label] if method.label in legacy_peaks else
+                max(memory_rows[method.label][nprobe] for nprobe in common_nprobes) if method.label in memory_rows else None
             ),
+            source_path=sources[method.label],
         )
         for method in METHODS
     }

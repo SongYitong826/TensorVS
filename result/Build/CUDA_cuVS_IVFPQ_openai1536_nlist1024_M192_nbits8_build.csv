@@ -1,0 +1,2 @@
+dataset,method,nlist,n_vectors,dim,build_seconds,save_seconds,index_size_bytes,index_size_mib,peak_build_gpu_memory_mib
+openai1536,cuVS,1024,999000,1536,7.687803,,226835049,216.32676029205322,

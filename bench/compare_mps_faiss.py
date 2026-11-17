@@ -297,7 +297,7 @@ def worker(args):
     rows = []
     if args.output.exists():
         rows = read_rows(args.output)
-    method = "TensorVS" if args.worker == "tensorvs" else "Faiss Metal"
+    method = "TensorVS" if args.worker == "tensorvs" else "Faiss CPU" if args.faiss_cpu else "Faiss Metal"
     existing_keys = {
         (int(row["q_batch"]), int(row["nprobes"]))
         for row in rows if row["method"] == method
@@ -518,7 +518,8 @@ def main():
         outputs = {
             backend: args.output_dir / (
                 index_stem(indexes[0], args.dataset.name, kind, method) + ".csv")
-            for backend, method in (("faiss", "Faiss Metal"), ("tensorvs", "TensorVS"))
+            for backend, method in (("faiss", "Faiss CPU" if args.faiss_cpu else "Faiss Metal"),
+                                    ("tensorvs", "TensorVS"))
         }
         for output in outputs.values():
             if (output.exists() or output.with_suffix(".json").exists()) and not args.resume:

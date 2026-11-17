@@ -23,6 +23,10 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter, LogLocator, MaxNLocator, NullFormatter
+try:
+    from ._cuda_sift_column import IVFPQ_QPS_LIMITS, sift_file, update_sift_column
+except ImportError:
+    from _cuda_sift_column import IVFPQ_QPS_LIMITS, sift_file, update_sift_column
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -51,7 +55,7 @@ class ResultFile:
 
 
 DATASETS = (
-    Dataset("sift10m", "SIFT"),
+    Dataset("sift100m", "SIFT"),
     Dataset("glove1.2m", "GloVe"),
     Dataset("tiny5m", "Tiny"),
     Dataset("hunyuan", "Hunyuan"),
@@ -69,10 +73,12 @@ LEGEND_ORDER = ("cuvs", "faiss", "tensorvs")
 DEFAULT_RESULT_DIRS = {
     "tensorvs": (PROJECT_ROOT / "result", PROJECT_ROOT / "results"),
     "cuvs": (
+        PROJECT_ROOT / "result",
         Path("/home/songyitong/cuvs/python/cuvs/cuvs/result"),
         Path("/home/songyitong/cuvs/python/cuvs/cuvs/results"),
     ),
     "faiss": (
+        PROJECT_ROOT / "result",
         Path("/home/songyitong/faiss/result"),
         Path("/home/songyitong/faiss/results"),
     ),
@@ -101,6 +107,9 @@ def discover_result_files(
         for result_dir in result_dirs[method]:
             if not result_dir.is_dir():
                 continue
+            native = sift_file(result_dir, method, "ivfpq")
+            if native is not None and "sift100m" not in discovered[method]:
+                discovered[method]["sift100m"] = ResultFile(native, None)
             for path in sorted(result_dir.glob("*.csv")):
                 match = FILENAME_PATTERN.match(path.name)
                 if match is None:
@@ -304,7 +313,9 @@ def plot_figure(
                 LogLocator(base=10, subs=tuple(range(2, 10)), numticks=12)
             )
             axis.yaxis.set_minor_formatter(NullFormatter())
-            if qps_limits is not None:
+            if dataset.key == "sift100m":
+                axis.set_ylim(*IVFPQ_QPS_LIMITS)
+            elif qps_limits is not None:
                 axis.set_ylim(*qps_limits)
             if dataset.key == "hunyuan":
                 # The Hunyuan range contains only the 10^5 major decade; keep
@@ -393,6 +404,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cuvs-dir", action="append", type=Path)
     parser.add_argument("--faiss-dir", action="append", type=Path)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--sift-only", action="store_true",
+                        help="Replace the SIFT column in the existing paper PDF using SIFT100M results.")
+    parser.add_argument("--sift-result-dir", type=Path,
+                        help="SIFT100M result directory for the column update.")
     parser.add_argument("--output-stem")
     parser.add_argument("--require-complete", action="store_true")
     return parser.parse_args()
@@ -400,6 +415,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.sift_only:
+        stem = args.output_stem or f"IVFPQ_CUDA_QBatch{'_'.join(map(str, args.q_batches))}_K{args.k}"
+        update_sift_column("ivfpq", args.output_dir, stem, args.q_batches, args.k,
+                           result_dir=args.sift_result_dir)
+        return
     q_batches = tuple(args.q_batches)
     result_dirs = {
         "tensorvs": _selected_dirs(args.tensorvs_dir, DEFAULT_RESULT_DIRS["tensorvs"]),

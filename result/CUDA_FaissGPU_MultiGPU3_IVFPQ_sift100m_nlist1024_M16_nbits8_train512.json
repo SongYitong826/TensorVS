@@ -49,9 +49,7 @@
       }
     },
     "gpus": [
-      0,
-      1,
-      2
+      0
     ],
     "worker_env": "faiss",
     "queries": {
@@ -97,30 +95,30 @@
       "/storage/vector_data/sift100M/GPUIndex/FaissGPU_MultiGPU3/CUDA_FaissGPU_MultiGPU3_IVFPQ_sift100m_nlist1024_M16_nbits8_train512_build/shard0of3.index",
       "/storage/vector_data/sift100M/GPUIndex/FaissGPU_MultiGPU3/CUDA_FaissGPU_MultiGPU3_IVFPQ_sift100m_nlist1024_M16_nbits8_train512_build/shard1of3.index",
       "/storage/vector_data/sift100M/GPUIndex/FaissGPU_MultiGPU3/CUDA_FaissGPU_MultiGPU3_IVFPQ_sift100m_nlist1024_M16_nbits8_train512_build/shard2of3.index"
-    ]
+    ],
+    "gpu_count": 1,
+    "execution": "three resident shards searched sequentially"
   },
   "results": [
     {
       "nprobes": 5,
       "q_batch": 32,
       "K": 10,
-      "qps": 59750.03477909764,
-      "recall": 0.37149999999999994,
+      "qps": 28917.96419429185,
+      "recall": 0.3715,
       "visited_vectors_per_query": 487500.353,
-      "peak_gpu_memory": 4574.0,
+      "peak_gpu_memory": 3166.0,
       "samples_seconds": [
-        0.016731780022382736,
-        0.019733654335141182,
-        0.016736391931772232
+        0.034681934863328934,
+        0.03458058089017868,
+        0.034402922727167606
       ],
       "memory": {
-        "peak_total_mib": 4574.0,
+        "peak_total_mib": 3166.0,
         "peak_per_gpu_mib": {
-          "0": 1526.0,
-          "1": 1532.0,
-          "2": 1516.0
+          "0": 3166.0
         },
-        "samples": 3,
+        "samples": 5,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -148,731 +146,697 @@
       "nprobes": 10,
       "q_batch": 32,
       "K": 10,
-      "qps": 30389.86894387743,
+      "qps": 14469.091686032994,
       "recall": 0.3925,
       "visited_vectors_per_query": 972016.7390000001,
-      "peak_gpu_memory": 4574.0,
+      "peak_gpu_memory": 3166.0,
       "samples_seconds": [
-        0.03375508775934577,
-        0.03290570294484496,
-        0.030061276629567146
+        0.06911283871158957,
+        0.06931663304567337,
+        0.06893261708319187
       ],
       "memory": {
-        "peak_total_mib": 4574.0,
+        "peak_total_mib": 3166.0,
         "peak_per_gpu_mib": {
-          "0": 1526.0,
-          "1": 1532.0,
-          "2": 1516.0
-        },
-        "samples": 5,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 326616.7,
-          "minimum": 249710,
-          "maximum": 668098,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 325263.266,
-          "minimum": 261997,
-          "maximum": 639378,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 320136.773,
-          "minimum": 249414,
-          "maximum": 662722,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 15,
-      "q_batch": 32,
-      "K": 10,
-      "qps": 19840.789529556376,
-      "recall": 0.39849999999999997,
-      "visited_vectors_per_query": 1451467.4780000001,
-      "peak_gpu_memory": 4574.0,
-      "samples_seconds": [
-        0.050760503858327866,
-        0.050401220098137856,
-        0.050152625888586044
-      ],
-      "memory": {
-        "peak_total_mib": 4574.0,
-        "peak_per_gpu_mib": {
-          "0": 1526.0,
-          "1": 1532.0,
-          "2": 1516.0
-        },
-        "samples": 6,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 487235.454,
-          "minimum": 384300,
-          "maximum": 981277,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 486467.919,
-          "minimum": 404271,
-          "maximum": 871482,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 477764.105,
-          "minimum": 381677,
-          "maximum": 963552,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 20,
-      "q_batch": 32,
-      "K": 10,
-      "qps": 4141.949938837254,
-      "recall": 0.4002000000000001,
-      "visited_vectors_per_query": 1929927.9510000001,
-      "peak_gpu_memory": 6026.0,
-      "samples_seconds": [
-        0.24143217923119664,
-        0.24411823600530624,
-        0.23814332392066717
-      ],
-      "memory": {
-        "peak_total_mib": 6026.0,
-        "peak_per_gpu_mib": {
-          "0": 2006.0,
-          "1": 2016.0,
-          "2": 2004.0
-        },
-        "samples": 23,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 648273.457,
-          "minimum": 515761,
-          "maximum": 1222747,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 646529.632,
-          "minimum": 543244,
-          "maximum": 1109761,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 635124.862,
-          "minimum": 519448,
-          "maximum": 1237702,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 30,
-      "q_batch": 32,
-      "K": 10,
-      "qps": 3794.8109474847442,
-      "recall": 0.4023999999999998,
-      "visited_vectors_per_query": 2881715.31,
-      "peak_gpu_memory": 6034.0,
-      "samples_seconds": [
-        0.26433785213157535,
-        0.2635177387855947,
-        0.26303895423188806
-      ],
-      "memory": {
-        "peak_total_mib": 6034.0,
-        "peak_per_gpu_mib": {
-          "0": 2006.0,
-          "1": 2024.0,
-          "2": 2004.0
-        },
-        "samples": 26,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 966088.442,
-          "minimum": 786548,
-          "maximum": 1634284,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 966188.059,
-          "minimum": 820799,
-          "maximum": 1579681,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 949438.809,
-          "minimum": 793768,
-          "maximum": 1691829,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 40,
-      "q_batch": 32,
-      "K": 10,
-      "qps": 3788.2867335647506,
-      "recall": 0.4036999999999998,
-      "visited_vectors_per_query": 3832841.205,
-      "peak_gpu_memory": 5994.0,
-      "samples_seconds": [
-        0.26516023511067033,
-        0.26397157087922096,
-        0.2637987262569368
-      ],
-      "memory": {
-        "peak_total_mib": 5994.0,
-        "peak_per_gpu_mib": {
-          "0": 1990.0,
-          "1": 2000.0,
-          "2": 2004.0
-        },
-        "samples": 26,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 1284096.884,
-          "minimum": 1063782,
-          "maximum": 2084531,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 1284873.833,
-          "minimum": 1105562,
-          "maximum": 1975481,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 1263870.488,
-          "minimum": 1076698,
-          "maximum": 2093450,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 50,
-      "q_batch": 32,
-      "K": 10,
-      "qps": 3479.738942179631,
-      "recall": 0.4045999999999998,
-      "visited_vectors_per_query": 4778506.9059999995,
-      "peak_gpu_memory": 6018.0,
-      "samples_seconds": [
-        0.2873778799548745,
-        0.28788263304159045,
-        0.2870291480794549
-      ],
-      "memory": {
-        "peak_total_mib": 6018.0,
-        "peak_per_gpu_mib": {
-          "0": 2014.0,
-          "1": 2000.0,
-          "2": 2004.0
-        },
-        "samples": 28,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 1600248.352,
-          "minimum": 1339740,
-          "maximum": 2458674,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 1602652.329,
-          "minimum": 1389150,
-          "maximum": 2325562,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 1575606.225,
-          "minimum": 1341816,
-          "maximum": 2480882,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 60,
-      "q_batch": 32,
-      "K": 10,
-      "qps": 3411.484053663258,
-      "recall": 0.40469999999999984,
-      "visited_vectors_per_query": 5723708.674000001,
-      "peak_gpu_memory": 6010.0,
-      "samples_seconds": [
-        0.2931275609880686,
-        0.2928399280644953,
-        0.2947085681371391
-      ],
-      "memory": {
-        "peak_total_mib": 6010.0,
-        "peak_per_gpu_mib": {
-          "0": 2006.0,
-          "1": 2000.0,
-          "2": 2004.0
-        },
-        "samples": 28,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 1914817.491,
-          "minimum": 1608791,
-          "maximum": 2860585,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 1920945.067,
-          "minimum": 1676343,
-          "maximum": 2716512,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 1887946.116,
-          "minimum": 1618418,
-          "maximum": 2864116,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 70,
-      "q_batch": 32,
-      "K": 10,
-      "qps": 3073.9725807545296,
-      "recall": 0.4048999999999998,
-      "visited_vectors_per_query": 6666183.424999999,
-      "peak_gpu_memory": 5958.0,
-      "samples_seconds": [
-        0.32909509539604187,
-        0.3241442940197885,
-        0.3253119452856481
-      ],
-      "memory": {
-        "peak_total_mib": 5958.0,
-        "peak_per_gpu_mib": {
-          "0": 1962.0,
-          "1": 2024.0,
-          "2": 1972.0
-        },
-        "samples": 31,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 2229084.797,
-          "minimum": 1911410,
-          "maximum": 3238378,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 2237831.016,
-          "minimum": 1958811,
-          "maximum": 3073467,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 2199267.612,
-          "minimum": 1903810,
-          "maximum": 3272417,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 80,
-      "q_batch": 32,
-      "K": 10,
-      "qps": 3013.02895976421,
-      "recall": 0.40489999999999987,
-      "visited_vectors_per_query": 7607877.42,
-      "peak_gpu_memory": 5894.0,
-      "samples_seconds": [
-        0.33080531004816294,
-        0.33511627838015556,
-        0.33189193112775683
-      ],
-      "memory": {
-        "peak_total_mib": 5894.0,
-        "peak_per_gpu_mib": {
-          "0": 1954.0,
-          "1": 1968.0,
-          "2": 1972.0
-        },
-        "samples": 33,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 2543938.733,
-          "minimum": 2188374,
-          "maximum": 3597677,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 2553813.467,
-          "minimum": 2227814,
-          "maximum": 3463988,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 2510125.22,
-          "minimum": 2185834,
-          "maximum": 3592428,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 90,
-      "q_batch": 32,
-      "K": 10,
-      "qps": 2783.2448102026497,
-      "recall": 0.40499999999999986,
-      "visited_vectors_per_query": 8548723.555,
-      "peak_gpu_memory": 5986.0,
-      "samples_seconds": [
-        0.3592928643338382,
-        0.3602182068862021,
-        0.3571698470041156
-      ],
-      "memory": {
-        "peak_total_mib": 5986.0,
-        "peak_per_gpu_mib": {
-          "0": 2006.0,
-          "1": 2024.0,
-          "2": 1956.0
-        },
-        "samples": 35,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 2857302.118,
-          "minimum": 2468137,
-          "maximum": 3954728,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 2870156.569,
-          "minimum": 2519719,
-          "maximum": 3848752,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 2821264.868,
-          "minimum": 2470772,
-          "maximum": 3983074,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 100,
-      "q_batch": 32,
-      "K": 10,
-      "qps": 2506.571987658043,
-      "recall": 0.4050999999999999,
-      "visited_vectors_per_query": 9489380.299,
-      "peak_gpu_memory": 5974.0,
-      "samples_seconds": [
-        0.3999702576547861,
-        0.3989512389525771,
-        0.39853167766705155
-      ],
-      "memory": {
-        "peak_total_mib": 5974.0,
-        "peak_per_gpu_mib": {
-          "0": 1970.0,
-          "1": 2000.0,
-          "2": 2004.0
-        },
-        "samples": 38,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 3170639.617,
-          "minimum": 2751898,
-          "maximum": 4317600,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 3186588.318,
-          "minimum": 2805431,
-          "maximum": 4221220,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 3132152.364,
-          "minimum": 2750361,
-          "maximum": 4369843,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 120,
-      "q_batch": 32,
-      "K": 10,
-      "qps": 2264.473896610111,
-      "recall": 0.4051999999999999,
-      "visited_vectors_per_query": 11367013.221,
-      "peak_gpu_memory": 5958.0,
-      "samples_seconds": [
-        0.44160367734730244,
-        0.44394235825166106,
-        0.4400596129707992
-      ],
-      "memory": {
-        "peak_total_mib": 5958.0,
-        "peak_per_gpu_mib": {
-          "0": 1954.0,
-          "1": 2000.0,
-          "2": 2004.0
-        },
-        "samples": 43,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 3795701.445,
-          "minimum": 3329633,
-          "maximum": 5115717,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 3818813.936,
-          "minimum": 3398331,
-          "maximum": 4917089,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 3752497.84,
-          "minimum": 3319496,
-          "maximum": 5063297,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 150,
-      "q_batch": 32,
-      "K": 10,
-      "qps": 1667.4094618923627,
-      "recall": 0.4052999999999999,
-      "visited_vectors_per_query": 14173803.339999998,
-      "peak_gpu_memory": 5930.0,
-      "samples_seconds": [
-        0.6000170554034412,
-        0.599732712842524,
-        0.5991810662671924
-      ],
-      "memory": {
-        "peak_total_mib": 5930.0,
-        "peak_per_gpu_mib": {
-          "0": 1926.0,
-          "1": 2000.0,
-          "2": 2004.0
-        },
-        "samples": 59,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 4733230.958,
-          "minimum": 4196399,
-          "maximum": 6151749,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 4762929.986,
-          "minimum": 4286694,
-          "maximum": 5908551,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 4677642.396,
-          "minimum": 4179424,
-          "maximum": 6117662,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 5,
-      "q_batch": 128,
-      "K": 10,
-      "qps": 110808.55505317949,
-      "recall": 0.37149999999999994,
-      "visited_vectors_per_query": 487500.353,
-      "peak_gpu_memory": 4574.0,
-      "samples_seconds": [
-        0.0090245739556849,
-        0.009038989897817373,
-        0.008964744862169027
-      ],
-      "memory": {
-        "peak_total_mib": 4574.0,
-        "peak_per_gpu_mib": {
-          "0": 1526.0,
-          "1": 1532.0,
-          "2": 1516.0
-        },
-        "samples": 2,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 163797.145,
-          "minimum": 120541,
-          "maximum": 395359,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 162601.71,
-          "minimum": 124940,
-          "maximum": 326993,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 161101.498,
-          "minimum": 119337,
-          "maximum": 371912,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 10,
-      "q_batch": 128,
-      "K": 10,
-      "qps": 56559.1596722404,
-      "recall": 0.3925,
-      "visited_vectors_per_query": 972016.7390000001,
-      "peak_gpu_memory": 4574.0,
-      "samples_seconds": [
-        0.01764373481273651,
-        0.01768060214817524,
-        0.0179011058062315
-      ],
-      "memory": {
-        "peak_total_mib": 4574.0,
-        "peak_per_gpu_mib": {
-          "0": 1526.0,
-          "1": 1532.0,
-          "2": 1516.0
-        },
-        "samples": 3,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 326616.7,
-          "minimum": 249710,
-          "maximum": 668098,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 325263.266,
-          "minimum": 261997,
-          "maximum": 639378,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 320136.773,
-          "minimum": 249414,
-          "maximum": 662722,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 15,
-      "q_batch": 128,
-      "K": 10,
-      "qps": 25226.80210780435,
-      "recall": 0.39849999999999997,
-      "visited_vectors_per_query": 1451467.4780000001,
-      "peak_gpu_memory": 4574.0,
-      "samples_seconds": [
-        0.039519166108220816,
-        0.03964547626674175,
-        0.03964037913829088
-      ],
-      "memory": {
-        "peak_total_mib": 4574.0,
-        "peak_per_gpu_mib": {
-          "0": 1526.0,
-          "1": 1532.0,
-          "2": 1516.0
-        },
-        "samples": 5,
-        "interval_seconds": 0.01
-      },
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_per_query": 487235.454,
-          "minimum": 384300,
-          "maximum": 981277,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 486467.919,
-          "minimum": 404271,
-          "maximum": 871482,
-          "source": "native Faiss getListLength and index quantizer search"
-        },
-        {
-          "visited_vectors_per_query": 477764.105,
-          "minimum": 381677,
-          "maximum": 963552,
-          "source": "native Faiss getListLength and index quantizer search"
-        }
-      ]
-    },
-    {
-      "nprobes": 20,
-      "q_batch": 128,
-      "K": 10,
-      "qps": 13042.654146335964,
-      "recall": 0.4002000000000001,
-      "visited_vectors_per_query": 1929927.9510000001,
-      "peak_gpu_memory": 6026.0,
-      "samples_seconds": [
-        0.07667151093482971,
-        0.07714780699461699,
-        0.07627811329439282
-      ],
-      "memory": {
-        "peak_total_mib": 6026.0,
-        "peak_per_gpu_mib": {
-          "0": 2006.0,
-          "1": 2016.0,
-          "2": 2004.0
+          "0": 3166.0
         },
         "samples": 8,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
         {
+          "visited_vectors_per_query": 326616.7,
+          "minimum": 249710,
+          "maximum": 668098,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 325263.266,
+          "minimum": 261997,
+          "maximum": 639378,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 320136.773,
+          "minimum": 249414,
+          "maximum": 662722,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 15,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 8040.613453417992,
+      "recall": 0.3985,
+      "visited_vectors_per_query": 1451467.4780000001,
+      "peak_gpu_memory": 3166.0,
+      "samples_seconds": [
+        0.1268936861306429,
+        0.12436862010508776,
+        0.12394315516576171
+      ],
+      "memory": {
+        "peak_total_mib": 3166.0,
+        "peak_per_gpu_mib": {
+          "0": 3166.0
+        },
+        "samples": 13,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 487235.454,
+          "minimum": 384300,
+          "maximum": 981277,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 486467.919,
+          "minimum": 404271,
+          "maximum": 871482,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 477764.105,
+          "minimum": 381677,
+          "maximum": 963552,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 20,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 1236.3439441868722,
+      "recall": 0.4002,
+      "visited_vectors_per_query": 1929927.9510000001,
+      "peak_gpu_memory": 3654.0,
+      "samples_seconds": [
+        0.8088364121504128,
+        0.8099450329318643,
+        0.7993905153125525
+      ],
+      "memory": {
+        "peak_total_mib": 3654.0,
+        "peak_per_gpu_mib": {
+          "0": 3654.0
+        },
+        "samples": 70,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 648273.457,
+          "minimum": 515761,
+          "maximum": 1222747,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 646529.632,
+          "minimum": 543244,
+          "maximum": 1109761,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 635124.862,
+          "minimum": 519448,
+          "maximum": 1237702,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 30,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 1236.3894908425941,
+      "recall": 0.4024,
+      "visited_vectors_per_query": 2881715.31,
+      "peak_gpu_memory": 3658.0,
+      "samples_seconds": [
+        0.8088066158816218,
+        0.8129940573126078,
+        0.8014710037969053
+      ],
+      "memory": {
+        "peak_total_mib": 3658.0,
+        "peak_per_gpu_mib": {
+          "0": 3658.0
+        },
+        "samples": 75,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 966088.442,
+          "minimum": 786548,
+          "maximum": 1634284,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 966188.059,
+          "minimum": 820799,
+          "maximum": 1579681,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 949438.809,
+          "minimum": 793768,
+          "maximum": 1691829,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 40,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 1272.677459248479,
+      "recall": 0.4037,
+      "visited_vectors_per_query": 3832841.205,
+      "peak_gpu_memory": 3654.0,
+      "samples_seconds": [
+        0.7847579326480627,
+        0.8088429938070476,
+        0.7857450391165912
+      ],
+      "memory": {
+        "peak_total_mib": 3654.0,
+        "peak_per_gpu_mib": {
+          "0": 3654.0
+        },
+        "samples": 75,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 1284096.884,
+          "minimum": 1063782,
+          "maximum": 2084531,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 1284873.833,
+          "minimum": 1105562,
+          "maximum": 1975481,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 1263870.488,
+          "minimum": 1076698,
+          "maximum": 2093450,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 50,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 1241.2278102591442,
+      "recall": 0.4046,
+      "visited_vectors_per_query": 4778506.9059999995,
+      "peak_gpu_memory": 3654.0,
+      "samples_seconds": [
+        0.8056459710933268,
+        0.8056538789533079,
+        0.8057806747965515
+      ],
+      "memory": {
+        "peak_total_mib": 3654.0,
+        "peak_per_gpu_mib": {
+          "0": 3654.0
+        },
+        "samples": 79,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 1600248.352,
+          "minimum": 1339740,
+          "maximum": 2458674,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 1602652.329,
+          "minimum": 1389150,
+          "maximum": 2325562,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 1575606.225,
+          "minimum": 1341816,
+          "maximum": 2480882,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 60,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 1181.5125846435733,
+      "recall": 0.4047,
+      "visited_vectors_per_query": 5723708.674000001,
+      "peak_gpu_memory": 3654.0,
+      "samples_seconds": [
+        0.8948890366591513,
+        0.8436863943934441,
+        0.8463727030903101
+      ],
+      "memory": {
+        "peak_total_mib": 3654.0,
+        "peak_per_gpu_mib": {
+          "0": 3654.0
+        },
+        "samples": 81,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 1914817.491,
+          "minimum": 1608791,
+          "maximum": 2860585,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 1920945.067,
+          "minimum": 1676343,
+          "maximum": 2716512,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 1887946.116,
+          "minimum": 1618418,
+          "maximum": 2864116,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 70,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 1074.2746749815376,
+      "recall": 0.4049,
+      "visited_vectors_per_query": 6666183.424999999,
+      "peak_gpu_memory": 3658.0,
+      "samples_seconds": [
+        0.9308606293052435,
+        0.9306679861620069,
+        0.932363442145288
+      ],
+      "memory": {
+        "peak_total_mib": 3658.0,
+        "peak_per_gpu_mib": {
+          "0": 3658.0
+        },
+        "samples": 91,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 2229084.797,
+          "minimum": 1911410,
+          "maximum": 3238378,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 2237831.016,
+          "minimum": 1958811,
+          "maximum": 3073467,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 2199267.612,
+          "minimum": 1903810,
+          "maximum": 3272417,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 80,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 1045.0490624902238,
+      "recall": 0.4049,
+      "visited_vectors_per_query": 7607877.42,
+      "peak_gpu_memory": 3622.0,
+      "samples_seconds": [
+        0.9570037978701293,
+        0.9564647893421352,
+        0.9568928731605411
+      ],
+      "memory": {
+        "peak_total_mib": 3622.0,
+        "peak_per_gpu_mib": {
+          "0": 3622.0
+        },
+        "samples": 92,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 2543938.733,
+          "minimum": 2188374,
+          "maximum": 3597677,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 2553813.467,
+          "minimum": 2227814,
+          "maximum": 3463988,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 2510125.22,
+          "minimum": 2185834,
+          "maximum": 3592428,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 90,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 972.5349135480504,
+      "recall": 0.405,
+      "visited_vectors_per_query": 8548723.555,
+      "peak_gpu_memory": 3658.0,
+      "samples_seconds": [
+        1.028200721833855,
+        1.0282407202757895,
+        1.0315950480289757
+      ],
+      "memory": {
+        "peak_total_mib": 3658.0,
+        "peak_per_gpu_mib": {
+          "0": 3658.0
+        },
+        "samples": 99,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 2857302.118,
+          "minimum": 2468137,
+          "maximum": 3954728,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 2870156.569,
+          "minimum": 2519719,
+          "maximum": 3848752,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 2821264.868,
+          "minimum": 2470772,
+          "maximum": 3983074,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 100,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 876.7718704351071,
+      "recall": 0.4051,
+      "visited_vectors_per_query": 9489380.299,
+      "peak_gpu_memory": 3654.0,
+      "samples_seconds": [
+        1.1380020291544497,
+        1.140547540038824,
+        1.143432219978422
+      ],
+      "memory": {
+        "peak_total_mib": 3654.0,
+        "peak_per_gpu_mib": {
+          "0": 3654.0
+        },
+        "samples": 110,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 3170639.617,
+          "minimum": 2751898,
+          "maximum": 4317600,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 3186588.318,
+          "minimum": 2805431,
+          "maximum": 4221220,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 3132152.364,
+          "minimum": 2750361,
+          "maximum": 4369843,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 120,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 786.1010066630637,
+      "recall": 0.4052,
+      "visited_vectors_per_query": 11367013.221,
+      "peak_gpu_memory": 3654.0,
+      "samples_seconds": [
+        1.2709645540453494,
+        1.2738721431232989,
+        1.2721011568792164
+      ],
+      "memory": {
+        "peak_total_mib": 3654.0,
+        "peak_per_gpu_mib": {
+          "0": 3654.0
+        },
+        "samples": 122,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 3795701.445,
+          "minimum": 3329633,
+          "maximum": 5115717,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 3818813.936,
+          "minimum": 3398331,
+          "maximum": 4917089,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 3752497.84,
+          "minimum": 3319496,
+          "maximum": 5063297,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 150,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 604.6761100864132,
+      "recall": 0.4053,
+      "visited_vectors_per_query": 14173803.339999998,
+      "peak_gpu_memory": 3654.0,
+      "samples_seconds": [
+        1.6537078390829265,
+        1.653777920641005,
+        1.654795648995787
+      ],
+      "memory": {
+        "peak_total_mib": 3654.0,
+        "peak_per_gpu_mib": {
+          "0": 3654.0
+        },
+        "samples": 158,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 4733230.958,
+          "minimum": 4196399,
+          "maximum": 6151749,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 4762929.986,
+          "minimum": 4286694,
+          "maximum": 5908551,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 4677642.396,
+          "minimum": 4179424,
+          "maximum": 6117662,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 5,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 44753.66826573766,
+      "recall": 0.3715,
+      "visited_vectors_per_query": 487500.353,
+      "peak_gpu_memory": 3166.0,
+      "samples_seconds": [
+        0.022291531786322594,
+        0.02234453707933426,
+        0.0223556412383914
+      ],
+      "memory": {
+        "peak_total_mib": 3166.0,
+        "peak_per_gpu_mib": {
+          "0": 3166.0
+        },
+        "samples": 4,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 163797.145,
+          "minimum": 120541,
+          "maximum": 395359,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 162601.71,
+          "minimum": 124940,
+          "maximum": 326993,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 161101.498,
+          "minimum": 119337,
+          "maximum": 371912,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 10,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 21001.126461081985,
+      "recall": 0.3925,
+      "visited_vectors_per_query": 972016.7390000001,
+      "peak_gpu_memory": 3166.0,
+      "samples_seconds": [
+        0.04766308609396219,
+        0.047571462113410234,
+        0.04761649342253804
+      ],
+      "memory": {
+        "peak_total_mib": 3166.0,
+        "peak_per_gpu_mib": {
+          "0": 3166.0
+        },
+        "samples": 6,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 326616.7,
+          "minimum": 249710,
+          "maximum": 668098,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 325263.266,
+          "minimum": 261997,
+          "maximum": 639378,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 320136.773,
+          "minimum": 249414,
+          "maximum": 662722,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 15,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 9583.404079252638,
+      "recall": 0.3985,
+      "visited_vectors_per_query": 1451467.4780000001,
+      "peak_gpu_memory": 3166.0,
+      "samples_seconds": [
+        0.10431980481371284,
+        0.10434705577790737,
+        0.10447849612683058
+      ],
+      "memory": {
+        "peak_total_mib": 3166.0,
+        "peak_per_gpu_mib": {
+          "0": 3166.0
+        },
+        "samples": 11,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_per_query": 487235.454,
+          "minimum": 384300,
+          "maximum": 981277,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 486467.919,
+          "minimum": 404271,
+          "maximum": 871482,
+          "source": "native Faiss getListLength and index quantizer search"
+        },
+        {
+          "visited_vectors_per_query": 477764.105,
+          "minimum": 381677,
+          "maximum": 963552,
+          "source": "native Faiss getListLength and index quantizer search"
+        }
+      ]
+    },
+    {
+      "nprobes": 20,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 4657.727398527783,
+      "recall": 0.4002,
+      "visited_vectors_per_query": 1929927.9510000001,
+      "peak_gpu_memory": 3654.0,
+      "samples_seconds": [
+        0.21441351203247905,
+        0.21474165003746748,
+        0.21469697868451476
+      ],
+      "memory": {
+        "peak_total_mib": 3654.0,
+        "peak_per_gpu_mib": {
+          "0": 3654.0
+        },
+        "samples": 22,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
           "visited_vectors_per_query": 648273.457,
           "minimum": 515761,
           "maximum": 1222747,
@@ -896,23 +860,21 @@
       "nprobes": 30,
       "q_batch": 128,
       "K": 10,
-      "qps": 10183.898990355587,
-      "recall": 0.4023999999999998,
+      "qps": 3700.6820104722706,
+      "recall": 0.4024,
       "visited_vectors_per_query": 2881715.31,
-      "peak_gpu_memory": 6034.0,
+      "peak_gpu_memory": 3658.0,
       "samples_seconds": [
-        0.09732690406963229,
-        0.09819421824067831,
-        0.0986095261760056
+        0.27022046130150557,
+        0.26980488281697035,
+        0.2704098471440375
       ],
       "memory": {
-        "peak_total_mib": 6034.0,
+        "peak_total_mib": 3658.0,
         "peak_per_gpu_mib": {
-          "0": 2006.0,
-          "1": 2024.0,
-          "2": 2004.0
+          "0": 3658.0
         },
-        "samples": 10,
+        "samples": 27,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -940,23 +902,21 @@
       "nprobes": 40,
       "q_batch": 128,
       "K": 10,
-      "qps": 9544.822666311646,
-      "recall": 0.4036999999999998,
+      "qps": 3458.319672531109,
+      "recall": 0.4037,
       "visited_vectors_per_query": 3832841.205,
-      "peak_gpu_memory": 5994.0,
+      "peak_gpu_memory": 3654.0,
       "samples_seconds": [
-        0.10581174725666642,
-        0.10476884013041854,
-        0.1046679699793458
+        0.28927368903532624,
+        0.2884601401165128,
+        0.2891577687114477
       ],
       "memory": {
-        "peak_total_mib": 5994.0,
+        "peak_total_mib": 3654.0,
         "peak_per_gpu_mib": {
-          "0": 1990.0,
-          "1": 2000.0,
-          "2": 2004.0
+          "0": 3654.0
         },
-        "samples": 11,
+        "samples": 29,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -984,23 +944,21 @@
       "nprobes": 50,
       "q_batch": 128,
       "K": 10,
-      "qps": 8078.080769114679,
-      "recall": 0.4045999999999998,
+      "qps": 2904.821947545758,
+      "recall": 0.4046,
       "visited_vectors_per_query": 4778506.9059999995,
-      "peak_gpu_memory": 6018.0,
+      "peak_gpu_memory": 3654.0,
       "samples_seconds": [
-        0.12374511081725359,
-        0.12379178032279015,
-        0.12396711623296142
+        0.3442551791667938,
+        0.3437753738835454,
+        0.344381969422102
       ],
       "memory": {
-        "peak_total_mib": 6018.0,
+        "peak_total_mib": 3654.0,
         "peak_per_gpu_mib": {
-          "0": 2014.0,
-          "1": 2000.0,
-          "2": 2004.0
+          "0": 3654.0
         },
-        "samples": 13,
+        "samples": 34,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1028,23 +986,21 @@
       "nprobes": 60,
       "q_batch": 128,
       "K": 10,
-      "qps": 6564.4631367541815,
-      "recall": 0.40469999999999984,
+      "qps": 2374.616084960432,
+      "recall": 0.4047,
       "visited_vectors_per_query": 5723708.674000001,
-      "peak_gpu_memory": 6010.0,
+      "peak_gpu_memory": 3654.0,
       "samples_seconds": [
-        0.15233538206666708,
-        0.15238721715286374,
-        0.15143799874931574
+        0.4211207050830126,
+        0.421931566670537,
+        0.42099703988060355
       ],
       "memory": {
-        "peak_total_mib": 6010.0,
+        "peak_total_mib": 3654.0,
         "peak_per_gpu_mib": {
-          "0": 2006.0,
-          "1": 2000.0,
-          "2": 2004.0
+          "0": 3654.0
         },
-        "samples": 15,
+        "samples": 41,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1072,23 +1028,21 @@
       "nprobes": 70,
       "q_batch": 128,
       "K": 10,
-      "qps": 5402.786194405769,
-      "recall": 0.4048999999999998,
+      "qps": 1935.0753427208977,
+      "recall": 0.4049,
       "visited_vectors_per_query": 6666183.424999999,
-      "peak_gpu_memory": 5958.0,
+      "peak_gpu_memory": 3658.0,
       "samples_seconds": [
-        0.18508968595415354,
-        0.18458152608945966,
-        0.18608477897942066
+        0.5190275190398097,
+        0.51677574403584,
+        0.5158345261588693
       ],
       "memory": {
-        "peak_total_mib": 5958.0,
+        "peak_total_mib": 3658.0,
         "peak_per_gpu_mib": {
-          "0": 1962.0,
-          "1": 2024.0,
-          "2": 1972.0
+          "0": 3658.0
         },
-        "samples": 19,
+        "samples": 51,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1116,23 +1070,21 @@
       "nprobes": 80,
       "q_batch": 128,
       "K": 10,
-      "qps": 5252.164662825655,
-      "recall": 0.40489999999999987,
+      "qps": 1854.0344793329587,
+      "recall": 0.4049,
       "visited_vectors_per_query": 7607877.42,
-      "peak_gpu_memory": 5894.0,
+      "peak_gpu_memory": 3622.0,
       "samples_seconds": [
-        0.19039768632501364,
-        0.1899143778719008,
-        0.19089973997324705
+        0.5393642950803041,
+        0.5400415938347578,
+        0.5387524482794106
       ],
       "memory": {
-        "peak_total_mib": 5894.0,
+        "peak_total_mib": 3622.0,
         "peak_per_gpu_mib": {
-          "0": 1954.0,
-          "1": 1968.0,
-          "2": 1972.0
+          "0": 3622.0
         },
-        "samples": 19,
+        "samples": 53,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1160,23 +1112,21 @@
       "nprobes": 90,
       "q_batch": 128,
       "K": 10,
-      "qps": 4698.23182126557,
-      "recall": 0.40499999999999986,
+      "qps": 1641.2808365503752,
+      "recall": 0.405,
       "visited_vectors_per_query": 8548723.555,
-      "peak_gpu_memory": 5986.0,
+      "peak_gpu_memory": 3658.0,
       "samples_seconds": [
-        0.213596744928509,
-        0.21239513298496604,
-        0.21284603187814355
+        0.6104132342152297,
+        0.607969073113054,
+        0.6092802509665489
       ],
       "memory": {
-        "peak_total_mib": 5986.0,
+        "peak_total_mib": 3658.0,
         "peak_per_gpu_mib": {
-          "0": 2006.0,
-          "1": 2024.0,
-          "2": 1956.0
+          "0": 3658.0
         },
-        "samples": 21,
+        "samples": 59,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1204,23 +1154,21 @@
       "nprobes": 100,
       "q_batch": 128,
       "K": 10,
-      "qps": 3887.2786396081437,
-      "recall": 0.4050999999999999,
+      "qps": 1400.0698214757865,
+      "recall": 0.4051,
       "visited_vectors_per_query": 9489380.299,
-      "peak_gpu_memory": 5974.0,
+      "peak_gpu_memory": 3654.0,
       "samples_seconds": [
-        0.2572493748739362,
-        0.2553291511721909,
-        0.2593231312930584
+        0.7134323660284281,
+        0.7147178002633154,
+        0.7142500928603113
       ],
       "memory": {
-        "peak_total_mib": 5974.0,
+        "peak_total_mib": 3654.0,
         "peak_per_gpu_mib": {
-          "0": 1970.0,
-          "1": 2000.0,
-          "2": 2004.0
+          "0": 3654.0
         },
-        "samples": 25,
+        "samples": 70,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1248,23 +1196,21 @@
       "nprobes": 120,
       "q_batch": 128,
       "K": 10,
-      "qps": 3276.7666003404383,
-      "recall": 0.4051999999999999,
+      "qps": 1176.6179688678596,
+      "recall": 0.4052,
       "visited_vectors_per_query": 11367013.221,
-      "peak_gpu_memory": 5958.0,
+      "peak_gpu_memory": 3654.0,
       "samples_seconds": [
-        0.3075724020600319,
-        0.3051788918673992,
-        0.305137834046036
+        0.848098365124315,
+        0.8506361152976751,
+        0.8498935308307409
       ],
       "memory": {
-        "peak_total_mib": 5958.0,
+        "peak_total_mib": 3654.0,
         "peak_per_gpu_mib": {
-          "0": 1954.0,
-          "1": 2000.0,
-          "2": 2004.0
+          "0": 3654.0
         },
-        "samples": 30,
+        "samples": 84,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1292,23 +1238,21 @@
       "nprobes": 150,
       "q_batch": 128,
       "K": 10,
-      "qps": 2161.616027710399,
-      "recall": 0.4052999999999999,
+      "qps": 806.6975939311453,
+      "recall": 0.4053,
       "visited_vectors_per_query": 14173803.339999998,
-      "peak_gpu_memory": 5930.0,
+      "peak_gpu_memory": 3654.0,
       "samples_seconds": [
-        0.4626168510876596,
-        0.46231320919469,
-        0.46643350226804614
+        1.2395637831650674,
+        1.2396218948997557,
+        1.2398086497560143
       ],
       "memory": {
-        "peak_total_mib": 5930.0,
+        "peak_total_mib": 3654.0,
         "peak_per_gpu_mib": {
-          "0": 1926.0,
-          "1": 2000.0,
-          "2": 2004.0
+          "0": 3654.0
         },
-        "samples": 44,
+        "samples": 119,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1336,23 +1280,21 @@
       "nprobes": 5,
       "q_batch": 512,
       "K": 10,
-      "qps": 139275.37392885235,
-      "recall": 0.37149999999999994,
+      "qps": 55169.27019221582,
+      "recall": 0.3715,
       "visited_vectors_per_query": 487500.353,
-      "peak_gpu_memory": 4574.0,
+      "peak_gpu_memory": 3168.0,
       "samples_seconds": [
-        0.007180020213127136,
-        0.007184056099504232,
-        0.007144185248762369
+        0.01811662083491683,
+        0.018126032780855894,
+        0.018142227083444595
       ],
       "memory": {
-        "peak_total_mib": 4574.0,
+        "peak_total_mib": 3168.0,
         "peak_per_gpu_mib": {
-          "0": 1526.0,
-          "1": 1532.0,
-          "2": 1516.0
+          "0": 3168.0
         },
-        "samples": 2,
+        "samples": 3,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1380,23 +1322,21 @@
       "nprobes": 10,
       "q_batch": 512,
       "K": 10,
-      "qps": 62309.67724676117,
+      "qps": 23273.793166875006,
       "recall": 0.3925,
       "visited_vectors_per_query": 972016.7390000001,
-      "peak_gpu_memory": 4574.0,
+      "peak_gpu_memory": 3168.0,
       "samples_seconds": [
-        0.016044133342802525,
-        0.01608689082786441,
-        0.01604887144640088
+        0.043002924881875515,
+        0.04255362506955862,
+        0.04296678211539984
       ],
       "memory": {
-        "peak_total_mib": 4574.0,
+        "peak_total_mib": 3168.0,
         "peak_per_gpu_mib": {
-          "0": 1526.0,
-          "1": 1532.0,
-          "2": 1516.0
+          "0": 3168.0
         },
-        "samples": 3,
+        "samples": 6,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1424,23 +1364,21 @@
       "nprobes": 15,
       "q_batch": 512,
       "K": 10,
-      "qps": 28441.693607347264,
-      "recall": 0.39849999999999997,
+      "qps": 10240.08115298689,
+      "recall": 0.3985,
       "visited_vectors_per_query": 1451467.4780000001,
-      "peak_gpu_memory": 4574.0,
+      "peak_gpu_memory": 3168.0,
       "samples_seconds": [
-        0.03515965025871992,
-        0.035258456133306026,
-        0.03515555616468191
+        0.09773313719779253,
+        0.09720366634428501,
+        0.0976554760709405
       ],
       "memory": {
-        "peak_total_mib": 4574.0,
+        "peak_total_mib": 3168.0,
         "peak_per_gpu_mib": {
-          "0": 1526.0,
-          "1": 1532.0,
-          "2": 1516.0
+          "0": 3168.0
         },
-        "samples": 5,
+        "samples": 11,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1468,23 +1406,21 @@
       "nprobes": 20,
       "q_batch": 512,
       "K": 10,
-      "qps": 26799.125045270277,
-      "recall": 0.4002000000000001,
+      "qps": 9427.91381959794,
+      "recall": 0.4002,
       "visited_vectors_per_query": 1929927.9510000001,
-      "peak_gpu_memory": 6026.0,
+      "peak_gpu_memory": 3656.0,
       "samples_seconds": [
-        0.03783091437071562,
-        0.03731465106830001,
-        0.03682609600946307
+        0.10606800392270088,
+        0.10701601998880506,
+        0.10592786781489849
       ],
       "memory": {
-        "peak_total_mib": 6026.0,
+        "peak_total_mib": 3656.0,
         "peak_per_gpu_mib": {
-          "0": 2006.0,
-          "1": 2016.0,
-          "2": 2004.0
+          "0": 3656.0
         },
-        "samples": 5,
+        "samples": 12,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1512,23 +1448,21 @@
       "nprobes": 30,
       "q_batch": 512,
       "K": 10,
-      "qps": 17536.64750757346,
-      "recall": 0.4023999999999998,
+      "qps": 6169.3853719900535,
+      "recall": 0.4024,
       "visited_vectors_per_query": 2881715.31,
-      "peak_gpu_memory": 6034.0,
+      "peak_gpu_memory": 3660.0,
       "samples_seconds": [
-        0.05702344188466668,
-        0.05805675778537989,
-        0.056842580903321505
+        0.1605972913093865,
+        0.16301668621599674,
+        0.16209070105105639
       ],
       "memory": {
-        "peak_total_mib": 6034.0,
+        "peak_total_mib": 3660.0,
         "peak_per_gpu_mib": {
-          "0": 2006.0,
-          "1": 2024.0,
-          "2": 2004.0
+          "0": 3660.0
         },
-        "samples": 7,
+        "samples": 17,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1556,23 +1490,21 @@
       "nprobes": 40,
       "q_batch": 512,
       "K": 10,
-      "qps": 15858.40433595633,
-      "recall": 0.4036999999999998,
+      "qps": 5525.110380968254,
+      "recall": 0.4037,
       "visited_vectors_per_query": 3832841.205,
-      "peak_gpu_memory": 5994.0,
+      "peak_gpu_memory": 3656.0,
       "samples_seconds": [
-        0.06305804662406445,
-        0.06216072756797075,
-        0.06348047591745853
+        0.18099185917526484,
+        0.18146838899701834,
+        0.18011706182733178
       ],
       "memory": {
-        "peak_total_mib": 5994.0,
+        "peak_total_mib": 3656.0,
         "peak_per_gpu_mib": {
-          "0": 1990.0,
-          "1": 2000.0,
-          "2": 2004.0
+          "0": 3656.0
         },
-        "samples": 7,
+        "samples": 19,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1600,23 +1532,21 @@
       "nprobes": 50,
       "q_batch": 512,
       "K": 10,
-      "qps": 12081.531441945386,
-      "recall": 0.4045999999999998,
+      "qps": 4272.505002564488,
+      "recall": 0.4046,
       "visited_vectors_per_query": 4778506.9059999995,
-      "peak_gpu_memory": 6018.0,
+      "peak_gpu_memory": 3656.0,
       "samples_seconds": [
-        0.08277096366509795,
-        0.0842411769554019,
-        0.08256192971020937
+        0.23405472887679935,
+        0.23389288317412138,
+        0.2365768626332283
       ],
       "memory": {
-        "peak_total_mib": 6018.0,
+        "peak_total_mib": 3656.0,
         "peak_per_gpu_mib": {
-          "0": 2014.0,
-          "1": 2000.0,
-          "2": 2004.0
+          "0": 3656.0
         },
-        "samples": 9,
+        "samples": 24,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1644,23 +1574,21 @@
       "nprobes": 60,
       "q_batch": 512,
       "K": 10,
-      "qps": 9136.101482690587,
-      "recall": 0.40469999999999984,
+      "qps": 3253.3906588111863,
+      "recall": 0.4047,
       "visited_vectors_per_query": 5723708.674000001,
-      "peak_gpu_memory": 6010.0,
+      "peak_gpu_memory": 3656.0,
       "samples_seconds": [
-        0.10654083685949445,
-        0.10945587698370218,
-        0.11182335997000337
+        0.3022285089828074,
+        0.30737163312733173,
+        0.3090982250869274
       ],
       "memory": {
-        "peak_total_mib": 6010.0,
+        "peak_total_mib": 3656.0,
         "peak_per_gpu_mib": {
-          "0": 2006.0,
-          "1": 2000.0,
-          "2": 2004.0
+          "0": 3656.0
         },
-        "samples": 12,
+        "samples": 31,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1688,23 +1616,21 @@
       "nprobes": 70,
       "q_batch": 512,
       "K": 10,
-      "qps": 6665.688222060743,
-      "recall": 0.4048999999999998,
+      "qps": 2496.7732090983473,
+      "recall": 0.4049,
       "visited_vectors_per_query": 6666183.424999999,
-      "peak_gpu_memory": 5958.0,
+      "peak_gpu_memory": 3660.0,
       "samples_seconds": [
-        0.1504671941511333,
-        0.14973799092695117,
-        0.1500220182351768
+        0.406634324695915,
+        0.39667685190215707,
+        0.40051695378497243
       ],
       "memory": {
-        "peak_total_mib": 5958.0,
+        "peak_total_mib": 3660.0,
         "peak_per_gpu_mib": {
-          "0": 1962.0,
-          "1": 2024.0,
-          "2": 1972.0
+          "0": 3660.0
         },
-        "samples": 15,
+        "samples": 39,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1732,23 +1658,21 @@
       "nprobes": 80,
       "q_batch": 512,
       "K": 10,
-      "qps": 6510.055480979612,
-      "recall": 0.40489999999999987,
+      "qps": 2326.351168913321,
+      "recall": 0.4049,
       "visited_vectors_per_query": 7607877.42,
-      "peak_gpu_memory": 5894.0,
+      "peak_gpu_memory": 3624.0,
       "samples_seconds": [
-        0.1563928909599781,
-        0.15360852191224694,
-        0.15296357544139028
+        0.42518309224396944,
+        0.42995184706524014,
+        0.4298577159643173
       ],
       "memory": {
-        "peak_total_mib": 5894.0,
+        "peak_total_mib": 3624.0,
         "peak_per_gpu_mib": {
-          "0": 1954.0,
-          "1": 1968.0,
-          "2": 1972.0
+          "0": 3624.0
         },
-        "samples": 16,
+        "samples": 42,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1776,23 +1700,21 @@
       "nprobes": 90,
       "q_batch": 512,
       "K": 10,
-      "qps": 5709.649051216338,
-      "recall": 0.40499999999999986,
+      "qps": 2016.3369833260394,
+      "recall": 0.405,
       "visited_vectors_per_query": 8548723.555,
-      "peak_gpu_memory": 5986.0,
+      "peak_gpu_memory": 3660.0,
       "samples_seconds": [
-        0.17585060512647033,
-        0.17514211311936378,
-        0.17511121090501547
+        0.49594884598627687,
+        0.49613243341445923,
+        0.4952972251921892
       ],
       "memory": {
-        "peak_total_mib": 5986.0,
+        "peak_total_mib": 3660.0,
         "peak_per_gpu_mib": {
-          "0": 2006.0,
-          "1": 2024.0,
-          "2": 1956.0
+          "0": 3660.0
         },
-        "samples": 17,
+        "samples": 49,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1820,23 +1742,21 @@
       "nprobes": 100,
       "q_batch": 512,
       "K": 10,
-      "qps": 4547.351902033722,
-      "recall": 0.4050999999999999,
+      "qps": 1687.6055245274727,
+      "recall": 0.4051,
       "visited_vectors_per_query": 9489380.299,
-      "peak_gpu_memory": 5974.0,
+      "peak_gpu_memory": 3656.0,
       "samples_seconds": [
-        0.21984908496960998,
-        0.2202081149443984,
-        0.21990820625796914
+        0.5884766187518835,
+        0.5950161479413509,
+        0.5925555382855237
       ],
       "memory": {
-        "peak_total_mib": 5974.0,
+        "peak_total_mib": 3656.0,
         "peak_per_gpu_mib": {
-          "0": 1970.0,
-          "1": 2000.0,
-          "2": 2004.0
+          "0": 3656.0
         },
-        "samples": 22,
+        "samples": 58,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1864,23 +1784,21 @@
       "nprobes": 120,
       "q_batch": 512,
       "K": 10,
-      "qps": 3839.410305567414,
-      "recall": 0.4051999999999999,
+      "qps": 1356.7083068645004,
+      "recall": 0.4052,
       "visited_vectors_per_query": 11367013.221,
-      "peak_gpu_memory": 5958.0,
+      "peak_gpu_memory": 3656.0,
       "samples_seconds": [
-        0.2610876359976828,
-        0.26045666402205825,
-        0.2582306838594377
+        0.7370781139470637,
+        0.738680190872401,
+        0.7348940521478653
       ],
       "memory": {
-        "peak_total_mib": 5958.0,
+        "peak_total_mib": 3656.0,
         "peak_per_gpu_mib": {
-          "0": 1954.0,
-          "1": 2000.0,
-          "2": 2004.0
+          "0": 3656.0
         },
-        "samples": 26,
+        "samples": 72,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1908,23 +1826,21 @@
       "nprobes": 150,
       "q_batch": 512,
       "K": 10,
-      "qps": 2386.8913467693105,
-      "recall": 0.4052999999999999,
+      "qps": 891.4842802520582,
+      "recall": 0.4053,
       "visited_vectors_per_query": 14173803.339999998,
-      "peak_gpu_memory": 5930.0,
+      "peak_gpu_memory": 3656.0,
       "samples_seconds": [
-        0.41830832604318857,
-        0.41936927381902933,
-        0.4189549731090665
+        1.1415926860645413,
+        1.1217247708700597,
+        1.1211330788210034
       ],
       "memory": {
-        "peak_total_mib": 5930.0,
+        "peak_total_mib": 3656.0,
         "peak_per_gpu_mib": {
-          "0": 1926.0,
-          "1": 2000.0,
-          "2": 2004.0
+          "0": 3656.0
         },
-        "samples": 40,
+        "samples": 108,
         "interval_seconds": 0.01
       },
       "visit_statistics_per_shard": [
@@ -1947,71 +1863,6 @@
           "source": "native Faiss getListLength and index quantizer search"
         }
       ]
-    }
-  ],
-  "timing": "median full-query wall time: dispatch to three workers, GPU search, output device-to-host copies, response IPC, CPU global Top-K and final concatenation; excludes warmup, recall, visit statistics and memory sweep",
-  "query_input": "resident-gpu",
-  "query_transfer": "queries pre-uploaded before timing",
-  "memory_unit": "MiB",
-  "memory_metric": "maximum sampled simultaneous sum of the three native-worker NVML process memories in a separate sweep",
-  "nlist_semantics": "1024 per independent shard by default; global list count is 3072",
-  "probe_semantics": "nprobes applies independently to each shard",
-  "workers": [
-    {
-      "state": "ready",
-      "rank": 0,
-      "pid": 948701,
-      "library_version": "1.15.0",
-      "python": "3.12.14 | packaged by conda-forge | (main, Aug 21 2026, 22:48:28) [GCC 14.4.0]",
-      "environment": "/home/songyitong/miniconda3/envs/faiss",
-      "cuda_runtime_version": 13020,
-      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/faiss/lib/libcudart.so.13",
-      "cuda_visible_devices": "0"
-    },
-    {
-      "state": "ready",
-      "rank": 1,
-      "pid": 948699,
-      "library_version": "1.15.0",
-      "python": "3.12.14 | packaged by conda-forge | (main, Aug 21 2026, 22:48:28) [GCC 14.4.0]",
-      "environment": "/home/songyitong/miniconda3/envs/faiss",
-      "cuda_runtime_version": 13020,
-      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/faiss/lib/libcudart.so.13",
-      "cuda_visible_devices": "1"
-    },
-    {
-      "state": "ready",
-      "rank": 2,
-      "pid": 948700,
-      "library_version": "1.15.0",
-      "python": "3.12.14 | packaged by conda-forge | (main, Aug 21 2026, 22:48:28) [GCC 14.4.0]",
-      "environment": "/home/songyitong/miniconda3/envs/faiss",
-      "cuda_runtime_version": 13020,
-      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/faiss/lib/libcudart.so.13",
-      "cuda_visible_devices": "2"
-    }
-  ],
-  "software": [
-    {
-      "library_version": "1.15.0",
-      "python": "3.12.14 | packaged by conda-forge | (main, Aug 21 2026, 22:48:28) [GCC 14.4.0]",
-      "environment": "/home/songyitong/miniconda3/envs/faiss",
-      "cuda_runtime_version": 13020,
-      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/faiss/lib/libcudart.so.13"
-    },
-    {
-      "library_version": "1.15.0",
-      "python": "3.12.14 | packaged by conda-forge | (main, Aug 21 2026, 22:48:28) [GCC 14.4.0]",
-      "environment": "/home/songyitong/miniconda3/envs/faiss",
-      "cuda_runtime_version": 13020,
-      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/faiss/lib/libcudart.so.13"
-    },
-    {
-      "library_version": "1.15.0",
-      "python": "3.12.14 | packaged by conda-forge | (main, Aug 21 2026, 22:48:28) [GCC 14.4.0]",
-      "environment": "/home/songyitong/miniconda3/envs/faiss",
-      "cuda_runtime_version": 13020,
-      "cuda_runtime_library": "/home/songyitong/miniconda3/envs/faiss/lib/libcudart.so.13"
     }
   ],
   "indexes": [
@@ -2031,6 +1882,28 @@
       "mtime_ns": 1794039102178558026
     }
   ],
+  "expected_rows": 42,
   "completed_rows": 42,
-  "expected_rows": 42
+  "memory_unit": "MiB",
+  "timing": "median full-query wall time on one GPU; three sequential shard searches, output device-to-host copies and CPU global Top-K; excludes index load, query upload, warmup and metric sweeps",
+  "memory_metric": "sampled peak NVML process memory on one GPU, including all three resident shards",
+  "query_transfer": "pre-uploaded queries; final batch padded with the last valid query",
+  "nlist_semantics": "1024 per independent shard by default; global list count is 3072",
+  "probe_semantics": "nprobes applies independently to each shard",
+  "result_filename_note": "Legacy filename retained; measured query used one GPU",
+  "runner_sha256": "46c039f4f40b8c1c942edd39559c0cbbeb2749ddc0de504b72f111c5f4662c4a",
+  "worker": {
+    "pid": 1132385,
+    "library_version": "1.15.0",
+    "python": "3.12.14 | packaged by conda-forge | (main, Aug 21 2026, 22:48:28) [GCC 14.4.0]",
+    "environment": "/home/songyitong/miniconda3/envs/faiss"
+  },
+  "software": [
+    {
+      "pid": 1132385,
+      "library_version": "1.15.0",
+      "python": "3.12.14 | packaged by conda-forge | (main, Aug 21 2026, 22:48:28) [GCC 14.4.0]",
+      "environment": "/home/songyitong/miniconda3/envs/faiss"
+    }
+  ]
 }

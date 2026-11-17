@@ -1,0 +1,2 @@
+dataset,method,nlist,n_vectors,dim,build_seconds,save_seconds,index_size_bytes,index_size_mib,peak_build_gpu_memory_mib
+openai1536,TensorVS,1024,999000,1536,9.609515439718962,,6270114961,5979.647599220276,

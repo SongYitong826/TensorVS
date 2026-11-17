@@ -1,0 +1,115 @@
+{
+  "status": "source_index_metadata",
+  "index_type": "ivfpq",
+  "M": 25,
+  "nbits": 8,
+  "index_path": "/storage/vector_data/glove1.2m/GPUIndex/cuVS_IVFPQ_nlist1024_pqdim25_pqbits8.bin",
+  "index_mtime_ns": 1788704865659932848,
+  "build_device": "cuda",
+  "source_index_metadata": {},
+  "statistics_source": "/storage/vector_data/glove1.2m/GPUIndex/statistic.csv",
+  "statistics_sha256": "056aca5acce6ab81ef278b26fca69fc3342ec5fc8e46721e35116104d30a6c79",
+  "matching_statistics": [
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "glove1.2m",
+        "Method Name": "cuVS",
+        "Build Time (s)": "1.358615",
+        "Index Size (MB)": "48.3403"
+      },
+      "size_error": 2.5355529785997533e-05,
+      "recorded_size_unit": "MiB"
+    }
+  ],
+  "statistics_rows": [
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "glove1.2m",
+      "Method Name": "cuVS",
+      "Build Time (s)": "1.358615",
+      "Index Size (MB)": "48.3403"
+    },
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "glove1.2m",
+      "Method Name": "cuVS",
+      "Build Time (s)": "2.271214",
+      "Index Size (MB)": "48.467"
+    }
+  ],
+  "query_statistics": {
+    "source_path": "/home/songyitong/cuvs/python/cuvs/cuvs/result/IVFPQ_glove1.2m_nlist1024_pqdim25_pqbits8.csv",
+    "sha256": "14eac290cc537c77e73c0e6ea07c7150541effaafeeadd211d4d58ed45d532ab",
+    "K": 10,
+    "q_batch": 128,
+    "peak_gpu_memory_mib_by_nprobe": {
+      "50": 464.0,
+      "80": 464.0,
+      "100": 464.0,
+      "120": 464.0,
+      "140": 464.0,
+      "160": 464.0,
+      "180": 464.0,
+      "200": 464.0,
+      "220": 464.0,
+      "240": 464.0,
+      "260": 464.0,
+      "280": 464.0,
+      "300": 464.0,
+      "320": 464.0,
+      "340": 464.0,
+      "360": 464.0,
+      "380": 464.0,
+      "400": 464.0
+    }
+  },
+  "measurement_notes": [
+    "Build time comes from saved index metadata or uniquely size-matched legacy statistics.",
+    "Index size is the exact serialized file size in bytes; legacy MB/MiB units are checked.",
+    "Serialization time and build peak GPU memory were not separately measured; empty means unknown.",
+    "Query memory is kept separately in query_statistics and is never used as build peak memory.",
+    "Multiple equally matched legacy timings are retained as candidates; an ambiguous build time stays empty."
+  ],
+  "source_host": "colossal",
+  "legacy_table_statistics": {
+    "peak_gpu_memory_gib": 0.45,
+    "K": 10,
+    "q_batch": 128,
+    "source_snapshot_sha256": "d412717ff568e1506445b6f8edc03bd40eb1c0e6a92cdf8c740ca8f666a053f5",
+    "original_rounded_record": {
+      "kind": "ivfpq",
+      "dataset": "GloVe",
+      "method": "cuVS",
+      "build": "1.36",
+      "size": "0.05",
+      "peak": "0.45"
+    },
+    "measurement_notes": "Historical query peak rounded to 0.01 GiB; retained separately from newer logical query-allocation counters and build peaks."
+  },
+  "dataset": "glove1.2m",
+  "method": "cuVS",
+  "nlist": 1024,
+  "n_vectors": 1193514,
+  "dim": 200,
+  "build_seconds": 1.358615,
+  "save_seconds": null,
+  "index_size_bytes": 50688505,
+  "index_size_mib": 48.340325355529785,
+  "peak_build_gpu_memory_mib": null,
+  "schema_version": 1,
+  "platform": "CUDA",
+  "csv_columns": [
+    "dataset",
+    "method",
+    "nlist",
+    "n_vectors",
+    "dim",
+    "build_seconds",
+    "save_seconds",
+    "index_size_bytes",
+    "index_size_mib",
+    "peak_build_gpu_memory_mib"
+  ],
+  "csv_sha256": "62eb0baa26f635b5998d590f771d2d89b64958388955c6f9d2033dc201faf665"
+}

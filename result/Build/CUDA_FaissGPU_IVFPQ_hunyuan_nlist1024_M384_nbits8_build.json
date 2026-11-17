@@ -1,0 +1,83 @@
+{
+  "status": "source_index_metadata",
+  "index_type": "ivfpq",
+  "M": 384,
+  "nbits": 8,
+  "index_path": "/storage/vector_data/hunyuan/GPUIndex/Faiss_IVFPQ_nlist1024_M384_nbits8.index",
+  "index_mtime_ns": 1793194965071522124,
+  "build_device": "cpu",
+  "source_index_metadata": {},
+  "statistics_source": "/storage/vector_data/hunyuan/GPUIndex/statistic.csv",
+  "statistics_sha256": "60c1accd42937dc246449b2ab2f68f513ea5297cf60effd3fcaedc1e34a3b795",
+  "matching_statistics": [
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "hunyuan",
+        "Method Name": "faiss",
+        "Build Time (s)": "38.62655465211719",
+        "Index Size (MB)": "377.59831619262695"
+      },
+      "size_error": 0.0,
+      "recorded_size_unit": "MiB"
+    }
+  ],
+  "statistics_rows": [
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "hunyuan",
+      "Method Name": "faiss",
+      "Build Time (s)": "38.62655465211719",
+      "Index Size (MB)": "377.59831619262695"
+    }
+  ],
+  "query_statistics": null,
+  "measurement_notes": [
+    "Build time comes from saved index metadata or uniquely size-matched legacy statistics.",
+    "Index size is the exact serialized file size in bytes; legacy MB/MiB units are checked.",
+    "Serialization time and build peak GPU memory were not separately measured; empty means unknown.",
+    "Query memory is kept separately in query_statistics and is never used as build peak memory.",
+    "Multiple equally matched legacy timings are retained as candidates; an ambiguous build time stays empty."
+  ],
+  "source_host": "colossal",
+  "legacy_table_statistics": {
+    "peak_gpu_memory_gib": null,
+    "K": 10,
+    "q_batch": 128,
+    "source_snapshot_sha256": "d412717ff568e1506445b6f8edc03bd40eb1c0e6a92cdf8c740ca8f666a053f5",
+    "original_rounded_record": {
+      "kind": "ivfpq",
+      "dataset": "Hunyuan",
+      "method": "Faiss GPU",
+      "build": "38.63",
+      "size": "0.37",
+      "peak": "N/S"
+    },
+    "measurement_notes": "Historical query peak rounded to 0.01 GiB; retained separately from newer logical query-allocation counters and build peaks."
+  },
+  "dataset": "hunyuan",
+  "method": "faiss",
+  "nlist": 1024,
+  "n_vectors": 1000000,
+  "dim": 768,
+  "build_seconds": 38.62655465211719,
+  "save_seconds": null,
+  "index_size_bytes": 395940532,
+  "index_size_mib": 377.59831619262695,
+  "peak_build_gpu_memory_mib": null,
+  "schema_version": 1,
+  "platform": "CUDA",
+  "csv_columns": [
+    "dataset",
+    "method",
+    "nlist",
+    "n_vectors",
+    "dim",
+    "build_seconds",
+    "save_seconds",
+    "index_size_bytes",
+    "index_size_mib",
+    "peak_build_gpu_memory_mib"
+  ],
+  "csv_sha256": "64c802d48b00873dc8fecd6dd1fb11be6c91bfb4946cf621b4f377ed52510648"
+}

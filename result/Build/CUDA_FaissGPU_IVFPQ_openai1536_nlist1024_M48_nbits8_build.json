@@ -1,0 +1,93 @@
+{
+  "status": "source_index_metadata",
+  "index_type": "ivfpq",
+  "M": 48,
+  "nbits": 8,
+  "index_path": "/storage/vector_data/openai1536/GPUIndex/Faiss_IVFPQ_nlist1024_M48_nbits8.index",
+  "index_mtime_ns": 1788713965756867486,
+  "build_device": "cpu",
+  "source_index_metadata": {},
+  "statistics_source": "/storage/vector_data/openai1536/GPUIndex/statistic.csv",
+  "statistics_sha256": "a1b9f2038daee7abf2265ab0967796e0164250ccc5cd6ab79793129d5575aa45",
+  "matching_statistics": [
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "openai1536",
+        "Method Name": "faiss",
+        "Build Time (s)": "35.11285793222487",
+        "Index Size (MB)": "63.816692"
+      },
+      "size_error": 0.0,
+      "recorded_size_unit": "MB"
+    },
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "openai1536",
+        "Method Name": "faiss",
+        "Build Time (s)": "31.88330683298409",
+        "Index Size (MB)": "63.816692"
+      },
+      "size_error": 0.0,
+      "recorded_size_unit": "MB"
+    }
+  ],
+  "statistics_rows": [
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "openai1536",
+      "Method Name": "faiss",
+      "Build Time (s)": "35.11285793222487",
+      "Index Size (MB)": "63.816692"
+    },
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "openai1536",
+      "Method Name": "faiss",
+      "Build Time (s)": "31.88330683298409",
+      "Index Size (MB)": "63.816692"
+    },
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "openai1536",
+      "Method Name": "faiss",
+      "Build Time (s)": "50.102570379152894",
+      "Index Size (MB)": "111.768692"
+    }
+  ],
+  "query_statistics": null,
+  "measurement_notes": [
+    "Build time comes from saved index metadata or uniquely size-matched legacy statistics.",
+    "Index size is the exact serialized file size in bytes; legacy MB/MiB units are checked.",
+    "Serialization time and build peak GPU memory were not separately measured; empty means unknown.",
+    "Query memory is kept separately in query_statistics and is never used as build peak memory.",
+    "Multiple equally matched legacy timings are retained as candidates; an ambiguous build time stays empty."
+  ],
+  "source_host": "colossal",
+  "dataset": "openai1536",
+  "method": "faiss",
+  "nlist": 1024,
+  "n_vectors": 999000,
+  "dim": 1536,
+  "build_seconds": null,
+  "save_seconds": null,
+  "index_size_bytes": 63816692,
+  "index_size_mib": 60.8603401184082,
+  "peak_build_gpu_memory_mib": null,
+  "schema_version": 1,
+  "platform": "CUDA",
+  "csv_columns": [
+    "dataset",
+    "method",
+    "nlist",
+    "n_vectors",
+    "dim",
+    "build_seconds",
+    "save_seconds",
+    "index_size_bytes",
+    "index_size_mib",
+    "peak_build_gpu_memory_mib"
+  ],
+  "csv_sha256": "879cde7d3404ca99347c6f913af3b93568d08dc3803ac1f0b515191ff1e0a3a3"
+}

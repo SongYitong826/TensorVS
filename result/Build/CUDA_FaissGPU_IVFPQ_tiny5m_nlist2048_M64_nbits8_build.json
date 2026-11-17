@@ -1,0 +1,123 @@
+{
+  "status": "source_index_metadata",
+  "index_type": "ivfpq",
+  "M": 64,
+  "nbits": 8,
+  "index_path": "/storage/vector_data/tiny5m/GPUIndex/Faiss_IVFPQ_nlist2048_M64_nbits8.index",
+  "index_mtime_ns": 1788856385285045501,
+  "build_device": "cpu",
+  "source_index_metadata": {},
+  "statistics_source": "/storage/vector_data/tiny5m/GPUIndex/statistic.csv",
+  "statistics_sha256": "3e64589852f7254debd18d687c1581068ef6d148ccab6f1d71a05f5dcaf90091",
+  "matching_statistics": [
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "tiny5m",
+        "Method Name": "faiss",
+        "Build Time (s)": "35.77586597763002",
+        "Index Size (MB)": "363.555508"
+      },
+      "size_error": 0.0,
+      "recorded_size_unit": "MB"
+    }
+  ],
+  "statistics_rows": [
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "tiny5m",
+      "Method Name": "faiss",
+      "Build Time (s)": "24.52285548299551",
+      "Index Size (MB)": "281.974452"
+    },
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "tiny5m",
+      "Method Name": "faiss",
+      "Build Time (s)": "19.292318627238274",
+      "Index Size (MB)": "281.974452"
+    },
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "tiny5m",
+      "Method Name": "faiss",
+      "Build Time (s)": "35.77586597763002",
+      "Index Size (MB)": "363.555508"
+    }
+  ],
+  "query_statistics": {
+    "source_path": "/home/songyitong/faiss/result/IVFPQ_tiny5m_nlist2048_M64_nbits8.csv",
+    "sha256": "332cc1c15696f1dc5768976dd71bb8add7b21c1385d246bd75a25af06f452357",
+    "K": 10,
+    "q_batch": 128,
+    "peak_gpu_memory_mib_by_nprobe": {
+      "10": 2284.0,
+      "20": 2284.0,
+      "30": 2284.0,
+      "40": 2284.0,
+      "50": 2284.0,
+      "60": 2284.0,
+      "70": 2284.0,
+      "80": 2284.0,
+      "90": 2284.0,
+      "100": 2284.0,
+      "120": 2284.0,
+      "150": 2284.0,
+      "200": 2284.0,
+      "250": 2284.0,
+      "300": 2284.0,
+      "350": 2284.0,
+      "400": 2284.0,
+      "450": 2284.0,
+      "500": 2284.0
+    }
+  },
+  "measurement_notes": [
+    "Build time comes from saved index metadata or uniquely size-matched legacy statistics.",
+    "Index size is the exact serialized file size in bytes; legacy MB/MiB units are checked.",
+    "Serialization time and build peak GPU memory were not separately measured; empty means unknown.",
+    "Query memory is kept separately in query_statistics and is never used as build peak memory.",
+    "Multiple equally matched legacy timings are retained as candidates; an ambiguous build time stays empty."
+  ],
+  "source_host": "colossal",
+  "legacy_table_statistics": {
+    "peak_gpu_memory_gib": 2.23,
+    "K": 10,
+    "q_batch": 128,
+    "source_snapshot_sha256": "d412717ff568e1506445b6f8edc03bd40eb1c0e6a92cdf8c740ca8f666a053f5",
+    "original_rounded_record": {
+      "kind": "ivfpq",
+      "dataset": "Tiny",
+      "method": "Faiss GPU",
+      "build": "35.78",
+      "size": "0.34",
+      "peak": "2.23"
+    },
+    "measurement_notes": "Historical query peak rounded to 0.01 GiB; retained separately from newer logical query-allocation counters and build peaks."
+  },
+  "dataset": "tiny5m",
+  "method": "faiss",
+  "nlist": 2048,
+  "n_vectors": 5000000,
+  "dim": 384,
+  "build_seconds": 35.77586597763002,
+  "save_seconds": null,
+  "index_size_bytes": 363555508,
+  "index_size_mib": 346.71355056762695,
+  "peak_build_gpu_memory_mib": null,
+  "schema_version": 1,
+  "platform": "CUDA",
+  "csv_columns": [
+    "dataset",
+    "method",
+    "nlist",
+    "n_vectors",
+    "dim",
+    "build_seconds",
+    "save_seconds",
+    "index_size_bytes",
+    "index_size_mib",
+    "peak_build_gpu_memory_mib"
+  ],
+  "csv_sha256": "57ae60bf26206a4d6deb691f2ed625fe91b3e2fa3570c575b438f766d4a7527b"
+}

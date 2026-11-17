@@ -1,0 +1,105 @@
+{
+  "status": "source_index_metadata",
+  "index_type": "ivfpq",
+  "M": 192,
+  "nbits": 8,
+  "index_path": "/storage/vector_data/openai1536/GPUIndex/cuVS_IVFPQ_nlist1024_pqdim192_pqbits8.bin",
+  "index_mtime_ns": 1788703723820171798,
+  "build_device": "cuda",
+  "source_index_metadata": {},
+  "statistics_source": "/storage/vector_data/openai1536/GPUIndex/statistic.csv",
+  "statistics_sha256": "a1b9f2038daee7abf2265ab0967796e0164250ccc5cd6ab79793129d5575aa45",
+  "matching_statistics": [
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "openai1536",
+        "Method Name": "cuVS",
+        "Build Time (s)": "7.687803",
+        "Index Size (MB)": "216.3268"
+      },
+      "size_error": 3.970794676888545e-05,
+      "recorded_size_unit": "MiB"
+    }
+  ],
+  "statistics_rows": [
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "openai1536",
+      "Method Name": "cuVS",
+      "Build Time (s)": "7.687803",
+      "Index Size (MB)": "216.3268"
+    }
+  ],
+  "query_statistics": {
+    "source_path": "/home/songyitong/cuvs/python/cuvs/cuvs/result/IVFPQ_openai1536_nlist1024_pqdim192_pqbits8.csv",
+    "sha256": "4a0e9a368ab698967fd5f575782858768246820c1632717757ca1d21ad233ba6",
+    "K": 10,
+    "q_batch": 128,
+    "peak_gpu_memory_mib_by_nprobe": {
+      "10": 698.0,
+      "15": 698.0,
+      "20": 698.0,
+      "30": 698.0,
+      "40": 698.0,
+      "50": 698.0,
+      "60": 698.0,
+      "80": 698.0,
+      "100": 698.0,
+      "120": 698.0,
+      "140": 698.0,
+      "160": 698.0,
+      "200": 698.0,
+      "250": 698.0,
+      "300": 698.0
+    }
+  },
+  "measurement_notes": [
+    "Build time comes from saved index metadata or uniquely size-matched legacy statistics.",
+    "Index size is the exact serialized file size in bytes; legacy MB/MiB units are checked.",
+    "Serialization time and build peak GPU memory were not separately measured; empty means unknown.",
+    "Query memory is kept separately in query_statistics and is never used as build peak memory.",
+    "Multiple equally matched legacy timings are retained as candidates; an ambiguous build time stays empty."
+  ],
+  "source_host": "colossal",
+  "legacy_table_statistics": {
+    "peak_gpu_memory_gib": 0.68,
+    "K": 10,
+    "q_batch": 128,
+    "source_snapshot_sha256": "d412717ff568e1506445b6f8edc03bd40eb1c0e6a92cdf8c740ca8f666a053f5",
+    "original_rounded_record": {
+      "kind": "ivfpq",
+      "dataset": "OpenAI",
+      "method": "cuVS",
+      "build": "7.69",
+      "size": "0.21",
+      "peak": "0.68"
+    },
+    "measurement_notes": "Historical query peak rounded to 0.01 GiB; retained separately from newer logical query-allocation counters and build peaks."
+  },
+  "dataset": "openai1536",
+  "method": "cuVS",
+  "nlist": 1024,
+  "n_vectors": 999000,
+  "dim": 1536,
+  "build_seconds": 7.687803,
+  "save_seconds": null,
+  "index_size_bytes": 226835049,
+  "index_size_mib": 216.32676029205322,
+  "peak_build_gpu_memory_mib": null,
+  "schema_version": 1,
+  "platform": "CUDA",
+  "csv_columns": [
+    "dataset",
+    "method",
+    "nlist",
+    "n_vectors",
+    "dim",
+    "build_seconds",
+    "save_seconds",
+    "index_size_bytes",
+    "index_size_mib",
+    "peak_build_gpu_memory_mib"
+  ],
+  "csv_sha256": "be0ec8d5144d6a2480d3839e4794dcb08bbf920e6bfe59ba54d4372edc84ab53"
+}

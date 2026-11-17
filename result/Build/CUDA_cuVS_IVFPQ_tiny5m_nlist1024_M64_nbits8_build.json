@@ -1,0 +1,89 @@
+{
+  "status": "source_index_metadata",
+  "index_type": "ivfpq",
+  "M": 64,
+  "nbits": 8,
+  "index_path": "/storage/vector_data/tiny5m/GPUIndex/cuVS_IVFPQ_nlist1024_pqdim64_pqbits8.bin",
+  "index_mtime_ns": 1788796991640205689,
+  "build_device": "cuda",
+  "source_index_metadata": {},
+  "statistics_source": "/storage/vector_data/tiny5m/GPUIndex/statistic.csv",
+  "statistics_sha256": "3e64589852f7254debd18d687c1581068ef6d148ccab6f1d71a05f5dcaf90091",
+  "matching_statistics": [
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "tiny5m",
+        "Method Name": "cuVS",
+        "Build Time (s)": "8.297277",
+        "Index Size (MB)": "348.6371"
+      },
+      "size_error": 2.4061584497303556e-05,
+      "recorded_size_unit": "MiB"
+    }
+  ],
+  "statistics_rows": [
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "tiny5m",
+      "Method Name": "cuVS",
+      "Build Time (s)": "9.226301",
+      "Index Size (MB)": "272.1073"
+    },
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "tiny5m",
+      "Method Name": "cuVS",
+      "Build Time (s)": "8.297277",
+      "Index Size (MB)": "348.6371"
+    },
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "tiny5m",
+      "Method Name": "cuVS",
+      "Build Time (s)": "9.686593",
+      "Index Size (MB)": "353.0531"
+    },
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "tiny5m",
+      "Method Name": "cuVS",
+      "Build Time (s)": "8.105675",
+      "Index Size (MB)": "276.2611"
+    }
+  ],
+  "query_statistics": null,
+  "measurement_notes": [
+    "Build time comes from saved index metadata or uniquely size-matched legacy statistics.",
+    "Index size is the exact serialized file size in bytes; legacy MB/MiB units are checked.",
+    "Serialization time and build peak GPU memory were not separately measured; empty means unknown.",
+    "Query memory is kept separately in query_statistics and is never used as build peak memory.",
+    "Multiple equally matched legacy timings are retained as candidates; an ambiguous build time stays empty."
+  ],
+  "source_host": "colossal",
+  "dataset": "tiny5m",
+  "method": "cuVS",
+  "nlist": 1024,
+  "n_vectors": 5000000,
+  "dim": 384,
+  "build_seconds": 8.297277,
+  "save_seconds": null,
+  "index_size_bytes": 365572521,
+  "index_size_mib": 348.6371240615845,
+  "peak_build_gpu_memory_mib": null,
+  "schema_version": 1,
+  "platform": "CUDA",
+  "csv_columns": [
+    "dataset",
+    "method",
+    "nlist",
+    "n_vectors",
+    "dim",
+    "build_seconds",
+    "save_seconds",
+    "index_size_bytes",
+    "index_size_mib",
+    "peak_build_gpu_memory_mib"
+  ],
+  "csv_sha256": "153790c5c9e2c515888b1871a11c6e28a8dd2dff4762d8957442e89fa5fd8d4e"
+}

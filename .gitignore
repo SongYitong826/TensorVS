@@ -35,6 +35,8 @@ dist/
 /result/Build/*
 !/result/Build/MPS_*.csv
 !/result/Build/MPS_*.json
+!/result/Build/CUDA_*.csv
+!/result/Build/CUDA_*.json
 /indexes/faiss_ascend/
 /indexes/faiss_ascend_cpu/
 /indexes/faiss_metal/
@@ -45,7 +47,6 @@ dist/
 /plot/*
 !/plot/
 !/plot/*.py
-!/plot/ivf_cuda_resources.json
 !/plot/Figures/
 /plot/Figures/*
 !/plot/Figures/*_QBatch128_256_512_K10.png

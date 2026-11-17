@@ -6,6 +6,48 @@ from plot import ivf_resource_table, ivfflat_cuda_kernel, ivfpq_cuda_kernel
 from plot import plot_amd_ivf_compare as amd
 
 
+@pytest.mark.parametrize("q_batch", [None, 128])
+def test_ascend_flat_identifies_cpu_fallback_and_uses_shared_recall_range(tmp_path, monkeypatch, q_batch):
+    from matplotlib.figure import Figure
+    from plot import plot_ascend_ivf_compare as ascend
+
+    def inspect_figure(figure, *_args, **_kwargs):
+        assert len(figure.axes) == (6 if q_batch is None else 2)
+        for axis in figure.axes:
+            assert axis.get_xlim() == pytest.approx((0.85, 1.005))
+            assert {line.get_label() for line in axis.lines} == {
+                ascend.CPU_METHOD, ascend.TENSOR_METHOD,
+            }
+            for line in axis.lines:
+                expected_color = "#00609d" if line.get_label() == ascend.TENSOR_METHOD else "#2ca02c"
+                assert line.get_color() == expected_color
+                assert line.get_linestyle() == "-"
+        assert [text.get_text() for text in figure.legends[0].get_texts()] == [
+            ascend.CPU_METHOD, ascend.TENSOR_METHOD,
+        ]
+
+    monkeypatch.setattr(Figure, "savefig", inspect_figure)
+    monkeypatch.setattr(ascend, "PAPER_FIGURE_DIR", tmp_path / "no-paper-dir")
+    pdf_path, _ = ascend.plot(ascend.ROOT / "result", tmp_path, "ivfflat", q_batch=q_batch)
+    if q_batch is not None:
+        assert pdf_path.name == "IVFFLAT_Ascend_QBatch128_K10.pdf"
+
+
+@pytest.mark.parametrize("module,kind", [(ivfflat_cuda_kernel, "IVFFLAT"), (ivfpq_cuda_kernel, "IVFPQ")])
+def test_cuda_sift_column_uses_complete_sift100m_results(module, kind):
+    assert module.DATASETS[0].key == "sift100m"
+    assert module.DATASETS[0].label == "SIFT"
+    found = module.discover_result_files({method: (module.PROJECT_ROOT / "result",) for method in module.METHODS})
+    if kind == "IVFPQ":
+        found, _ = found
+    for method in module.METHODS:
+        source = found[method]["sift100m"]
+        assert "MultiGPU3" in source.path.name
+        rows = module.read_result_rows(source)
+        assert len(rows) == 42
+        assert {row["q_batch"] for row in rows} == {32, 128, 512}
+
+
 @pytest.mark.parametrize("kind", ["ivfflat", "ivfpq"])
 @pytest.mark.parametrize("dataset,label,pq_config", amd.DATASETS)
 @pytest.mark.parametrize("method", amd.BASE_METHODS + (amd.TRITON_METHOD,))
@@ -87,18 +129,14 @@ def test_cuda_discovery_does_not_select_amd_results(tmp_path, kind, module):
 @pytest.mark.parametrize("dataset", ["glove1.2m", "hunyuan"])
 @pytest.mark.parametrize("kind", ["IVF-Flat", "IVF-PQ"])
 def test_cuda_resource_table_reads_cuda_memory_only(tmp_path, monkeypatch, dataset, kind):
-    index = tmp_path / "index.bin"
-    index.write_bytes(b"index")
-    monkeypatch.setattr(ivf_resource_table, "index_path", lambda *_: index)
-    monkeypatch.setattr(ivf_resource_table, "matching_build_time", lambda *_: 1.0)
-    memory_paths = []
-
-    def memory(path):
-        memory_paths.append(path)
-        return {1: 0.5}
-
-    monkeypatch.setattr(ivf_resource_table, "peak_memory_by_nprobe_gib", memory)
+    calls = []
+    def load(dataset, method, family, nlist, **kwargs):
+        path = tmp_path / f"CUDA_{method}_{family.upper()}_{dataset}_nlist{nlist}_build.csv"
+        calls.append(path)
+        return path, dict(index_size_bytes=1024**3, build_seconds=1.0,
+                          legacy_table_statistics={"peak_gpu_memory_gib": 0.5},
+                          peak_build_gpu_memory_mib=9999)
+    monkeypatch.setattr(ivf_resource_table, "load_build", load)
     ivf_resource_table.collect_records(ivf_resource_table.Dataset(dataset, dataset), kind)
-    assert memory_paths
-    prefix = "IVFFLAT_" if kind == "IVF-Flat" else "IVFPQ_"
-    assert all(path.name.startswith(prefix) for path in memory_paths)
+    assert len(calls) == 3
+    assert all(path.name.startswith("CUDA_") and path.name.endswith("_build.csv") for path in calls)

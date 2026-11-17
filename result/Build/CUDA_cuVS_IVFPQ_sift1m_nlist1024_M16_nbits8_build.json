@@ -1,0 +1,89 @@
+{
+  "status": "source_index_metadata",
+  "index_type": "ivfpq",
+  "M": 16,
+  "nbits": 8,
+  "index_path": "/storage/vector_data/sift1m/GPUIndex/cuVS_IVFPQ_nlist1024_pqdim16_pqbits8.bin",
+  "index_mtime_ns": 1788704855534048653,
+  "build_device": "cuda",
+  "source_index_metadata": {},
+  "statistics_source": "/storage/vector_data/sift1m/GPUIndex/statistic.csv",
+  "statistics_sha256": "b54b54e4b9a6ed2bfca6cd430eaf2081bf930656aafb4697dafb5f08785c7ca1",
+  "matching_statistics": [
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "sift1m",
+        "Method Name": "cuVS",
+        "Build Time (s)": "0.901949",
+        "Index Size (MB)": "24.7392"
+      },
+      "size_error": 2.515716552764502e-05,
+      "recorded_size_unit": "MiB"
+    }
+  ],
+  "statistics_rows": [
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "sift1m",
+      "Method Name": "cuVS",
+      "Build Time (s)": "0.901949",
+      "Index Size (MB)": "24.7392"
+    }
+  ],
+  "query_statistics": {
+    "source_path": "/home/songyitong/cuvs/python/cuvs/cuvs/result/IVFPQ_sift1m_nlist1024_pqdim16_pqbits8.csv",
+    "sha256": "6081487375d80d355f3d67c39c70739a7834513da1e5b6bba21df97a55065d0d",
+    "K": 10,
+    "q_batch": 128,
+    "peak_gpu_memory_mib_by_nprobe": {
+      "5": 484.0,
+      "10": 484.0,
+      "15": 484.0,
+      "20": 484.0,
+      "30": 484.0,
+      "40": 484.0,
+      "50": 484.0,
+      "60": 484.0,
+      "70": 484.0,
+      "80": 484.0,
+      "90": 484.0,
+      "100": 484.0,
+      "120": 484.0,
+      "150": 484.0
+    }
+  },
+  "measurement_notes": [
+    "Build time comes from saved index metadata or uniquely size-matched legacy statistics.",
+    "Index size is the exact serialized file size in bytes; legacy MB/MiB units are checked.",
+    "Serialization time and build peak GPU memory were not separately measured; empty means unknown.",
+    "Query memory is kept separately in query_statistics and is never used as build peak memory.",
+    "Multiple equally matched legacy timings are retained as candidates; an ambiguous build time stays empty."
+  ],
+  "source_host": "colossal",
+  "dataset": "sift1m",
+  "method": "cuVS",
+  "nlist": 1024,
+  "n_vectors": 1000000,
+  "dim": 128,
+  "build_seconds": 0.901949,
+  "save_seconds": null,
+  "index_size_bytes": 25940905,
+  "index_size_mib": 24.739174842834473,
+  "peak_build_gpu_memory_mib": null,
+  "schema_version": 1,
+  "platform": "CUDA",
+  "csv_columns": [
+    "dataset",
+    "method",
+    "nlist",
+    "n_vectors",
+    "dim",
+    "build_seconds",
+    "save_seconds",
+    "index_size_bytes",
+    "index_size_mib",
+    "peak_build_gpu_memory_mib"
+  ],
+  "csv_sha256": "832245d1d26655170b8a87504098eacc6d69cf941f3e99f2a0d69444f54a8357"
+}

@@ -1,3 +1,5 @@
+"""Build, persist, and search residual IVF-PQ indexes."""
+
 from __future__ import annotations
 
 import json
@@ -17,12 +19,16 @@ from flash_kmeans import (
     fit_best_kmeans,
     select_training_indices,
 )
+from ._coarse import (
+    _coarse_centroid_scores_addmm as _coarse_centroid_scores_addmm,
+    _coarse_squared_l2_distance_addmm as _coarse_squared_l2_distance_addmm,
+)
+from ._coarse_triton import restore_selected_squared_l2
 from ._ivf_interleaved import (
     INTERLEAVED_GROUP_SIZE,
     build_interleaved_pq_lists,
     build_interleaved_pq_scalar_cache,
 )
-from ._coarse_triton import restore_selected_squared_l2
 from ._ivfpq_triton import (
     can_run_topk as can_run_ivfpq_triton_topk,
     plan_probe_chunks,
@@ -30,96 +36,29 @@ from ._ivfpq_triton import (
 )
 from ._ivfpq_triton import triton_topk as triton_ivfpq_topk
 from ._ivfpq_triton import triton as _triton
+from ._layout_cache import (
+    LayoutCache,
+    logical_lists,
+    normalize_device,
+    packed_pq_layout,
+    prepare_torch_layout,
+    record_triton_layout,
+)
+from ._pq_math import (
+    _LUT_STORAGE_DTYPES as _LUT_STORAGE_DTYPES,
+    _apply_pq_rotation as _apply_pq_rotation,
+    _build_global_query_luts_bmm as _build_global_query_luts_bmm,
+    _make_pq_rotation_matrix as _make_pq_rotation_matrix,
+    _normalize_lut_dtype as _normalize_lut_dtype,
+    _pq_code_dtype as _pq_code_dtype,
+    _pq_working_dim as _pq_working_dim,
+)
+from ._torch_search import search_device, search_torch, validate_backend
 from .distance import squared_l2_distance
 from .refine import refine_search_results
-from ._layout_cache import (LayoutCache, logical_lists, normalize_device, packed_pq_layout,
-                            prepare_torch_layout, record_triton_layout)
-from ._torch_search import search_torch, search_device, validate_backend
 
 if TYPE_CHECKING:
     from ._ivfpq_pruned import PruneLayout
-
-
-_LUT_STORAGE_DTYPES = {
-    "fp32": torch.float32,
-    "fp16": torch.float16,
-}
-
-def _normalize_lut_dtype(lut_dtype: str) -> str:
-    """Validate the shared Tensor/Triton IVF-PQ LUT precision switch."""
-    normalized = str(lut_dtype).lower()
-    if normalized not in _LUT_STORAGE_DTYPES:
-        raise ValueError(
-            f"Unsupported LUT dtype {lut_dtype!r}; expected one of {tuple(_LUT_STORAGE_DTYPES)}"
-        )
-    return normalized
-
-
-def _pq_code_dtype(nbits: int) -> torch.dtype:
-    if nbits <= 8:
-        return torch.uint8
-    if nbits <= 16:
-        return torch.int16
-    return torch.int32
-
-
-def _pq_working_dim(dim: int, m: int) -> int:
-    """Return the cuVS-style PQ working dimension for ``m`` subspaces."""
-    if dim <= 0 or m <= 0:
-        raise ValueError(f"dim and m must be positive, got dim={dim}, m={m}")
-    return ((dim + m - 1) // m) * m
-
-
-def _make_pq_rotation_matrix(
-    dim: int,
-    working_dim: int,
-    *,
-    device: torch.device,
-    seed: int,
-) -> torch.Tensor | None:
-    """Make the tall orthogonal PQ transform used when ``dim % m != 0``.
-
-    cuVS maps a non-divisible input dimension into the next dimension that is
-    divisible by ``pq_dim`` with a random orthogonal transform.  A tall matrix
-    with orthonormal columns preserves all L2 distances while making the
-    padded working space suitable for equal-width PQ subspaces.  A divisible
-    shape needs no transform and returns ``None`` to preserve the existing
-    fast path and on-disk format.
-    """
-    if working_dim < dim:
-        raise ValueError(
-            f"PQ working dimension must be >= input dimension, got {working_dim} < {dim}"
-        )
-    if working_dim == dim:
-        return None
-
-    generator = torch.Generator(device=device)
-    generator.manual_seed(int(seed))
-    matrix = torch.randn(
-        (working_dim, dim),
-        dtype=torch.float32,
-        device=device,
-        generator=generator,
-    )
-    q, r = torch.linalg.qr(matrix, mode="reduced")
-    # Canonicalize QR column signs so a fixed seed produces a stable transform.
-    signs = torch.where(torch.diagonal(r) < 0.0, -1.0, 1.0).to(q.dtype)
-    return (q * signs.unsqueeze(0)).contiguous()
-
-
-def _apply_pq_rotation(
-    vectors: torch.Tensor,
-    rotation_matrix: torch.Tensor | None,
-) -> torch.Tensor:
-    """Map original-space vectors into the PQ working space when required."""
-    if rotation_matrix is None:
-        return vectors
-    if vectors.shape[1] != rotation_matrix.shape[1]:
-        raise ValueError(
-            "PQ rotation/input dimensions do not match: "
-            f"{vectors.shape[1]} != {rotation_matrix.shape[1]}"
-        )
-    return (vectors @ rotation_matrix.transpose(0, 1)).contiguous()
 
 
 def _restore_pq_transform(
@@ -359,176 +298,6 @@ def _build_interleaved_pq_static_corrections(
         list_prefix.to(device=list_codes.device, dtype=torch.int64),
         list_count.to(device=list_codes.device, dtype=torch.int64),
     )
-
-
-def _build_global_query_luts_bmm(
-    queries: torch.Tensor,
-    pq_codebooks: torch.Tensor,
-    pq_codebook_norms: torch.Tensor,
-    *,
-    m: int,
-    subdim: int,
-    use_tf32: bool,
-    storage_dtype: torch.dtype | None = None,
-    max_m_chunk: int = 128,
-    max_fp32_scratch_bytes: int = 32 << 20,
-) -> torch.Tensor:
-    """Build ``||p_mk||^2 - 2 q_m^T p_mk`` as a global LUT.
-
-    The returned Global LUT uses ``[m, q, k]`` storage for the Triton TopK
-    scanner.
-
-    The omitted ``||q||^2`` is intentionally carried by neither this table
-    nor the probe bias.  For a candidate in list ``l`` the direct scanner
-    evaluates ``probe_distance(q, l) + gamma[i] + sum_m G[q, m, code_m]``;
-    this is algebraically identical to the residual-PQ distance because the
-    former decomposition's query-norm terms cancel exactly.  Keeping them out
-    avoids two query-norm reductions and their temporary global-memory tensors.
-    Individual entries of this table may be negative, so unlike a squared-L2
-    LUT it must not be clamped before ADC accumulation.
-    """
-    num_queries = queries.shape[0]
-    q_sub_by_m = (
-        queries.view(num_queries, m, subdim)
-        .permute(1, 0, 2)
-        .contiguous()
-    )
-    codebooks = pq_codebooks.transpose(1, 2)
-    norm_base = pq_codebook_norms.unsqueeze(1)
-
-    output_dtype = torch.float32 if storage_dtype is None else storage_dtype
-    if output_dtype not in (torch.float32, torch.float16):
-        raise ValueError(
-            f"Global LUT storage must be FP32 or FP16, got {output_dtype}"
-        )
-
-    # FP16 is the benchmark/search storage format, but BMM accumulation stays
-    # in FP32.  Materializing the complete FP32 table and then converting it
-    # keeps both full tables alive at once.  Fill the sole FP16 table from a
-    # bounded FP32 subspace scratch instead.  Every entry uses the same FP32
-    # baddbmm expression as the unchunked path, so this changes only tensor
-    # lifetime, not the ADC formula or storage precision.
-    chunk_m = int(m)
-    if output_dtype == torch.float16:
-        if max_m_chunk <= 0 or max_fp32_scratch_bytes <= 0:
-            raise ValueError("Global LUT chunk limits must be positive")
-        bytes_per_subspace = max(
-            1,
-            int(num_queries) * int(pq_codebooks.shape[1]) * torch.float32.itemsize,
-        )
-        chunk_m = min(
-            int(m),
-            int(max_m_chunk),
-            max(1, int(max_fp32_scratch_bytes) // bytes_per_subspace),
-        )
-
-    if output_dtype == torch.float32 or chunk_m >= int(m):
-        # Keep the original single-BMM path for FP32 and for small FP16 LUTs.
-        # The latter still uses a full FP32 temporary, but avoids unnecessary
-        # launch fragmentation when the table is already small.
-        if not use_tf32 or not queries.is_cuda:
-            values = torch.baddbmm(
-                norm_base,
-                q_sub_by_m,
-                codebooks,
-                beta=1.0,
-                alpha=-2.0,
-            )
-        else:
-            previous_allow_tf32 = torch.backends.cuda.matmul.allow_tf32
-            try:
-                torch.backends.cuda.matmul.allow_tf32 = True
-                values = torch.baddbmm(
-                    norm_base,
-                    q_sub_by_m,
-                    codebooks,
-                    beta=1.0,
-                    alpha=-2.0,
-                )
-            finally:
-                torch.backends.cuda.matmul.allow_tf32 = previous_allow_tf32
-        return values if output_dtype == torch.float32 else values.to(output_dtype)
-
-    ksub = int(pq_codebooks.shape[1])
-    values = torch.empty(
-        (int(m), int(num_queries), ksub),
-        dtype=output_dtype,
-        device=queries.device,
-    )
-    fp32_scratch = torch.empty(
-        (chunk_m, int(num_queries), ksub),
-        dtype=torch.float32,
-        device=queries.device,
-    )
-
-    previous_allow_tf32 = torch.backends.cuda.matmul.allow_tf32 if queries.is_cuda else None
-    try:
-        if queries.is_cuda:
-            torch.backends.cuda.matmul.allow_tf32 = bool(use_tf32)
-        for start in range(0, int(m), chunk_m):
-            end = min(start + chunk_m, int(m))
-            scratch_view = fp32_scratch[: end - start]
-            torch.baddbmm(
-                norm_base[start:end],
-                q_sub_by_m[start:end],
-                codebooks[start:end],
-                beta=1.0,
-                alpha=-2.0,
-                out=scratch_view,
-            )
-            values[start:end].copy_(scratch_view)
-    finally:
-        if previous_allow_tf32 is not None:
-            torch.backends.cuda.matmul.allow_tf32 = previous_allow_tf32
-
-    return values
-
-
-def _coarse_centroid_scores_addmm(
-    queries: torch.Tensor,
-    centroids: torch.Tensor,
-    centroid_norms: torch.Tensor,
-) -> torch.Tensor:
-    """Compute ``||c||^2 - 2 q^T c`` for coarse-list selection.
-
-    Query norms are row-wise constants and therefore do not affect which
-    centroids are selected. They are added only to the selected distances,
-    avoiding pointwise work over the full ``[nq, nlist]`` matrix.
-    """
-    centroid_norm_base = centroid_norms.unsqueeze(0)
-    if not queries.is_cuda:
-        distances = torch.addmm(
-            centroid_norm_base,
-            queries,
-            centroids.transpose(0, 1),
-            beta=1.0,
-            alpha=-2.0,
-        )
-    else:
-        previous_allow_tf32 = torch.backends.cuda.matmul.allow_tf32
-        try:
-            torch.backends.cuda.matmul.allow_tf32 = False
-            distances = torch.addmm(
-                centroid_norm_base,
-                queries,
-                centroids.transpose(0, 1),
-                beta=1.0,
-                alpha=-2.0,
-            )
-        finally:
-            torch.backends.cuda.matmul.allow_tf32 = previous_allow_tf32
-    return distances
-
-
-def _coarse_squared_l2_distance_addmm(
-    queries: torch.Tensor,
-    centroids: torch.Tensor,
-    centroid_norms: torch.Tensor,
-) -> torch.Tensor:
-    """Compute all coarse ``||q-c||^2`` distances with cached norms."""
-    query_norms = (queries * queries).sum(dim=1, keepdim=True)
-    distances = _coarse_centroid_scores_addmm(queries, centroids, centroid_norms)
-    return distances.add_(query_norms).clamp_min_(0.0)
 
 
 @dataclass
@@ -1905,30 +1674,52 @@ def search_ivfpq_index(
     requested_k = max(1, int(topk))
     if int(refine_factor) < 1 or (refine_vectors is None and int(refine_factor) != 1):
         raise ValueError("refine_factor must be >= 1 and requires refine_vectors when greater than 1")
-    scan_k = max(requested_k, min(requested_k * int(refine_factor), int(index.metadata["num_vectors"]))) if refine_vectors is not None else requested_k
+    scan_k = requested_k
+    if refine_vectors is not None:
+        # Reranking can use extra candidates up to the index size.
+        scan_k = max(
+            requested_k,
+            min(requested_k * int(refine_factor), int(index.metadata["num_vectors"])),
+        )
     if index.triton_list_count_stats is None:
         counts = index.list_count.detach().cpu().to(torch.float32)
         index.triton_list_count_stats = (int(counts.mean()), int(torch.quantile(counts, .95)), int(counts.max()))
     _, max_chunks = plan_probe_chunks(nprobe=probe_count, max_list_count=index.triton_list_count_stats[2])
     codes = index.persisted_list_codes_interleaved_by_subspace
     supported = can_run_ivfpq_triton_topk(
-        device=target, topk=scan_k, m=int(index.metadata["m"]), ksub=int(index.metadata["ksub"]),
+        device=target,
+        topk=scan_k,
+        m=int(index.metadata["m"]),
+        ksub=int(index.metadata["ksub"]),
         nprobe=probe_count * max_chunks,
         num_code_vectors=(index.persisted_list_ids_interleaved.numel() if index.persisted_list_ids_interleaved is not None else 0),
         code_dtype=codes.dtype if codes is not None else torch.uint8,
-        use_packed_16b_codes=use_packed_16b_codes and int(index.metadata["m"]) > 16)
-    selected = "triton" if backend == "auto" and supported else ("torch" if backend == "auto" else backend)
-    if selected == "torch":
-        return search_torch(index, queries, kind="pq", topk=topk, nprobe=nprobe,
-                            device=target, profile=profile, query_batch_size=torch_query_batch_size,
-                            candidate_chunk_size=torch_candidate_chunk_size,
-                            memory_budget_mb=torch_memory_budget_mb, use_compile=use_compile,
-                            persist_layout=persist_layout, lut_dtype=lut_dtype,
-                            refine_vectors=refine_vectors, refine_factor=refine_factor,
-                            pq_scan=torch_pq_scan, query_tile_size=torch_query_tile_size,
-                            max_tasks_per_batch=torch_max_tasks_per_batch,
-                            lut_chunk_size=torch_lut_chunk_size, pq_lookup=torch_pq_lookup,
-                            min_query_tile_size=torch_min_query_tile_size)
+        use_packed_16b_codes=use_packed_16b_codes and int(index.metadata["m"]) > 16,
+    )
+    if backend == "torch" or (backend == "auto" and not supported):
+        return search_torch(
+            index,
+            queries,
+            kind="pq",
+            topk=topk,
+            nprobe=nprobe,
+            device=target,
+            profile=profile,
+            query_batch_size=torch_query_batch_size,
+            candidate_chunk_size=torch_candidate_chunk_size,
+            memory_budget_mb=torch_memory_budget_mb,
+            use_compile=use_compile,
+            persist_layout=persist_layout,
+            lut_dtype=lut_dtype,
+            refine_vectors=refine_vectors,
+            refine_factor=refine_factor,
+            pq_scan=torch_pq_scan,
+            query_tile_size=torch_query_tile_size,
+            max_tasks_per_batch=torch_max_tasks_per_batch,
+            lut_chunk_size=torch_lut_chunk_size,
+            pq_lookup=torch_pq_lookup,
+            min_query_tile_size=torch_min_query_tile_size,
+        )
     if not supported:
         raise RuntimeError("The requested Triton IVF-PQ backend does not support this device or shape")
     index.reside_on_device(target, persist_layout=persist_layout)
@@ -1945,11 +1736,23 @@ def search_ivfpq_index(
     ):
         prune_layout = _get_prune_layout(index, target)
     return _search_ivfpq_index_triton(
-        index, queries, topk=topk, nprobe=nprobe, device=target, selection_mode=selection_mode,
-        profile=profile, use_packed_16b_codes=use_packed_16b_codes, triton_autotune=triton_autotune,
-        triton_autotune_cache_nprobe=triton_autotune_cache_nprobe, refine_vectors=refine_vectors,
-        refine_factor=refine_factor, lut_dtype=lut_dtype, use_preallocated_workspace=use_preallocated_workspace,
-        use_cuda_graph=use_cuda_graph, prune_layout=prune_layout)
+        index,
+        queries,
+        topk=topk,
+        nprobe=nprobe,
+        device=target,
+        selection_mode=selection_mode,
+        profile=profile,
+        use_packed_16b_codes=use_packed_16b_codes,
+        triton_autotune=triton_autotune,
+        triton_autotune_cache_nprobe=triton_autotune_cache_nprobe,
+        refine_vectors=refine_vectors,
+        refine_factor=refine_factor,
+        lut_dtype=lut_dtype,
+        use_preallocated_workspace=use_preallocated_workspace,
+        use_cuda_graph=use_cuda_graph,
+        prune_layout=prune_layout,
+    )
 
 
 def _cpu_residual_vectors(vectors, centroids, labels, chunk_size):

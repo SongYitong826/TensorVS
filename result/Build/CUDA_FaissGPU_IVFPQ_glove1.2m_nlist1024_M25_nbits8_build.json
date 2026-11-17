@@ -1,0 +1,108 @@
+{
+  "status": "source_index_metadata",
+  "index_type": "ivfpq",
+  "M": 25,
+  "nbits": 8,
+  "index_path": "/storage/vector_data/glove1.2m/GPUIndex/Faiss_IVFPQ_nlist1024_M25_nbits8.index",
+  "index_mtime_ns": 1788713707915170639,
+  "build_device": "cpu",
+  "source_index_metadata": {},
+  "statistics_source": "/storage/vector_data/glove1.2m/GPUIndex/statistic.csv",
+  "statistics_sha256": "056aca5acce6ab81ef278b26fca69fc3342ec5fc8e46721e35116104d30a6c79",
+  "matching_statistics": [
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "glove1.2m",
+        "Method Name": "faiss",
+        "Build Time (s)": "6.59399856813252",
+        "Index Size (MB)": "40.418334"
+      },
+      "size_error": 0.0,
+      "recorded_size_unit": "MB"
+    }
+  ],
+  "statistics_rows": [
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "glove1.2m",
+      "Method Name": "faiss",
+      "Build Time (s)": "6.59399856813252",
+      "Index Size (MB)": "40.418334"
+    }
+  ],
+  "query_statistics": {
+    "source_path": "/home/songyitong/faiss/result/IVFPQ_glove1.2m_nlist1024_M25_nbits8.csv",
+    "sha256": "402c067f1ce3bf1a14699f7a8911d313e267e7118c6adc9b9b9e3aba40a86ec9",
+    "K": 10,
+    "q_batch": 128,
+    "peak_gpu_memory_mib_by_nprobe": {
+      "50": 1976.0,
+      "80": 1976.0,
+      "100": 1976.0,
+      "120": 1976.0,
+      "140": 1976.0,
+      "160": 1976.0,
+      "180": 1976.0,
+      "200": 1976.0,
+      "220": 1976.0,
+      "240": 1976.0,
+      "260": 1976.0,
+      "280": 1976.0,
+      "300": 1976.0,
+      "320": 1976.0,
+      "340": 1976.0,
+      "360": 1976.0,
+      "380": 1976.0,
+      "400": 1976.0
+    }
+  },
+  "measurement_notes": [
+    "Build time comes from saved index metadata or uniquely size-matched legacy statistics.",
+    "Index size is the exact serialized file size in bytes; legacy MB/MiB units are checked.",
+    "Serialization time and build peak GPU memory were not separately measured; empty means unknown.",
+    "Query memory is kept separately in query_statistics and is never used as build peak memory.",
+    "Multiple equally matched legacy timings are retained as candidates; an ambiguous build time stays empty."
+  ],
+  "source_host": "colossal",
+  "legacy_table_statistics": {
+    "peak_gpu_memory_gib": 1.93,
+    "K": 10,
+    "q_batch": 128,
+    "source_snapshot_sha256": "d412717ff568e1506445b6f8edc03bd40eb1c0e6a92cdf8c740ca8f666a053f5",
+    "original_rounded_record": {
+      "kind": "ivfpq",
+      "dataset": "GloVe",
+      "method": "Faiss GPU",
+      "build": "6.59",
+      "size": "0.04",
+      "peak": "1.93"
+    },
+    "measurement_notes": "Historical query peak rounded to 0.01 GiB; retained separately from newer logical query-allocation counters and build peaks."
+  },
+  "dataset": "glove1.2m",
+  "method": "faiss",
+  "nlist": 1024,
+  "n_vectors": 1193514,
+  "dim": 200,
+  "build_seconds": 6.59399856813252,
+  "save_seconds": null,
+  "index_size_bytes": 40418334,
+  "index_size_mib": 38.54592704772949,
+  "peak_build_gpu_memory_mib": null,
+  "schema_version": 1,
+  "platform": "CUDA",
+  "csv_columns": [
+    "dataset",
+    "method",
+    "nlist",
+    "n_vectors",
+    "dim",
+    "build_seconds",
+    "save_seconds",
+    "index_size_bytes",
+    "index_size_mib",
+    "peak_build_gpu_memory_mib"
+  ],
+  "csv_sha256": "7ca2a2bb8823e8500e46d57068b573ce4954180865716af82bc948d2fd9e2023"
+}

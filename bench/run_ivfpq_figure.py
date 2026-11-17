@@ -91,7 +91,7 @@ def make_config(args: argparse.Namespace) -> Config:
         index_path=gpu_index_dir / (
             f"TenVS_IVFPQResidual_nlist{nlist}_m{pq_dim}_nbits{pq_bits}_train256.bin"
         ),
-        statistics_path=gpu_index_dir / "statistic.csv",
+        statistics_path=PROJECT_ROOT / "result" / "Build" / f"CUDA_TensorVS_Triton_{result_name[:-4]}_build.csv",
         nlist=nlist,
         pq_dim=pq_dim,
         pq_bits=pq_bits,
@@ -188,10 +188,10 @@ def validate_outputs(config: Config) -> None:
     with config.statistics_path.open(newline="", encoding="utf-8") as source:
         statistics = list(csv.DictReader(source))
     if not any(
-        "".join(ch for ch in row.get("Index Type", "").lower() if ch.isalnum()) == "ivfpq"
-        and row.get("Dataset Name") == config.dataset
-        and row.get("Method Name", "").casefold() == "tensorvs"
-        and row.get("Build Time (s)") and row.get("Index Size (MB)")
+        row.get("dataset") == config.dataset
+        and row.get("method", "").casefold() == "tensorvs"
+        and int(row.get("nlist", -1)) == config.nlist
+        and row.get("build_seconds") and row.get("index_size_bytes")
         for row in statistics
     ):
         raise RuntimeError(f"TensorVS IVF-PQ statistics missing: {config.statistics_path}")

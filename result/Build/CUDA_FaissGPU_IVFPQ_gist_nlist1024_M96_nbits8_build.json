@@ -1,0 +1,119 @@
+{
+  "status": "source_index_metadata",
+  "index_type": "ivfpq",
+  "M": 96,
+  "nbits": 8,
+  "index_path": "/storage/vector_data/gist/GPUIndex/Faiss_IVFPQ_nlist1024_M96_nbits8.index",
+  "index_mtime_ns": 1788856723913623639,
+  "build_device": "cpu",
+  "source_index_metadata": {},
+  "statistics_source": "/storage/vector_data/gist/GPUIndex/statistic.csv",
+  "statistics_sha256": "6ec3dfc3dfa6a115ebd2f3211172f6c170da6cb23290dd75949299181626c1ec",
+  "matching_statistics": [
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "gist",
+        "Method Name": "faiss",
+        "Build Time (s)": "22.66800490580499",
+        "Index Size (MB)": "108.923572"
+      },
+      "size_error": 0.0,
+      "recorded_size_unit": "MB"
+    }
+  ],
+  "statistics_rows": [
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "gist",
+      "Method Name": "faiss",
+      "Build Time (s)": "29.995807733386755",
+      "Index Size (MB)": "60.923572"
+    },
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "gist",
+      "Method Name": "faiss",
+      "Build Time (s)": "26.797379456460476",
+      "Index Size (MB)": "60.923572"
+    },
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "gist",
+      "Method Name": "faiss",
+      "Build Time (s)": "22.66800490580499",
+      "Index Size (MB)": "108.923572"
+    }
+  ],
+  "query_statistics": {
+    "source_path": "/home/songyitong/faiss/result/IVFPQ_gist_nlist1024_M96_nbits8.csv",
+    "sha256": "bcc1e8f62eb9a3fe6983dbb0b4174f4062d1a915282096449b5c929e96262c6b",
+    "K": 10,
+    "q_batch": 128,
+    "peak_gpu_memory_mib_by_nprobe": {
+      "10": 2040.0,
+      "20": 2040.0,
+      "30": 2040.0,
+      "40": 2040.0,
+      "50": 2040.0,
+      "60": 2040.0,
+      "80": 2040.0,
+      "100": 2040.0,
+      "120": 2040.0,
+      "140": 2040.0,
+      "160": 2040.0,
+      "180": 2040.0,
+      "200": 2040.0,
+      "250": 2040.0,
+      "300": 2040.0
+    }
+  },
+  "measurement_notes": [
+    "Build time comes from saved index metadata or uniquely size-matched legacy statistics.",
+    "Index size is the exact serialized file size in bytes; legacy MB/MiB units are checked.",
+    "Serialization time and build peak GPU memory were not separately measured; empty means unknown.",
+    "Query memory is kept separately in query_statistics and is never used as build peak memory.",
+    "Multiple equally matched legacy timings are retained as candidates; an ambiguous build time stays empty."
+  ],
+  "source_host": "colossal",
+  "legacy_table_statistics": {
+    "peak_gpu_memory_gib": 1.99,
+    "K": 10,
+    "q_batch": 128,
+    "source_snapshot_sha256": "d412717ff568e1506445b6f8edc03bd40eb1c0e6a92cdf8c740ca8f666a053f5",
+    "original_rounded_record": {
+      "kind": "ivfpq",
+      "dataset": "GIST",
+      "method": "Faiss GPU",
+      "build": "22.67",
+      "size": "0.10",
+      "peak": "1.99"
+    },
+    "measurement_notes": "Historical query peak rounded to 0.01 GiB; retained separately from newer logical query-allocation counters and build peaks."
+  },
+  "dataset": "gist",
+  "method": "faiss",
+  "nlist": 1024,
+  "n_vectors": 1000000,
+  "dim": 960,
+  "build_seconds": 22.66800490580499,
+  "save_seconds": null,
+  "index_size_bytes": 108923572,
+  "index_size_mib": 103.87761306762695,
+  "peak_build_gpu_memory_mib": null,
+  "schema_version": 1,
+  "platform": "CUDA",
+  "csv_columns": [
+    "dataset",
+    "method",
+    "nlist",
+    "n_vectors",
+    "dim",
+    "build_seconds",
+    "save_seconds",
+    "index_size_bytes",
+    "index_size_mib",
+    "peak_build_gpu_memory_mib"
+  ],
+  "csv_sha256": "99fe48cc9f46ab507805fc50c04277227ee5dcf3561219cb093befbb2fb4b96b"
+}

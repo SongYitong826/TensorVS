@@ -51,9 +51,7 @@
       }
     },
     "gpus": [
-      0,
-      1,
-      2
+      1
     ],
     "backend": "triton",
     "q_batches": [
@@ -100,49 +98,34 @@
     ],
     "torch_version": "2.12.1+cu130",
     "cuda_version": "13.0",
-    "cuda_visible_devices": null
+    "cuda_visible_devices": null,
+    "gpu_count": 1,
+    "execution": "three resident shards searched sequentially",
+    "worker_env": "tensorvs",
+    "verify_original": true
   },
   "results": [
     {
       "nprobes": 5,
       "q_batch": 32,
       "K": 10,
-      "qps": 55300.03278628073,
-      "recall": 0.3722000000000002,
+      "qps": 34379.97194412833,
+      "recall": 0.3722,
       "visited_vectors_per_query": 486464.746,
-      "peak_gpu_memory": 4260.0,
+      "peak_gpu_memory": 3256.0,
       "samples_seconds": [
-        0.01770030800253153,
-        0.019081685692071915,
-        0.018083171918988228
+        0.02913486212491989,
+        0.029086702037602663,
+        0.028682060074061155
       ],
       "memory": {
-        "peak_total_mib": 4260.0,
+        "peak_total_mib": 3256.0,
         "peak_per_gpu_mib": {
-          "0": 1420.0,
-          "1": 1420.0,
-          "2": 1420.0
+          "1": 3256.0
         },
-        "samples": 3,
+        "samples": 4,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 909.107421875,
-          "peak_torch_reserved_mib": 940.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 909.119140625,
-          "peak_torch_reserved_mib": 940.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 909.07666015625,
-          "peak_torch_reserved_mib": 940.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 161416982,
@@ -171,48 +154,30 @@
           "visited_data_mb_total": 2505.48095703125,
           "visited_data_mb_per_query": 2.50548095703125
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 10,
       "q_batch": 32,
       "K": 10,
-      "qps": 49910.71429318476,
-      "recall": 0.39500000000000024,
+      "qps": 23313.044132357394,
+      "recall": 0.395,
       "visited_vectors_per_query": 970898.578,
-      "peak_gpu_memory": 4260.0,
+      "peak_gpu_memory": 3256.0,
       "samples_seconds": [
-        0.020035778172314167,
-        0.019833052065223455,
-        0.024147831834852695
+        0.04307210631668568,
+        0.04284778982400894,
+        0.04289444116875529
       ],
       "memory": {
-        "peak_total_mib": 4260.0,
+        "peak_total_mib": 3256.0,
         "peak_per_gpu_mib": {
-          "0": 1420.0,
-          "1": 1420.0,
-          "2": 1420.0
+          "1": 3256.0
         },
-        "samples": 3,
+        "samples": 6,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 909.498046875,
-          "peak_torch_reserved_mib": 940.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 909.509765625,
-          "peak_torch_reserved_mib": 940.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 909.42822265625,
-          "peak_torch_reserved_mib": 940.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 322161278,
@@ -241,48 +206,30 @@
           "visited_data_mb_total": 4987.906951904297,
           "visited_data_mb_per_query": 4.9879069519042964
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 15,
       "q_batch": 32,
       "K": 10,
-      "qps": 38880.10201347414,
-      "recall": 0.4041000000000005,
+      "qps": 17139.680472580225,
+      "recall": 0.4041,
       "visited_vectors_per_query": 1453147.349,
-      "peak_gpu_memory": 4254.0,
+      "peak_gpu_memory": 3250.0,
       "samples_seconds": [
-        0.02523149223998189,
-        0.026279959827661514,
-        0.02572009712457657
+        0.058344144839793444,
+        0.05815885029733181,
+        0.058486404828727245
       ],
       "memory": {
-        "peak_total_mib": 4254.0,
+        "peak_total_mib": 3250.0,
         "peak_per_gpu_mib": {
-          "0": 1418.0,
-          "1": 1418.0,
-          "2": 1418.0
+          "1": 3250.0
         },
-        "samples": 4,
+        "samples": 7,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 909.888671875,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 909.900390625,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 909.77978515625,
-          "peak_torch_reserved_mib": 938.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 482398579,
@@ -311,48 +258,30 @@
           "visited_data_mb_total": 7448.966217041016,
           "visited_data_mb_per_query": 7.448966217041016
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 20,
       "q_batch": 32,
       "K": 10,
-      "qps": 33647.43772379829,
-      "recall": 0.40760000000000035,
+      "qps": 14034.190489181168,
+      "recall": 0.4076,
       "visited_vectors_per_query": 1935392.736,
-      "peak_gpu_memory": 4254.0,
+      "peak_gpu_memory": 3250.0,
       "samples_seconds": [
-        0.029719945043325424,
-        0.029869711957871914,
-        0.02970068994909525
+        0.07119692582637072,
+        0.0713331950828433,
+        0.07125455513596535
       ],
       "memory": {
-        "peak_total_mib": 4254.0,
+        "peak_total_mib": 3250.0,
         "peak_per_gpu_mib": {
-          "0": 1418.0,
-          "1": 1418.0,
-          "2": 1418.0
+          "1": 3250.0
         },
-        "samples": 5,
+        "samples": 8,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 910.279296875,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 910.291015625,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 910.13134765625,
-          "peak_torch_reserved_mib": 938.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 642552548,
@@ -381,48 +310,30 @@
           "visited_data_mb_total": 9912.872543334961,
           "visited_data_mb_per_query": 9.912872543334961
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 30,
       "q_batch": 32,
       "K": 10,
-      "qps": 25270.826753012945,
-      "recall": 0.4102000000000004,
+      "qps": 13092.553425051163,
+      "recall": 0.4102,
       "visited_vectors_per_query": 2898099.518,
-      "peak_gpu_memory": 4260.0,
+      "peak_gpu_memory": 4836.0,
       "samples_seconds": [
-        0.039788255002349615,
-        0.03957132110372186,
-        0.03872978175058961
+        0.07637929497286677,
+        0.07639042427763343,
+        0.07629084214568138
       ],
       "memory": {
-        "peak_total_mib": 4260.0,
+        "peak_total_mib": 4836.0,
         "peak_per_gpu_mib": {
-          "0": 1420.0,
-          "1": 1420.0,
-          "2": 1420.0
+          "1": 4836.0
         },
-        "samples": 5,
+        "samples": 9,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 911.060546875,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 911.072265625,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 910.83447265625,
-          "peak_torch_reserved_mib": 938.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 962496220,
@@ -451,48 +362,30 @@
           "visited_data_mb_total": 14821.654312133789,
           "visited_data_mb_per_query": 14.82165431213379
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 40,
       "q_batch": 32,
       "K": 10,
-      "qps": 20652.519251468144,
-      "recall": 0.4113000000000003,
+      "qps": 12038.154294223677,
+      "recall": 0.4113,
       "visited_vectors_per_query": 3862389.645,
-      "peak_gpu_memory": 4260.0,
+      "peak_gpu_memory": 4836.0,
       "samples_seconds": [
-        0.04810177581384778,
-        0.048420242965221405,
-        0.04963589506223798
+        0.08633368415758014,
+        0.08287267480045557,
+        0.08306921273469925
       ],
       "memory": {
-        "peak_total_mib": 4260.0,
+        "peak_total_mib": 4836.0,
         "peak_per_gpu_mib": {
-          "0": 1420.0,
-          "1": 1420.0,
-          "2": 1420.0
+          "1": 4836.0
         },
-        "samples": 6,
+        "samples": 10,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 911.841796875,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 911.853515625,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 911.53759765625,
-          "peak_torch_reserved_mib": 938.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 1283395680,
@@ -521,48 +414,30 @@
           "visited_data_mb_total": 19732.09945678711,
           "visited_data_mb_per_query": 19.73209945678711
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 50,
       "q_batch": 32,
       "K": 10,
-      "qps": 15773.97539114762,
-      "recall": 0.41170000000000034,
+      "qps": 11457.72459584096,
+      "recall": 0.4117,
       "visited_vectors_per_query": 4828337.994,
-      "peak_gpu_memory": 4260.0,
+      "peak_gpu_memory": 4836.0,
       "samples_seconds": [
-        0.06339555978775024,
-        0.06344810593873262,
-        0.062090890016406775
+        0.08745438093319535,
+        0.08726586401462555,
+        0.0872773639857769
       ],
       "memory": {
-        "peak_total_mib": 4260.0,
+        "peak_total_mib": 4836.0,
         "peak_per_gpu_mib": {
-          "0": 1420.0,
-          "1": 1420.0,
-          "2": 1420.0
+          "1": 4836.0
         },
-        "samples": 7,
+        "samples": 10,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 912.623046875,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 912.634765625,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 912.24072265625,
-          "peak_torch_reserved_mib": 938.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 1604962005,
@@ -591,48 +466,30 @@
           "visited_data_mb_total": 24651.322463989258,
           "visited_data_mb_per_query": 24.651322463989256
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 60,
       "q_batch": 32,
       "K": 10,
-      "qps": 14774.356656662361,
-      "recall": 0.4119000000000003,
+      "qps": 10884.534754619588,
+      "recall": 0.4119,
       "visited_vectors_per_query": 5793058.427999999,
-      "peak_gpu_memory": 4260.0,
+      "peak_gpu_memory": 4836.0,
       "samples_seconds": [
-        0.06768484227359295,
-        0.06864138599485159,
-        0.06726394221186638
+        0.09187347209081054,
+        0.09182358998805285,
+        0.09202975500375032
       ],
       "memory": {
-        "peak_total_mib": 4260.0,
+        "peak_total_mib": 4836.0,
         "peak_per_gpu_mib": {
-          "0": 1420.0,
-          "1": 1420.0,
-          "2": 1420.0
+          "1": 4836.0
         },
-        "samples": 8,
+        "samples": 10,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 913.404296875,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 913.416015625,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 912.94384765625,
-          "peak_torch_reserved_mib": 938.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 1925791389,
@@ -661,48 +518,30 @@
           "visited_data_mb_total": 29573.873321533203,
           "visited_data_mb_per_query": 29.573873321533203
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 70,
       "q_batch": 32,
       "K": 10,
-      "qps": 12880.218073978705,
-      "recall": 0.41190000000000027,
+      "qps": 10387.927181483617,
+      "recall": 0.4119,
       "visited_vectors_per_query": 6757813.078,
-      "peak_gpu_memory": 4266.0,
+      "peak_gpu_memory": 4836.0,
       "samples_seconds": [
-        0.07783720688894391,
-        0.07724260305985808,
-        0.07763843704015017
+        0.09693429712206125,
+        0.09626559587195516,
+        0.0960641079582274
       ],
       "memory": {
-        "peak_total_mib": 4266.0,
+        "peak_total_mib": 4836.0,
         "peak_per_gpu_mib": {
-          "0": 1422.0,
-          "1": 1422.0,
-          "2": 1422.0
+          "1": 4836.0
         },
-        "samples": 9,
+        "samples": 11,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 914.185546875,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 914.197265625,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 913.64697265625,
-          "peak_torch_reserved_mib": 938.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 2246591195,
@@ -731,48 +570,30 @@
           "visited_data_mb_total": 34500.834533691406,
           "visited_data_mb_per_query": 34.5008345336914
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 80,
       "q_batch": 32,
       "K": 10,
-      "qps": 11426.836357534006,
-      "recall": 0.4121000000000003,
+      "qps": 10140.322774763239,
+      "recall": 0.4121,
       "visited_vectors_per_query": 7723708.33,
-      "peak_gpu_memory": 4266.0,
+      "peak_gpu_memory": 4838.0,
       "samples_seconds": [
-        0.08751328615471721,
-        0.08735001599416137,
-        0.08805042039602995
+        0.09958470379933715,
+        0.09861619025468826,
+        0.09860741021111608
       ],
       "memory": {
-        "peak_total_mib": 4266.0,
+        "peak_total_mib": 4838.0,
         "peak_per_gpu_mib": {
-          "0": 1422.0,
-          "1": 1422.0,
-          "2": 1422.0
+          "1": 4838.0
         },
-        "samples": 10,
+        "samples": 11,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 914.966796875,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 914.978515625,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 914.35009765625,
-          "peak_torch_reserved_mib": 938.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 2567633776,
@@ -801,48 +622,30 @@
           "visited_data_mb_total": 39421.52853393555,
           "visited_data_mb_per_query": 39.42152853393555
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 90,
       "q_batch": 32,
       "K": 10,
-      "qps": 10158.385252222612,
-      "recall": 0.4120000000000003,
+      "qps": 9804.3378839154,
+      "recall": 0.412,
       "visited_vectors_per_query": 8687788.855999999,
-      "peak_gpu_memory": 4266.0,
+      "peak_gpu_memory": 4838.0,
       "samples_seconds": [
-        0.09844084223732352,
-        0.09837784292176366,
-        0.09866237407550216
+        0.10212346073240042,
+        0.10196138313040137,
+        0.10199566883966327
       ],
       "memory": {
-        "peak_total_mib": 4266.0,
+        "peak_total_mib": 4838.0,
         "peak_per_gpu_mib": {
-          "0": 1422.0,
-          "1": 1422.0,
-          "2": 1422.0
+          "1": 4838.0
         },
         "samples": 11,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 915.748046875,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 915.759765625,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 915.05322265625,
-          "peak_torch_reserved_mib": 938.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 2888150677,
@@ -871,48 +674,30 @@
           "visited_data_mb_total": 44333.002182006836,
           "visited_data_mb_per_query": 44.33300218200684
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 100,
       "q_batch": 32,
       "K": 10,
-      "qps": 9248.885856083027,
-      "recall": 0.4120000000000003,
+      "qps": 9599.123805868845,
+      "recall": 0.412,
       "visited_vectors_per_query": 9650708.758,
-      "peak_gpu_memory": 4266.0,
+      "peak_gpu_memory": 4838.0,
       "samples_seconds": [
-        0.10804683994501829,
-        0.10844138031825423,
-        0.10812113108113408
+        0.10419989190995693,
+        0.10417617484927177,
+        0.10415782639756799
       ],
       "memory": {
-        "peak_total_mib": 4266.0,
+        "peak_total_mib": 4838.0,
         "peak_per_gpu_mib": {
-          "0": 1422.0,
-          "1": 1422.0,
-          "2": 1422.0
+          "1": 4838.0
         },
         "samples": 12,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 916.529296875,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 916.541015625,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 915.75634765625,
-          "peak_torch_reserved_mib": 938.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 3208931479,
@@ -941,48 +726,30 @@
           "visited_data_mb_total": 49240.54579162598,
           "visited_data_mb_per_query": 49.240545791625976
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 120,
       "q_batch": 32,
       "K": 10,
-      "qps": 7727.322736655334,
-      "recall": 0.41190000000000027,
+      "qps": 9249.94901613261,
+      "recall": 0.4119,
       "visited_vectors_per_query": 11580847.728,
-      "peak_gpu_memory": 4270.0,
+      "peak_gpu_memory": 4838.0,
       "samples_seconds": [
-        0.12881849613040686,
-        0.1294109271839261,
-        0.1304522450082004
+        0.10810308065265417,
+        0.1081087039783597,
+        0.10827296087518334
       ],
       "memory": {
-        "peak_total_mib": 4270.0,
+        "peak_total_mib": 4838.0,
         "peak_per_gpu_mib": {
-          "0": 1424.0,
-          "1": 1424.0,
-          "2": 1422.0
+          "1": 4838.0
         },
-        "samples": 13,
+        "samples": 12,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 918.091796875,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 918.103515625,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 917.16259765625,
-          "peak_torch_reserved_mib": 938.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 3850947718,
@@ -1011,48 +778,30 @@
           "visited_data_mb_total": 59074.54260253906,
           "visited_data_mb_per_query": 59.07454260253906
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 150,
       "q_batch": 32,
       "K": 10,
-      "qps": 6430.3948089756805,
-      "recall": 0.41190000000000027,
+      "qps": 8747.4093743973,
+      "recall": 0.4119,
       "visited_vectors_per_query": 14470465.342000002,
-      "peak_gpu_memory": 4272.0,
+      "peak_gpu_memory": 4838.0,
       "samples_seconds": [
-        0.15495844790712,
-        0.15551144676283002,
-        0.1569439908489585
+        0.1141376681625843,
+        0.11431956104934216,
+        0.1143966717645526
       ],
       "memory": {
-        "peak_total_mib": 4272.0,
+        "peak_total_mib": 4838.0,
         "peak_per_gpu_mib": {
-          "0": 1424.0,
-          "1": 1424.0,
-          "2": 1424.0
+          "1": 4838.0
         },
-        "samples": 17,
+        "samples": 13,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 920.591796875,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 920.603515625,
-          "peak_torch_reserved_mib": 938.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 919.27197265625,
-          "peak_torch_reserved_mib": 938.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 4812517314,
@@ -1081,48 +830,30 @@
           "visited_data_mb_total": 73805.02046203613,
           "visited_data_mb_per_query": 73.80502046203614
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 5,
       "q_batch": 128,
       "K": 10,
-      "qps": 125861.83916170395,
-      "recall": 0.3722000000000002,
+      "qps": 54235.38381265403,
+      "recall": 0.3722,
       "visited_vectors_per_query": 486464.746,
-      "peak_gpu_memory": 4332.0,
+      "peak_gpu_memory": 4892.0,
       "samples_seconds": [
-        0.007945219986140728,
-        0.007949288003146648,
-        0.007860567420721054
+        0.018438147380948067,
+        0.018429521936923265,
+        0.0184870520606637
       ],
       "memory": {
-        "peak_total_mib": 4332.0,
+        "peak_total_mib": 4892.0,
         "peak_per_gpu_mib": {
-          "0": 1444.0,
-          "1": 1444.0,
-          "2": 1444.0
+          "1": 4892.0
         },
-        "samples": 2,
+        "samples": 3,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 910.3369140625,
-          "peak_torch_reserved_mib": 958.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 910.3486328125,
-          "peak_torch_reserved_mib": 958.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 910.18896484375,
-          "peak_torch_reserved_mib": 958.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 161416982,
@@ -1151,48 +882,30 @@
           "visited_data_mb_total": 2505.48095703125,
           "visited_data_mb_per_query": 2.50548095703125
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 10,
       "q_batch": 128,
       "K": 10,
-      "qps": 78790.80194861135,
-      "recall": 0.39500000000000024,
+      "qps": 39177.49168007864,
+      "recall": 0.395,
       "visited_vectors_per_query": 970898.578,
-      "peak_gpu_memory": 4332.0,
+      "peak_gpu_memory": 4904.0,
       "samples_seconds": [
-        0.012711734976619482,
-        0.012691836804151535,
-        0.012676964048296213
+        0.02550543425604701,
+        0.02561184810474515,
+        0.025524860247969627
       ],
       "memory": {
-        "peak_total_mib": 4332.0,
+        "peak_total_mib": 4904.0,
         "peak_per_gpu_mib": {
-          "0": 1444.0,
-          "1": 1444.0,
-          "2": 1444.0
+          "1": 4904.0
         },
-        "samples": 3,
+        "samples": 4,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 911.8994140625,
-          "peak_torch_reserved_mib": 958.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 911.9111328125,
-          "peak_torch_reserved_mib": 958.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 911.59521484375,
-          "peak_torch_reserved_mib": 958.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 322161278,
@@ -1221,48 +934,30 @@
           "visited_data_mb_total": 4987.906951904297,
           "visited_data_mb_per_query": 4.9879069519042964
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 15,
       "q_batch": 128,
       "K": 10,
-      "qps": 57129.03865474628,
-      "recall": 0.4041000000000005,
+      "qps": 39481.49886552565,
+      "recall": 0.4041,
       "visited_vectors_per_query": 1453147.349,
-      "peak_gpu_memory": 4332.0,
+      "peak_gpu_memory": 4904.0,
       "samples_seconds": [
-        0.017568702809512615,
-        0.017504232935607433,
-        0.017354351934045553
+        0.025328319054096937,
+        0.02524865558370948,
+        0.02532981988042593
       ],
       "memory": {
-        "peak_total_mib": 4332.0,
+        "peak_total_mib": 4904.0,
         "peak_per_gpu_mib": {
-          "0": 1444.0,
-          "1": 1444.0,
-          "2": 1444.0
+          "1": 4904.0
         },
-        "samples": 3,
+        "samples": 4,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 913.4619140625,
-          "peak_torch_reserved_mib": 958.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 913.4736328125,
-          "peak_torch_reserved_mib": 958.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 913.00146484375,
-          "peak_torch_reserved_mib": 958.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 482398579,
@@ -1291,48 +986,30 @@
           "visited_data_mb_total": 7448.966217041016,
           "visited_data_mb_per_query": 7.448966217041016
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 20,
       "q_batch": 128,
       "K": 10,
-      "qps": 44791.22381505453,
-      "recall": 0.40760000000000035,
+      "qps": 37366.275530278035,
+      "recall": 0.4076,
       "visited_vectors_per_query": 1935392.736,
-      "peak_gpu_memory": 4332.0,
+      "peak_gpu_memory": 4904.0,
       "samples_seconds": [
-        0.022464756853878498,
-        0.022325802128762007,
-        0.02226215787231922
+        0.026775007136166096,
+        0.0267620999366045,
+        0.026700673159211874
       ],
       "memory": {
-        "peak_total_mib": 4332.0,
+        "peak_total_mib": 4904.0,
         "peak_per_gpu_mib": {
-          "0": 1444.0,
-          "1": 1444.0,
-          "2": 1444.0
+          "1": 4904.0
         },
         "samples": 4,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 915.0244140625,
-          "peak_torch_reserved_mib": 958.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 915.0361328125,
-          "peak_torch_reserved_mib": 958.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 914.40771484375,
-          "peak_torch_reserved_mib": 958.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 642552548,
@@ -1361,48 +1038,30 @@
           "visited_data_mb_total": 9912.872543334961,
           "visited_data_mb_per_query": 9.912872543334961
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 30,
       "q_batch": 128,
       "K": 10,
-      "qps": 30988.832203626072,
-      "recall": 0.4102000000000004,
+      "qps": 34759.878517062854,
+      "recall": 0.4102,
       "visited_vectors_per_query": 2898099.518,
-      "peak_gpu_memory": 4332.0,
+      "peak_gpu_memory": 4904.0,
       "samples_seconds": [
-        0.032269689720124006,
-        0.03273311583325267,
-        0.03222269285470247
+        0.028839225880801678,
+        0.02876880019903183,
+        0.02875083265826106
       ],
       "memory": {
-        "peak_total_mib": 4332.0,
+        "peak_total_mib": 4904.0,
         "peak_per_gpu_mib": {
-          "0": 1444.0,
-          "1": 1444.0,
-          "2": 1444.0
+          "1": 4904.0
         },
-        "samples": 5,
+        "samples": 4,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 918.1494140625,
-          "peak_torch_reserved_mib": 958.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 918.1611328125,
-          "peak_torch_reserved_mib": 958.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 917.22021484375,
-          "peak_torch_reserved_mib": 958.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 962496220,
@@ -1431,48 +1090,30 @@
           "visited_data_mb_total": 14821.654312133789,
           "visited_data_mb_per_query": 14.82165431213379
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 40,
       "q_batch": 128,
       "K": 10,
-      "qps": 24186.44048153717,
-      "recall": 0.4113000000000003,
+      "qps": 32182.01440743184,
+      "recall": 0.4113,
       "visited_vectors_per_query": 3862389.645,
-      "peak_gpu_memory": 4360.0,
+      "peak_gpu_memory": 4904.0,
       "samples_seconds": [
-        0.04134548036381602,
-        0.04171461099758744,
-        0.04123429302126169
+        0.03108763787895441,
+        0.031073256861418486,
+        0.031024109106510878
       ],
       "memory": {
-        "peak_total_mib": 4360.0,
+        "peak_total_mib": 4904.0,
         "peak_per_gpu_mib": {
-          "0": 1458.0,
-          "1": 1458.0,
-          "2": 1444.0
+          "1": 4904.0
         },
         "samples": 5,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 921.2744140625,
-          "peak_torch_reserved_mib": 972.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 921.2861328125,
-          "peak_torch_reserved_mib": 972.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 920.65771484375,
-          "peak_torch_reserved_mib": 958.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 1283395680,
@@ -1501,48 +1142,30 @@
           "visited_data_mb_total": 19732.09945678711,
           "visited_data_mb_per_query": 19.73209945678711
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 50,
       "q_batch": 128,
       "K": 10,
-      "qps": 19634.322904647506,
-      "recall": 0.41170000000000034,
+      "qps": 30066.84772903895,
+      "recall": 0.4117,
       "visited_vectors_per_query": 4828337.994,
-      "peak_gpu_memory": 4380.0,
+      "peak_gpu_memory": 4904.0,
       "samples_seconds": [
-        0.05106690805405378,
-        0.05093121901154518,
-        0.05044528469443321
+        0.03337540291249752,
+        0.03325922321528196,
+        0.03322490630671382
       ],
       "memory": {
-        "peak_total_mib": 4380.0,
+        "peak_total_mib": 4904.0,
         "peak_per_gpu_mib": {
-          "0": 1460.0,
-          "1": 1460.0,
-          "2": 1460.0
+          "1": 4904.0
         },
-        "samples": 6,
+        "samples": 5,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 924.7744140625,
-          "peak_torch_reserved_mib": 974.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 924.7861328125,
-          "peak_torch_reserved_mib": 974.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 922.84521484375,
-          "peak_torch_reserved_mib": 974.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 1604962005,
@@ -1571,468 +1194,342 @@
           "visited_data_mb_total": 24651.322463989258,
           "visited_data_mb_per_query": 24.651322463989256
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 60,
       "q_batch": 128,
       "K": 10,
-      "qps": 16432.206420997634,
-      "recall": 0.4119000000000003,
+      "qps": 27898.83399134593,
+      "recall": 0.4119,
       "visited_vectors_per_query": 5793058.427999999,
-      "peak_gpu_memory": 4390.0,
+      "peak_gpu_memory": 4904.0,
       "samples_seconds": [
-        0.060089381877332926,
-        0.06085610017180443,
-        0.06428883085027337
+        0.0359467058442533,
+        0.03580042580142617,
+        0.03584379190579057
       ],
       "memory": {
-        "peak_total_mib": 4390.0,
+        "peak_total_mib": 4904.0,
         "peak_per_gpu_mib": {
-          "0": 1464.0,
-          "1": 1464.0,
-          "2": 1462.0
+          "1": 4904.0
+        },
+        "samples": 5,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 1925791389,
+          "visited_vectors_per_query": 1925791.389,
+          "visited_vectors_min_per_query": 1760374,
+          "visited_vectors_max_per_query": 2298431,
+          "visited_data_bytes_total": 30812662224,
+          "visited_data_mb_total": 29385.244583129883,
+          "visited_data_mb_per_query": 29.385244583129882
+        },
+        {
+          "visited_vectors_total": 1929113677,
+          "visited_vectors_per_query": 1929113.677,
+          "visited_vectors_min_per_query": 1750300,
+          "visited_vectors_max_per_query": 2245438,
+          "visited_data_bytes_total": 30865818832,
+          "visited_data_mb_total": 29435.938674926758,
+          "visited_data_mb_per_query": 29.435938674926756
+        },
+        {
+          "visited_vectors_total": 1938153362,
+          "visited_vectors_per_query": 1938153.362,
+          "visited_vectors_min_per_query": 1762339,
+          "visited_vectors_max_per_query": 2274172,
+          "visited_data_bytes_total": 31010453792,
+          "visited_data_mb_total": 29573.873321533203,
+          "visited_data_mb_per_query": 29.573873321533203
+        }
+      ],
+      "identical_to_original": true
+    },
+    {
+      "nprobes": 70,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 25908.07402712752,
+      "recall": 0.4119,
+      "visited_vectors_per_query": 6757813.078,
+      "peak_gpu_memory": 4898.0,
+      "samples_seconds": [
+        0.03864082507789135,
+        0.03857081197202206,
+        0.03859800612553954
+      ],
+      "memory": {
+        "peak_total_mib": 4898.0,
+        "peak_per_gpu_mib": {
+          "1": 4898.0
+        },
+        "samples": 5,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 2246591195,
+          "visited_vectors_per_query": 2246591.195,
+          "visited_vectors_min_per_query": 2061787,
+          "visited_vectors_max_per_query": 2611873,
+          "visited_data_bytes_total": 35945459120,
+          "visited_data_mb_total": 34280.261154174805,
+          "visited_data_mb_per_query": 34.2802611541748
+        },
+        {
+          "visited_vectors_total": 2250175191,
+          "visited_vectors_per_query": 2250175.191,
+          "visited_vectors_min_per_query": 2036600,
+          "visited_vectors_max_per_query": 2587801,
+          "visited_data_bytes_total": 36002803056,
+          "visited_data_mb_total": 34334.94859313965,
+          "visited_data_mb_per_query": 34.33494859313965
+        },
+        {
+          "visited_vectors_total": 2261046692,
+          "visited_vectors_per_query": 2261046.692,
+          "visited_vectors_min_per_query": 2057319,
+          "visited_vectors_max_per_query": 2626231,
+          "visited_data_bytes_total": 36176747072,
+          "visited_data_mb_total": 34500.834533691406,
+          "visited_data_mb_per_query": 34.5008345336914
+        }
+      ],
+      "identical_to_original": true
+    },
+    {
+      "nprobes": 80,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 24200.86799003843,
+      "recall": 0.4121,
+      "visited_vectors_per_query": 7723708.33,
+      "peak_gpu_memory": 4898.0,
+      "samples_seconds": [
+        0.04132083198055625,
+        0.041345430072396994,
+        0.0412855283357203
+      ],
+      "memory": {
+        "peak_total_mib": 4898.0,
+        "peak_per_gpu_mib": {
+          "1": 4898.0
+        },
+        "samples": 6,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 2567633776,
+          "visited_vectors_per_query": 2567633.776,
+          "visited_vectors_min_per_query": 2367288,
+          "visited_vectors_max_per_query": 2949061,
+          "visited_data_bytes_total": 41082140416,
+          "visited_data_mb_total": 39178.982177734375,
+          "visited_data_mb_per_query": 39.178982177734376
+        },
+        {
+          "visited_vectors_total": 2572545260,
+          "visited_vectors_per_query": 2572545.26,
+          "visited_vectors_min_per_query": 2346058,
+          "visited_vectors_max_per_query": 2919547,
+          "visited_data_bytes_total": 41160724160,
+          "visited_data_mb_total": 39253.92547607422,
+          "visited_data_mb_per_query": 39.253925476074215
+        },
+        {
+          "visited_vectors_total": 2583529294,
+          "visited_vectors_per_query": 2583529.294,
+          "visited_vectors_min_per_query": 2367417,
+          "visited_vectors_max_per_query": 2983996,
+          "visited_data_bytes_total": 41336468704,
+          "visited_data_mb_total": 39421.52853393555,
+          "visited_data_mb_per_query": 39.42152853393555
+        }
+      ],
+      "identical_to_original": true
+    },
+    {
+      "nprobes": 90,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 22897.550355028823,
+      "recall": 0.412,
+      "visited_vectors_per_query": 8687788.855999999,
+      "peak_gpu_memory": 4898.0,
+      "samples_seconds": [
+        0.04377440642565489,
+        0.043513969983905554,
+        0.04367279401049018
+      ],
+      "memory": {
+        "peak_total_mib": 4898.0,
+        "peak_per_gpu_mib": {
+          "1": 4898.0
+        },
+        "samples": 6,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 2888150677,
+          "visited_vectors_per_query": 2888150.677,
+          "visited_vectors_min_per_query": 2663759,
+          "visited_vectors_max_per_query": 3306762,
+          "visited_data_bytes_total": 46210410832,
+          "visited_data_mb_total": 44069.68196105957,
+          "visited_data_mb_per_query": 44.06968196105957
+        },
+        {
+          "visited_vectors_total": 2894230548,
+          "visited_vectors_per_query": 2894230.548,
+          "visited_vectors_min_per_query": 2667966,
+          "visited_vectors_max_per_query": 3278454,
+          "visited_data_bytes_total": 46307688768,
+          "visited_data_mb_total": 44162.45343017578,
+          "visited_data_mb_per_query": 44.16245343017578
+        },
+        {
+          "visited_vectors_total": 2905407631,
+          "visited_vectors_per_query": 2905407.631,
+          "visited_vectors_min_per_query": 2676950,
+          "visited_vectors_max_per_query": 3318820,
+          "visited_data_bytes_total": 46486522096,
+          "visited_data_mb_total": 44333.002182006836,
+          "visited_data_mb_per_query": 44.33300218200684
+        }
+      ],
+      "identical_to_original": true
+    },
+    {
+      "nprobes": 100,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 21865.15597091964,
+      "recall": 0.412,
+      "visited_vectors_per_query": 9650708.758,
+      "peak_gpu_memory": 4898.0,
+      "samples_seconds": [
+        0.04574219463393092,
+        0.04572103498503566,
+        0.04573486698791385
+      ],
+      "memory": {
+        "peak_total_mib": 4898.0,
+        "peak_per_gpu_mib": {
+          "1": 4898.0
+        },
+        "samples": 6,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 3208931479,
+          "visited_vectors_per_query": 3208931.479,
+          "visited_vectors_min_per_query": 2984113,
+          "visited_vectors_max_per_query": 3690194,
+          "visited_data_bytes_total": 51342903664,
+          "visited_data_mb_total": 48964.40855407715,
+          "visited_data_mb_per_query": 48.964408554077146
+        },
+        {
+          "visited_vectors_total": 3214748870,
+          "visited_vectors_per_query": 3214748.87,
+          "visited_vectors_min_per_query": 2973853,
+          "visited_vectors_max_per_query": 3618851,
+          "visited_data_bytes_total": 51435981920,
+          "visited_data_mb_total": 49053.174896240234,
+          "visited_data_mb_per_query": 49.053174896240236
+        },
+        {
+          "visited_vectors_total": 3227028409,
+          "visited_vectors_per_query": 3227028.409,
+          "visited_vectors_min_per_query": 2982700,
+          "visited_vectors_max_per_query": 3657904,
+          "visited_data_bytes_total": 51632454544,
+          "visited_data_mb_total": 49240.54579162598,
+          "visited_data_mb_per_query": 49.240545791625976
+        }
+      ],
+      "identical_to_original": true
+    },
+    {
+      "nprobes": 120,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 19744.35565714759,
+      "recall": 0.4119,
+      "visited_vectors_per_query": 11580847.728,
+      "peak_gpu_memory": 4898.0,
+      "samples_seconds": [
+        0.05064738588407636,
+        0.05068322317674756,
+        0.050591744016855955
+      ],
+      "memory": {
+        "peak_total_mib": 4898.0,
+        "peak_per_gpu_mib": {
+          "1": 4898.0
+        },
+        "samples": 6,
+        "interval_seconds": 0.01
+      },
+      "visit_statistics_per_shard": [
+        {
+          "visited_vectors_total": 3850947718,
+          "visited_vectors_per_query": 3850947.718,
+          "visited_vectors_min_per_query": 3593958,
+          "visited_vectors_max_per_query": 4337727,
+          "visited_data_bytes_total": 61615163488,
+          "visited_data_mb_total": 58760.798919677734,
+          "visited_data_mb_per_query": 58.76079891967773
+        },
+        {
+          "visited_vectors_total": 3858390786,
+          "visited_vectors_per_query": 3858390.786,
+          "visited_vectors_min_per_query": 3592731,
+          "visited_vectors_max_per_query": 4281896,
+          "visited_data_bytes_total": 61734252576,
+          "visited_data_mb_total": 58874.37112426758,
+          "visited_data_mb_per_query": 58.874371124267576
+        },
+        {
+          "visited_vectors_total": 3871509224,
+          "visited_vectors_per_query": 3871509.224,
+          "visited_vectors_min_per_query": 3570514,
+          "visited_vectors_max_per_query": 4357419,
+          "visited_data_bytes_total": 61944147584,
+          "visited_data_mb_total": 59074.54260253906,
+          "visited_data_mb_per_query": 59.07454260253906
+        }
+      ],
+      "identical_to_original": true
+    },
+    {
+      "nprobes": 150,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 17645.639677468283,
+      "recall": 0.4119,
+      "visited_vectors_per_query": 14470465.342000002,
+      "peak_gpu_memory": 4898.0,
+      "samples_seconds": [
+        0.05667122406885028,
+        0.05680321529507637,
+        0.05665595084428787
+      ],
+      "memory": {
+        "peak_total_mib": 4898.0,
+        "peak_per_gpu_mib": {
+          "1": 4898.0
         },
         "samples": 7,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 927.5244140625,
-          "peak_torch_reserved_mib": 978.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 927.5361328125,
-          "peak_torch_reserved_mib": 978.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 925.65771484375,
-          "peak_torch_reserved_mib": 976.0
-        }
-      ],
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_total": 1925791389,
-          "visited_vectors_per_query": 1925791.389,
-          "visited_vectors_min_per_query": 1760374,
-          "visited_vectors_max_per_query": 2298431,
-          "visited_data_bytes_total": 30812662224,
-          "visited_data_mb_total": 29385.244583129883,
-          "visited_data_mb_per_query": 29.385244583129882
-        },
-        {
-          "visited_vectors_total": 1929113677,
-          "visited_vectors_per_query": 1929113.677,
-          "visited_vectors_min_per_query": 1750300,
-          "visited_vectors_max_per_query": 2245438,
-          "visited_data_bytes_total": 30865818832,
-          "visited_data_mb_total": 29435.938674926758,
-          "visited_data_mb_per_query": 29.435938674926756
-        },
-        {
-          "visited_vectors_total": 1938153362,
-          "visited_vectors_per_query": 1938153.362,
-          "visited_vectors_min_per_query": 1762339,
-          "visited_vectors_max_per_query": 2274172,
-          "visited_data_bytes_total": 31010453792,
-          "visited_data_mb_total": 29573.873321533203,
-          "visited_data_mb_per_query": 29.573873321533203
-        }
-      ]
-    },
-    {
-      "nprobes": 70,
-      "q_batch": 128,
-      "K": 10,
-      "qps": 13653.528040971094,
-      "recall": 0.41190000000000027,
-      "visited_vectors_per_query": 6757813.078,
-      "peak_gpu_memory": 4396.0,
-      "samples_seconds": [
-        0.07362191705033183,
-        0.07324114302173257,
-        0.07190378196537495
-      ],
-      "memory": {
-        "peak_total_mib": 4396.0,
-        "peak_per_gpu_mib": {
-          "0": 1466.0,
-          "1": 1466.0,
-          "2": 1464.0
-        },
-        "samples": 8,
-        "interval_seconds": 0.01
-      },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 930.7744140625,
-          "peak_torch_reserved_mib": 980.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 930.7861328125,
-          "peak_torch_reserved_mib": 980.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 928.78271484375,
-          "peak_torch_reserved_mib": 978.0
-        }
-      ],
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_total": 2246591195,
-          "visited_vectors_per_query": 2246591.195,
-          "visited_vectors_min_per_query": 2061787,
-          "visited_vectors_max_per_query": 2611873,
-          "visited_data_bytes_total": 35945459120,
-          "visited_data_mb_total": 34280.261154174805,
-          "visited_data_mb_per_query": 34.2802611541748
-        },
-        {
-          "visited_vectors_total": 2250175191,
-          "visited_vectors_per_query": 2250175.191,
-          "visited_vectors_min_per_query": 2036600,
-          "visited_vectors_max_per_query": 2587801,
-          "visited_data_bytes_total": 36002803056,
-          "visited_data_mb_total": 34334.94859313965,
-          "visited_data_mb_per_query": 34.33494859313965
-        },
-        {
-          "visited_vectors_total": 2261046692,
-          "visited_vectors_per_query": 2261046.692,
-          "visited_vectors_min_per_query": 2057319,
-          "visited_vectors_max_per_query": 2626231,
-          "visited_data_bytes_total": 36176747072,
-          "visited_data_mb_total": 34500.834533691406,
-          "visited_data_mb_per_query": 34.5008345336914
-        }
-      ]
-    },
-    {
-      "nprobes": 80,
-      "q_batch": 128,
-      "K": 10,
-      "qps": 12390.71485437268,
-      "recall": 0.4121000000000003,
-      "visited_vectors_per_query": 7723708.33,
-      "peak_gpu_memory": 4408.0,
-      "samples_seconds": [
-        0.08295803889632225,
-        0.08070559380576015,
-        0.08024878520518541
-      ],
-      "memory": {
-        "peak_total_mib": 4408.0,
-        "peak_per_gpu_mib": {
-          "0": 1470.0,
-          "1": 1470.0,
-          "2": 1468.0
-        },
-        "samples": 9,
-        "interval_seconds": 0.01
-      },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 934.7744140625,
-          "peak_torch_reserved_mib": 984.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 934.7861328125,
-          "peak_torch_reserved_mib": 984.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 931.28271484375,
-          "peak_torch_reserved_mib": 982.0
-        }
-      ],
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_total": 2567633776,
-          "visited_vectors_per_query": 2567633.776,
-          "visited_vectors_min_per_query": 2367288,
-          "visited_vectors_max_per_query": 2949061,
-          "visited_data_bytes_total": 41082140416,
-          "visited_data_mb_total": 39178.982177734375,
-          "visited_data_mb_per_query": 39.178982177734376
-        },
-        {
-          "visited_vectors_total": 2572545260,
-          "visited_vectors_per_query": 2572545.26,
-          "visited_vectors_min_per_query": 2346058,
-          "visited_vectors_max_per_query": 2919547,
-          "visited_data_bytes_total": 41160724160,
-          "visited_data_mb_total": 39253.92547607422,
-          "visited_data_mb_per_query": 39.253925476074215
-        },
-        {
-          "visited_vectors_total": 2583529294,
-          "visited_vectors_per_query": 2583529.294,
-          "visited_vectors_min_per_query": 2367417,
-          "visited_vectors_max_per_query": 2983996,
-          "visited_data_bytes_total": 41336468704,
-          "visited_data_mb_total": 39421.52853393555,
-          "visited_data_mb_per_query": 39.42152853393555
-        }
-      ]
-    },
-    {
-      "nprobes": 90,
-      "q_batch": 128,
-      "K": 10,
-      "qps": 10674.103248834566,
-      "recall": 0.4120000000000003,
-      "visited_vectors_per_query": 8687788.855999999,
-      "peak_gpu_memory": 4418.0,
-      "samples_seconds": [
-        0.09178623603656888,
-        0.09430225333198905,
-        0.09368468495085835
-      ],
-      "memory": {
-        "peak_total_mib": 4418.0,
-        "peak_per_gpu_mib": {
-          "0": 1474.0,
-          "1": 1474.0,
-          "2": 1470.0
-        },
-        "samples": 10,
-        "interval_seconds": 0.01
-      },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 936.8994140625,
-          "peak_torch_reserved_mib": 988.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 936.9111328125,
-          "peak_torch_reserved_mib": 988.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 934.78271484375,
-          "peak_torch_reserved_mib": 984.0
-        }
-      ],
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_total": 2888150677,
-          "visited_vectors_per_query": 2888150.677,
-          "visited_vectors_min_per_query": 2663759,
-          "visited_vectors_max_per_query": 3306762,
-          "visited_data_bytes_total": 46210410832,
-          "visited_data_mb_total": 44069.68196105957,
-          "visited_data_mb_per_query": 44.06968196105957
-        },
-        {
-          "visited_vectors_total": 2894230548,
-          "visited_vectors_per_query": 2894230.548,
-          "visited_vectors_min_per_query": 2667966,
-          "visited_vectors_max_per_query": 3278454,
-          "visited_data_bytes_total": 46307688768,
-          "visited_data_mb_total": 44162.45343017578,
-          "visited_data_mb_per_query": 44.16245343017578
-        },
-        {
-          "visited_vectors_total": 2905407631,
-          "visited_vectors_per_query": 2905407.631,
-          "visited_vectors_min_per_query": 2676950,
-          "visited_vectors_max_per_query": 3318820,
-          "visited_data_bytes_total": 46486522096,
-          "visited_data_mb_total": 44333.002182006836,
-          "visited_data_mb_per_query": 44.33300218200684
-        }
-      ]
-    },
-    {
-      "nprobes": 100,
-      "q_batch": 128,
-      "K": 10,
-      "qps": 9773.618061892937,
-      "recall": 0.4120000000000003,
-      "visited_vectors_per_query": 9650708.758,
-      "peak_gpu_memory": 4426.0,
-      "samples_seconds": [
-        0.10231625521555543,
-        0.10235743783414364,
-        0.10119416611269116
-      ],
-      "memory": {
-        "peak_total_mib": 4426.0,
-        "peak_per_gpu_mib": {
-          "0": 1476.0,
-          "1": 1476.0,
-          "2": 1474.0
-        },
-        "samples": 11,
-        "interval_seconds": 0.01
-      },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 940.7744140625,
-          "peak_torch_reserved_mib": 990.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 940.7861328125,
-          "peak_torch_reserved_mib": 990.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 936.90771484375,
-          "peak_torch_reserved_mib": 988.0
-        }
-      ],
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_total": 3208931479,
-          "visited_vectors_per_query": 3208931.479,
-          "visited_vectors_min_per_query": 2984113,
-          "visited_vectors_max_per_query": 3690194,
-          "visited_data_bytes_total": 51342903664,
-          "visited_data_mb_total": 48964.40855407715,
-          "visited_data_mb_per_query": 48.964408554077146
-        },
-        {
-          "visited_vectors_total": 3214748870,
-          "visited_vectors_per_query": 3214748.87,
-          "visited_vectors_min_per_query": 2973853,
-          "visited_vectors_max_per_query": 3618851,
-          "visited_data_bytes_total": 51435981920,
-          "visited_data_mb_total": 49053.174896240234,
-          "visited_data_mb_per_query": 49.053174896240236
-        },
-        {
-          "visited_vectors_total": 3227028409,
-          "visited_vectors_per_query": 3227028.409,
-          "visited_vectors_min_per_query": 2982700,
-          "visited_vectors_max_per_query": 3657904,
-          "visited_data_bytes_total": 51632454544,
-          "visited_data_mb_total": 49240.54579162598,
-          "visited_data_mb_per_query": 49.240545791625976
-        }
-      ]
-    },
-    {
-      "nprobes": 120,
-      "q_batch": 128,
-      "K": 10,
-      "qps": 8022.668666554808,
-      "recall": 0.41190000000000027,
-      "visited_vectors_per_query": 11580847.728,
-      "peak_gpu_memory": 4448.0,
-      "samples_seconds": [
-        0.12346058199182153,
-        0.12464680289849639,
-        0.12752238009124994
-      ],
-      "memory": {
-        "peak_total_mib": 4448.0,
-        "peak_per_gpu_mib": {
-          "0": 1484.0,
-          "1": 1484.0,
-          "2": 1480.0
-        },
-        "samples": 13,
-        "interval_seconds": 0.01
-      },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 946.7744140625,
-          "peak_torch_reserved_mib": 998.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 946.7861328125,
-          "peak_torch_reserved_mib": 998.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 942.78271484375,
-          "peak_torch_reserved_mib": 994.0
-        }
-      ],
-      "visit_statistics_per_shard": [
-        {
-          "visited_vectors_total": 3850947718,
-          "visited_vectors_per_query": 3850947.718,
-          "visited_vectors_min_per_query": 3593958,
-          "visited_vectors_max_per_query": 4337727,
-          "visited_data_bytes_total": 61615163488,
-          "visited_data_mb_total": 58760.798919677734,
-          "visited_data_mb_per_query": 58.76079891967773
-        },
-        {
-          "visited_vectors_total": 3858390786,
-          "visited_vectors_per_query": 3858390.786,
-          "visited_vectors_min_per_query": 3592731,
-          "visited_vectors_max_per_query": 4281896,
-          "visited_data_bytes_total": 61734252576,
-          "visited_data_mb_total": 58874.37112426758,
-          "visited_data_mb_per_query": 58.874371124267576
-        },
-        {
-          "visited_vectors_total": 3871509224,
-          "visited_vectors_per_query": 3871509.224,
-          "visited_vectors_min_per_query": 3570514,
-          "visited_vectors_max_per_query": 4357419,
-          "visited_data_bytes_total": 61944147584,
-          "visited_data_mb_total": 59074.54260253906,
-          "visited_data_mb_per_query": 59.07454260253906
-        }
-      ]
-    },
-    {
-      "nprobes": 150,
-      "q_batch": 128,
-      "K": 10,
-      "qps": 5998.887045038428,
-      "recall": 0.41190000000000027,
-      "visited_vectors_per_query": 14470465.342000002,
-      "peak_gpu_memory": 4478.0,
-      "samples_seconds": [
-        0.1646909099072218,
-        0.16669758781790733,
-        0.16810021316632628
-      ],
-      "memory": {
-        "peak_total_mib": 4478.0,
-        "peak_per_gpu_mib": {
-          "0": 1494.0,
-          "1": 1494.0,
-          "2": 1490.0
-        },
-        "samples": 17,
-        "interval_seconds": 0.01
-      },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 955.6494140625,
-          "peak_torch_reserved_mib": 1008.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 955.6611328125,
-          "peak_torch_reserved_mib": 1008.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 950.97021484375,
-          "peak_torch_reserved_mib": 1004.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 4812517314,
@@ -2061,48 +1558,30 @@
           "visited_data_mb_total": 73805.02046203613,
           "visited_data_mb_per_query": 73.80502046203614
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 5,
       "q_batch": 512,
       "K": 10,
-      "qps": 159772.3818073411,
-      "recall": 0.3722000000000002,
+      "qps": 108309.6692598477,
+      "recall": 0.3722,
       "visited_vectors_per_query": 486464.746,
-      "peak_gpu_memory": 4332.0,
+      "peak_gpu_memory": 4898.0,
       "samples_seconds": [
-        0.006258904002606869,
-        0.006274028681218624,
-        0.0061974129639565945
+        0.009272571187466383,
+        0.009184327907860279,
+        0.009232786018401384
       ],
       "memory": {
-        "peak_total_mib": 4332.0,
+        "peak_total_mib": 4898.0,
         "peak_per_gpu_mib": {
-          "0": 1444.0,
-          "1": 1444.0,
-          "2": 1444.0
+          "1": 4898.0
         },
         "samples": 2,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 915.255859375,
-          "peak_torch_reserved_mib": 958.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 915.267578125,
-          "peak_torch_reserved_mib": 958.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 914.63916015625,
-          "peak_torch_reserved_mib": 958.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 161416982,
@@ -2131,48 +1610,30 @@
           "visited_data_mb_total": 2505.48095703125,
           "visited_data_mb_per_query": 2.50548095703125
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 10,
       "q_batch": 512,
       "K": 10,
-      "qps": 90821.4315681206,
-      "recall": 0.39500000000000024,
+      "qps": 94573.55690002475,
+      "recall": 0.395,
       "visited_vectors_per_query": 970898.578,
-      "peak_gpu_memory": 4398.0,
+      "peak_gpu_memory": 4898.0,
       "samples_seconds": [
-        0.01129301218315959,
-        0.011010617017745972,
-        0.010984579101204872
+        0.010573780164122581,
+        0.010625146795064211,
+        0.010572117753326893
       ],
       "memory": {
-        "peak_total_mib": 4398.0,
+        "peak_total_mib": 4898.0,
         "peak_per_gpu_mib": {
-          "0": 1466.0,
-          "1": 1466.0,
-          "2": 1466.0
+          "1": 4898.0
         },
         "samples": 3,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 921.505859375,
-          "peak_torch_reserved_mib": 980.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 921.517578125,
-          "peak_torch_reserved_mib": 980.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 920.26416015625,
-          "peak_torch_reserved_mib": 980.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 322161278,
@@ -2201,48 +1662,30 @@
           "visited_data_mb_total": 4987.906951904297,
           "visited_data_mb_per_query": 4.9879069519042964
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 15,
       "q_batch": 512,
       "K": 10,
-      "qps": 63462.16910765157,
-      "recall": 0.4041000000000005,
+      "qps": 81261.44945646935,
+      "recall": 0.4041,
       "visited_vectors_per_query": 1453147.349,
-      "peak_gpu_memory": 4396.0,
+      "peak_gpu_memory": 4898.0,
       "samples_seconds": [
-        0.015882960055023432,
-        0.015757419168949127,
-        0.015679577831178904
+        0.012310266960412264,
+        0.012305958196520805,
+        0.012285212054848671
       ],
       "memory": {
-        "peak_total_mib": 4396.0,
+        "peak_total_mib": 4898.0,
         "peak_per_gpu_mib": {
-          "0": 1466.0,
-          "1": 1466.0,
-          "2": 1464.0
+          "1": 4898.0
         },
         "samples": 3,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 927.755859375,
-          "peak_torch_reserved_mib": 980.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 927.767578125,
-          "peak_torch_reserved_mib": 980.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 925.88916015625,
-          "peak_torch_reserved_mib": 978.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 482398579,
@@ -2271,48 +1714,30 @@
           "visited_data_mb_total": 7448.966217041016,
           "visited_data_mb_per_query": 7.448966217041016
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 20,
       "q_batch": 512,
       "K": 10,
-      "qps": 47010.925159503975,
-      "recall": 0.40760000000000035,
+      "qps": 72894.72814523034,
+      "recall": 0.4076,
       "visited_vectors_per_query": 1935392.736,
-      "peak_gpu_memory": 4408.0,
+      "peak_gpu_memory": 4892.0,
       "samples_seconds": [
-        0.020839611068367958,
-        0.02127165114507079,
-        0.021708075888454914
+        0.013718413189053535,
+        0.013710593339055777,
+        0.013726615346968174
       ],
       "memory": {
-        "peak_total_mib": 4408.0,
+        "peak_total_mib": 4892.0,
         "peak_per_gpu_mib": {
-          "0": 1470.0,
-          "1": 1470.0,
-          "2": 1468.0
+          "1": 4892.0
         },
-        "samples": 4,
+        "samples": 3,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 935.005859375,
-          "peak_torch_reserved_mib": 984.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 935.017578125,
-          "peak_torch_reserved_mib": 984.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 931.51416015625,
-          "peak_torch_reserved_mib": 982.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 642552548,
@@ -2341,48 +1766,30 @@
           "visited_data_mb_total": 9912.872543334961,
           "visited_data_mb_per_query": 9.912872543334961
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 30,
       "q_batch": 512,
       "K": 10,
-      "qps": 31887.591367925423,
-      "recall": 0.4102000000000004,
+      "qps": 60814.882816403835,
+      "recall": 0.4102,
       "visited_vectors_per_query": 2898099.518,
-      "peak_gpu_memory": 4448.0,
+      "peak_gpu_memory": 4892.0,
       "samples_seconds": [
-        0.03191060479730368,
-        0.031360161025077105,
-        0.030863493215292692
+        0.016464961227029562,
+        0.016443343367427588,
+        0.01642289897426963
       ],
       "memory": {
-        "peak_total_mib": 4448.0,
+        "peak_total_mib": 4892.0,
         "peak_per_gpu_mib": {
-          "0": 1484.0,
-          "1": 1484.0,
-          "2": 1480.0
+          "1": 4892.0
         },
-        "samples": 4,
+        "samples": 3,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 947.005859375,
-          "peak_torch_reserved_mib": 998.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 947.017578125,
-          "peak_torch_reserved_mib": 998.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 943.01416015625,
-          "peak_torch_reserved_mib": 994.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 962496220,
@@ -2411,48 +1818,30 @@
           "visited_data_mb_total": 14821.654312133789,
           "visited_data_mb_per_query": 14.82165431213379
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 40,
       "q_batch": 512,
       "K": 10,
-      "qps": 24016.429935370874,
-      "recall": 0.4113000000000003,
+      "qps": 52698.41104062572,
+      "recall": 0.4113,
       "visited_vectors_per_query": 3862389.645,
-      "peak_gpu_memory": 4478.0,
+      "peak_gpu_memory": 4892.0,
       "samples_seconds": [
-        0.041804326232522726,
-        0.04129557218402624,
-        0.04163816198706627
+        0.0190016720443964,
+        0.01897590421140194,
+        0.01895869104191661
       ],
       "memory": {
-        "peak_total_mib": 4478.0,
+        "peak_total_mib": 4892.0,
         "peak_per_gpu_mib": {
-          "0": 1494.0,
-          "1": 1494.0,
-          "2": 1490.0
+          "1": 4892.0
         },
-        "samples": 5,
+        "samples": 3,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 959.005859375,
-          "peak_torch_reserved_mib": 1008.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 959.017578125,
-          "peak_torch_reserved_mib": 1008.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 955.01416015625,
-          "peak_torch_reserved_mib": 1004.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 1283395680,
@@ -2481,48 +1870,30 @@
           "visited_data_mb_total": 19732.09945678711,
           "visited_data_mb_per_query": 19.73209945678711
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 50,
       "q_batch": 512,
       "K": 10,
-      "qps": 18487.20186910951,
-      "recall": 0.41170000000000034,
+      "qps": 46904.605506002656,
+      "recall": 0.4117,
       "visited_vectors_per_query": 4828337.994,
-      "peak_gpu_memory": 4524.0,
+      "peak_gpu_memory": 4892.0,
       "samples_seconds": [
-        0.05440219398587942,
-        0.05317058600485325,
-        0.054091474041342735
+        0.02139467792585492,
+        0.021303643006831408,
+        0.02131986804306507
       ],
       "memory": {
-        "peak_total_mib": 4524.0,
+        "peak_total_mib": 4892.0,
         "peak_per_gpu_mib": {
-          "0": 1510.0,
-          "1": 1510.0,
-          "2": 1504.0
+          "1": 4892.0
         },
-        "samples": 6,
+        "samples": 4,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 940.255859375,
-          "peak_torch_reserved_mib": 1024.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 971.517578125,
-          "peak_torch_reserved_mib": 1024.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 937.13916015625,
-          "peak_torch_reserved_mib": 1018.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 1604962005,
@@ -2551,48 +1922,30 @@
           "visited_data_mb_total": 24651.322463989258,
           "visited_data_mb_per_query": 24.651322463989256
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 60,
       "q_batch": 512,
       "K": 10,
-      "qps": 14870.626798403073,
-      "recall": 0.4119000000000003,
+      "qps": 41962.54274740659,
+      "recall": 0.4119,
       "visited_vectors_per_query": 5793058.427999999,
-      "peak_gpu_memory": 4552.0,
+      "peak_gpu_memory": 4898.0,
       "samples_seconds": [
-        0.06640321668237448,
-        0.0672466610558331,
-        0.06861070496961474
+        0.023830777034163475,
+        0.02377686183899641,
+        0.02383281197398901
       ],
       "memory": {
-        "peak_total_mib": 4552.0,
+        "peak_total_mib": 4898.0,
         "peak_per_gpu_mib": {
-          "0": 1520.0,
-          "1": 1520.0,
-          "2": 1512.0
+          "1": 4898.0
         },
-        "samples": 8,
+        "samples": 4,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 985.005859375,
-          "peak_torch_reserved_mib": 1034.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 985.017578125,
-          "peak_torch_reserved_mib": 1034.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 942.76416015625,
-          "peak_torch_reserved_mib": 1026.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 1925791389,
@@ -2621,48 +1974,30 @@
           "visited_data_mb_total": 29573.873321533203,
           "visited_data_mb_per_query": 29.573873321533203
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 70,
       "q_batch": 512,
       "K": 10,
-      "qps": 12664.73740898636,
-      "recall": 0.41190000000000027,
+      "qps": 38289.41196179966,
+      "recall": 0.4119,
       "visited_vectors_per_query": 6757813.078,
-      "peak_gpu_memory": 4594.0,
+      "peak_gpu_memory": 4898.0,
       "samples_seconds": [
-        0.07823982695117593,
-        0.08016175497323275,
-        0.07895939471200109
+        0.02611688058823347,
+        0.026096268091350794,
+        0.02613823115825653
       ],
       "memory": {
-        "peak_total_mib": 4594.0,
+        "peak_total_mib": 4898.0,
         "peak_per_gpu_mib": {
-          "0": 1534.0,
-          "1": 1534.0,
-          "2": 1526.0
+          "1": 4898.0
         },
-        "samples": 8,
+        "samples": 4,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 952.755859375,
-          "peak_torch_reserved_mib": 1048.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 997.017578125,
-          "peak_torch_reserved_mib": 1048.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 948.38916015625,
-          "peak_torch_reserved_mib": 1040.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 2246591195,
@@ -2691,48 +2026,30 @@
           "visited_data_mb_total": 34500.834533691406,
           "visited_data_mb_per_query": 34.5008345336914
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 80,
       "q_batch": 512,
       "K": 10,
-      "qps": 11545.056848023984,
-      "recall": 0.4121000000000003,
+      "qps": 34884.75561446598,
+      "recall": 0.4121,
       "visited_vectors_per_query": 7723708.33,
-      "peak_gpu_memory": 4622.0,
+      "peak_gpu_memory": 4898.0,
       "samples_seconds": [
-        0.0897703249938786,
-        0.08630185527727008,
-        0.08661715686321259
+        0.028573493007570505,
+        0.02873704908415675,
+        0.028665816411376
       ],
       "memory": {
-        "peak_total_mib": 4622.0,
+        "peak_total_mib": 4898.0,
         "peak_per_gpu_mib": {
-          "0": 1544.0,
-          "1": 1544.0,
-          "2": 1534.0
+          "1": 4898.0
         },
-        "samples": 9,
+        "samples": 4,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 959.005859375,
-          "peak_torch_reserved_mib": 1058.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 959.017578125,
-          "peak_torch_reserved_mib": 1058.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 954.01416015625,
-          "peak_torch_reserved_mib": 1048.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 2567633776,
@@ -2761,48 +2078,30 @@
           "visited_data_mb_total": 39421.52853393555,
           "visited_data_mb_per_query": 39.42152853393555
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 90,
       "q_batch": 512,
       "K": 10,
-      "qps": 10220.614016522102,
-      "recall": 0.4120000000000003,
+      "qps": 31822.62910976084,
+      "recall": 0.412,
       "visited_vectors_per_query": 8687788.855999999,
-      "peak_gpu_memory": 4668.0,
+      "peak_gpu_memory": 4898.0,
       "samples_seconds": [
-        0.10139739792793989,
-        0.0978414798155427,
-        0.09563331305980682
+        0.032086726278066635,
+        0.03142192400991917,
+        0.0314241792075336
       ],
       "memory": {
-        "peak_total_mib": 4668.0,
+        "peak_total_mib": 4898.0,
         "peak_per_gpu_mib": {
-          "0": 1560.0,
-          "1": 1560.0,
-          "2": 1548.0
+          "1": 4898.0
         },
-        "samples": 10,
+        "samples": 5,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 965.255859375,
-          "peak_torch_reserved_mib": 1074.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 965.267578125,
-          "peak_torch_reserved_mib": 1074.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 959.63916015625,
-          "peak_torch_reserved_mib": 1062.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 2888150677,
@@ -2831,48 +2130,30 @@
           "visited_data_mb_total": 44333.002182006836,
           "visited_data_mb_per_query": 44.33300218200684
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 100,
       "q_batch": 512,
       "K": 10,
-      "qps": 9290.235397668775,
-      "recall": 0.4120000000000003,
+      "qps": 29963.836868737206,
+      "recall": 0.412,
       "visited_vectors_per_query": 9650708.758,
-      "peak_gpu_memory": 4698.0,
+      "peak_gpu_memory": 4900.0,
       "samples_seconds": [
-        0.10859345505014062,
-        0.10669347271323204,
-        0.10763989901170135
+        0.0332705220207572,
+        0.03337356308475137,
+        0.03345746686682105
       ],
       "memory": {
-        "peak_total_mib": 4698.0,
+        "peak_total_mib": 4900.0,
         "peak_per_gpu_mib": {
-          "0": 1570.0,
-          "1": 1570.0,
-          "2": 1558.0
+          "1": 4900.0
         },
-        "samples": 11,
+        "samples": 5,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 971.505859375,
-          "peak_torch_reserved_mib": 1084.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 971.517578125,
-          "peak_torch_reserved_mib": 1084.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 965.26416015625,
-          "peak_torch_reserved_mib": 1072.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 3208931479,
@@ -2901,48 +2182,30 @@
           "visited_data_mb_total": 49240.54579162598,
           "visited_data_mb_per_query": 49.240545791625976
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 120,
       "q_batch": 512,
       "K": 10,
-      "qps": 7605.56795704453,
-      "recall": 0.41190000000000027,
+      "qps": 26162.802558820764,
+      "recall": 0.4119,
       "visited_vectors_per_query": 11580847.728,
-      "peak_gpu_memory": 4774.0,
+      "peak_gpu_memory": 4906.0,
       "samples_seconds": [
-        0.13254371006041765,
-        0.13148261979222298,
-        0.13105815602466464
+        0.03820349369198084,
+        0.03825573995709419,
+        0.03822220489382744
       ],
       "memory": {
-        "peak_total_mib": 4774.0,
+        "peak_total_mib": 4906.0,
         "peak_per_gpu_mib": {
-          "0": 1596.0,
-          "1": 1596.0,
-          "2": 1582.0
+          "1": 4906.0
         },
-        "samples": 13,
+        "samples": 5,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 984.005859375,
-          "peak_torch_reserved_mib": 1110.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 984.017578125,
-          "peak_torch_reserved_mib": 1110.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 976.51416015625,
-          "peak_torch_reserved_mib": 1096.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 3850947718,
@@ -2971,48 +2234,30 @@
           "visited_data_mb_total": 59074.54260253906,
           "visited_data_mb_per_query": 59.07454260253906
         }
-      ]
+      ],
+      "identical_to_original": true
     },
     {
       "nprobes": 150,
       "q_batch": 512,
       "K": 10,
-      "qps": 6023.296921144003,
-      "recall": 0.41190000000000027,
+      "qps": 22061.67437086406,
+      "recall": 0.4119,
       "visited_vectors_per_query": 14470465.342000002,
-      "peak_gpu_memory": 4878.0,
+      "peak_gpu_memory": 4906.0,
       "samples_seconds": [
-        0.16933823842555285,
-        0.16602203296497464,
-        0.16312997695058584
+        0.04529448784887791,
+        0.04543985100463033,
+        0.04532747529447079
       ],
       "memory": {
-        "peak_total_mib": 4878.0,
+        "peak_total_mib": 4906.0,
         "peak_per_gpu_mib": {
-          "0": 1632.0,
-          "1": 1632.0,
-          "2": 1614.0
+          "1": 4906.0
         },
-        "samples": 17,
+        "samples": 6,
         "interval_seconds": 0.01
       },
-      "torch_memory_per_gpu": [
-        {
-          "gpu": 0,
-          "peak_torch_allocated_mib": 1002.755859375,
-          "peak_torch_reserved_mib": 1146.0
-        },
-        {
-          "gpu": 1,
-          "peak_torch_allocated_mib": 1002.767578125,
-          "peak_torch_reserved_mib": 1146.0
-        },
-        {
-          "gpu": 2,
-          "peak_torch_allocated_mib": 993.38916015625,
-          "peak_torch_reserved_mib": 1128.0
-        }
-      ],
       "visit_statistics_per_shard": [
         {
           "visited_vectors_total": 4812517314,
@@ -3041,32 +2286,8 @@
           "visited_data_mb_total": 73805.02046203613,
           "visited_data_mb_per_query": 73.80502046203614
         }
-      ]
-    }
-  ],
-  "nlist_semantics": "1024 per shard by default; three independently trained quantizers",
-  "probe_semantics": "nprobes is applied independently to each shard",
-  "memory_unit": "MiB",
-  "memory_metric": "NVML worker-process memory; maximum simultaneous sum across 3 GPUs, sampled in a separate search sweep",
-  "timing": "median end-to-end full-query wall time, including IPC, GPU search, GPU-to-CPU result transfers and CPU global Top-K merge; excludes recall, visit statistics, query upload and memory sweep",
-  "workers": [
-    {
-      "state": "ready",
-      "reused": false,
-      "pid": 4052487,
-      "gpu_name": "NVIDIA GeForce RTX 4090"
-    },
-    {
-      "state": "ready",
-      "reused": false,
-      "pid": 4052488,
-      "gpu_name": "NVIDIA GeForce RTX 4090"
-    },
-    {
-      "state": "ready",
-      "reused": false,
-      "pid": 4052489,
-      "gpu_name": "NVIDIA GeForce RTX 4090"
+      ],
+      "identical_to_original": true
     }
   ],
   "indexes": [
@@ -3086,6 +2307,28 @@
       "mtime_ns": 1794026412012579194
     }
   ],
+  "expected_rows": 42,
   "completed_rows": 42,
-  "expected_rows": 42
+  "memory_unit": "MiB",
+  "timing": "median full-query wall time on one GPU; three sequential shard searches, output device-to-host copies and CPU global Top-K; excludes index load, query upload, warmup and metric sweeps",
+  "memory_metric": "sampled peak NVML process memory on one GPU, including all three resident shards",
+  "query_transfer": "pre-uploaded queries; final batch padded with the last valid query",
+  "nlist_semantics": "1024 per shard by default; three independently trained quantizers",
+  "probe_semantics": "nprobes is applied independently to each shard",
+  "result_filename_note": "Legacy filename retained; measured query used one GPU",
+  "runner_sha256": "4ebb002149d8ca42fa1cb37db16181eb1c11c0fe3fc445d68559d4c786844341",
+  "worker": {
+    "pid": 2828180,
+    "library_version": "2.12.1+cu130",
+    "python": "3.11.15 | packaged by conda-forge | (main, Jun 11 2026, 03:34:02) [GCC 14.3.0]",
+    "environment": "/home/songyitong/miniconda3/envs/tensorvs"
+  },
+  "software": [
+    {
+      "pid": 2828180,
+      "library_version": "2.12.1+cu130",
+      "python": "3.11.15 | packaged by conda-forge | (main, Jun 11 2026, 03:34:02) [GCC 14.3.0]",
+      "environment": "/home/songyitong/miniconda3/envs/tensorvs"
+    }
+  ]
 }

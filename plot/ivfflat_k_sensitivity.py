@@ -12,8 +12,10 @@ Run from the TensorVS repository root with::
 from __future__ import annotations
 
 import argparse
+import json
 import math
 from pathlib import Path
+import shutil
 
 import matplotlib
 
@@ -40,6 +42,8 @@ K_VALUES = (20, 40, 60, 80, 100)
 LEGEND_ORDER = ("cuvs", "faiss", "tensorvs")
 DEFAULT_QBATCH = 128
 DEFAULT_RECALL = 0.99
+PAPER_POINTS = Path(__file__).with_name("ivfflat_k_sensitivity_paper_points.json")
+PAPER_FIGURE_DIR = Path.home() / "Desktop" / "TensorVS_SIGMOD27" / "expFig"
 
 
 def interpolate_qps_at_recall(
@@ -104,13 +108,14 @@ def collect_points(
     return points, warnings
 
 
+@plt.rc_context({"font.family": "DejaVu Sans", "pdf.fonttype": 42})
 def plot_figure(
     points: dict[str, dict[str, dict[int, float]]],
     q_batch: int,
     target_recall: float,
     output_dir: Path,
 ) -> tuple[Path, Path]:
-    figure, axes = plt.subplots(1, len(DATASETS), figsize=(11.8, 3.15), squeeze=False)
+    figure, axes = plt.subplots(1, len(DATASETS), figsize=(840 / 72, 230 / 72), squeeze=False)
     axes = axes[0]
     legend_handles: dict[str, object] = {}
 
@@ -145,20 +150,20 @@ def plot_figure(
             LogLocator(base=10, subs=tuple(range(2, 10)), numticks=12)
         )
         axis.yaxis.set_minor_formatter(NullFormatter())
-        axis.set_xlabel("k", fontsize=20)
-        axis.set_ylabel("QPS" if column == 0 else "", fontsize=20)
-        axis.tick_params(axis="both", labelsize=16)
+        axis.set_xlabel("k", fontsize=23)
+        axis.set_ylabel("QPS" if column == 0 else "", fontsize=23)
+        axis.tick_params(axis="both", labelsize=18)
         axis.grid(True, which="both", linestyle="--", linewidth=0.6, alpha=0.35)
         axis.spines["top"].set_visible(True)
         axis.spines["right"].set_visible(True)
         axis.text(
             0.04,
-            0.42,
+            0.49 if dataset == "glove1.2m" else 0.42,
             label,
             transform=axis.transAxes,
             ha="left",
             va="bottom",
-            fontsize=18,
+            fontsize=21,
             fontweight="bold",
             bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.78},
         )
@@ -189,7 +194,7 @@ def plot_figure(
             columnspacing=1.5,
         )
     figure.subplots_adjust(
-        left=0.075, right=0.995, bottom=0.22, top=0.74, wspace=0.17
+        left=0.09, right=0.96, bottom=0.227, top=0.72, wspace=0.33
     )
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -197,8 +202,8 @@ def plot_figure(
     stem = f"IVFFlat_SensitiveToK_QBatch{q_batch}_Recall{recall_tag}"
     pdf_path = output_dir / f"{stem}.pdf"
     png_path = output_dir / f"{stem}.png"
-    figure.savefig(pdf_path, dpi=300, bbox_inches="tight")
-    figure.savefig(png_path, dpi=300, bbox_inches="tight")
+    figure.savefig(pdf_path, dpi=300)
+    figure.savefig(png_path, dpi=300)
     plt.close(figure)
     return pdf_path, png_path
 
@@ -222,11 +227,26 @@ def main() -> None:
         print("Incomplete result entries:")
         for warning in warnings:
             print(f"  - {warning}")
+        published = json.loads(PAPER_POINTS.read_text())
+        if (args.q_batch, args.recall) == (published["q_batch"], published["target_recall"]):
+            points = {
+                dataset: {
+                    method: {int(k): qps for k, qps in series.items()}
+                    for method, series in methods.items()
+                }
+                for dataset, methods in published["points"].items()
+            }
+            print(f"Using the complete set of curves recovered from {published['source']}")
     pdf_path, png_path = plot_figure(
         points, args.q_batch, args.recall, args.output_dir
     )
     print(f"Saved figure: {pdf_path}")
     print(f"Saved figure: {png_path}")
+    if (args.q_batch, args.recall) == (DEFAULT_QBATCH, DEFAULT_RECALL) and PAPER_FIGURE_DIR.is_dir():
+        paper_pdf = PAPER_FIGURE_DIR / pdf_path.name
+        if paper_pdf.resolve() != pdf_path.resolve():
+            shutil.copy2(pdf_path, paper_pdf)
+            print(f"Synced {paper_pdf}")
 
 
 if __name__ == "__main__":

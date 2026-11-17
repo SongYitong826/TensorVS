@@ -1,0 +1,93 @@
+{
+  "status": "source_index_metadata",
+  "index_type": "ivfpq",
+  "M": 32,
+  "nbits": 8,
+  "index_path": "/storage/vector_data/deep1m/GPUIndex/cuVS_IVFPQ_nlist1024_pqdim32_pqbits8.bin",
+  "index_mtime_ns": 1788704879956769517,
+  "build_device": "cuda",
+  "source_index_metadata": {},
+  "statistics_source": "/storage/vector_data/deep1m/GPUIndex/statistic.csv",
+  "statistics_sha256": "84974f9303303430476d49d5b886780e9a146b1ce1f8f86f5ff785c08fca1c26",
+  "matching_statistics": [
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "deep1m",
+        "Method Name": "cuVS",
+        "Build Time (s)": "1.610061",
+        "Index Size (MB)": "41.5463"
+      },
+      "size_error": 3.749084470427988e-06,
+      "recorded_size_unit": "MiB"
+    }
+  ],
+  "statistics_rows": [
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "deep1m",
+      "Method Name": "cuVS",
+      "Build Time (s)": "1.610061",
+      "Index Size (MB)": "41.5463"
+    }
+  ],
+  "query_statistics": {
+    "source_path": "/home/songyitong/cuvs/python/cuvs/cuvs/result/IVFPQ_deep1m_nlist1024_pqdim32_pqbits8.csv",
+    "sha256": "28eca32dd9a4bd3c3f60b7624f5ec6e891876725e833f28686823f1a3d6d4db5",
+    "K": 10,
+    "q_batch": 128,
+    "peak_gpu_memory_mib_by_nprobe": {
+      "5": 510.0,
+      "10": 510.0,
+      "15": 510.0,
+      "20": 510.0,
+      "25": 510.0,
+      "30": 510.0,
+      "35": 510.0,
+      "40": 510.0,
+      "45": 510.0,
+      "50": 510.0,
+      "60": 510.0,
+      "80": 510.0,
+      "100": 510.0,
+      "120": 510.0,
+      "140": 510.0,
+      "160": 510.0,
+      "200": 510.0,
+      "250": 510.0
+    }
+  },
+  "measurement_notes": [
+    "Build time comes from saved index metadata or uniquely size-matched legacy statistics.",
+    "Index size is the exact serialized file size in bytes; legacy MB/MiB units are checked.",
+    "Serialization time and build peak GPU memory were not separately measured; empty means unknown.",
+    "Query memory is kept separately in query_statistics and is never used as build peak memory.",
+    "Multiple equally matched legacy timings are retained as candidates; an ambiguous build time stays empty."
+  ],
+  "source_host": "colossal",
+  "dataset": "deep1m",
+  "method": "cuVS",
+  "nlist": 1024,
+  "n_vectors": 1000000,
+  "dim": 256,
+  "build_seconds": 1.610061,
+  "save_seconds": null,
+  "index_size_bytes": 43564457,
+  "index_size_mib": 41.54630374908447,
+  "peak_build_gpu_memory_mib": null,
+  "schema_version": 1,
+  "platform": "CUDA",
+  "csv_columns": [
+    "dataset",
+    "method",
+    "nlist",
+    "n_vectors",
+    "dim",
+    "build_seconds",
+    "save_seconds",
+    "index_size_bytes",
+    "index_size_mib",
+    "peak_build_gpu_memory_mib"
+  ],
+  "csv_sha256": "4e3e0d59647c77da3b586ec0bcd0624fea11b6eddb78d58ad6e586d9ebed16ab"
+}

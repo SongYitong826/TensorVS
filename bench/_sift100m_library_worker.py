@@ -297,6 +297,15 @@ class FaissBackend:
 
     def new_index(self):
         f, c = self.faiss, self.config
+        if c.get('faiss_sq8_direct'):
+            params = f.GpuIndexIVFScalarQuantizerConfig()
+            params.device = 0
+            params.indicesOptions = f.INDICES_64_BIT
+            params.use_cuvs = False
+            index = f.GpuIndexIVFScalarQuantizer(self.resources, 128, c['nlist'],
+                f.ScalarQuantizer.QT_8bit_direct, f.METRIC_L2, False, params)
+            index.cp.niter, index.cp.nredo, index.cp.seed = c['coarse_iters'], 1, c['seed']
+            return index
         if c['kind'] == 'ivfflat':
             params = f.GpuIndexIVFFlatConfig()
             params.useFloat16 = False
@@ -345,11 +354,22 @@ class FaissBackend:
 
     def save(self, path):
         cpu = self.faiss.index_gpu_to_cpu(self.index)
+        self.check_storage(cpu)
         self.faiss.write_index(cpu, str(path))
         del cpu
 
+    def check_storage(self, cpu):
+        if self.config.get('faiss_sq8_direct') and (
+            not isinstance(cpu, self.faiss.IndexIVFScalarQuantizer)
+            or cpu.by_residual
+            or cpu.sq.qtype != self.faiss.ScalarQuantizer.QT_8bit_direct
+            or cpu.code_size != cpu.d
+        ):
+            raise ValueError('Expected lossless direct UInt8 storage in the Faiss index')
+
     def load(self, path):
         cpu = self.faiss.read_index(str(path))
+        self.check_storage(cpu)
         options = self.faiss.GpuClonerOptions()
         options.use_cuvs = False
         options.indicesOptions = self.faiss.INDICES_64_BIT

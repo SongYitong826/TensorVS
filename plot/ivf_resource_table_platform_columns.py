@@ -104,11 +104,10 @@ def table(records, platforms, datasets):
         rules.append(rf"\cmidrule(lr){{{start}-{start + len(methods) - 1}}}")
         start += len(methods)
     method_headers = []
+    method_size = "5.5" if len(columns) > 3 else header_size
     for _, method in columns:
         label = HEADERS[method]
-        if method.startswith("TensorVS ("):
-            label = r"\resizebox{.94\linewidth}{!}{" + label + "}"
-        method_headers.append(r"{\fontsize{" + header_size + r"}{7.4}\selectfont " + label + "}")
+        method_headers.append(r"{\fontsize{" + method_size + r"}{7.4}\selectfont " + label + "}")
     parts.extend((" & ".join(row) + r" \\", "".join(rules),
                   " & & " + " & ".join(method_headers) + r" \\",
                   r"\midrule"))

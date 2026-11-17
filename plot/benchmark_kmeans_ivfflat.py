@@ -325,12 +325,12 @@ def _plot_dataset_result(result: dict[str, Any], output_path: Path, nprobes: tup
 
     # Use the final printed size so \includegraphics[width=\columnwidth]
     # preserves readable text, with both panels in one compact row.
-    fig, (ax_box, ax_bar) = plt.subplots(1, 2, figsize=(3.33, 1.32))
+    fig, (ax_box, ax_bar) = plt.subplots(1, 2, figsize=(3.33, 1.50))
     fig.subplots_adjust(
         left=0.15,
         right=0.98,
-        bottom=0.30,
-        top=0.78,
+        bottom=0.40,
+        top=0.82,
         wspace=0.38,
     )
     for ax in (ax_box, ax_bar):
@@ -386,7 +386,9 @@ def _plot_dataset_result(result: dict[str, Any], output_path: Path, nprobes: tup
     ax_box.yaxis.set_major_formatter(
         matplotlib.ticker.FuncFormatter(lambda value, _: f"{value / 1000:g}k" if value else "0")
     )
+    box_handles, box_labels = ax_box.get_legend_handles_labels()
     ax_box.legend(
+        box_handles[::-1], box_labels[::-1],
         loc="upper right", frameon=False, fontsize=7.5,
         handletextpad=0.1, handlelength=0.9, labelspacing=0.2, borderaxespad=0,
     )
@@ -430,6 +432,10 @@ def _plot_dataset_result(result: dict[str, Any], output_path: Path, nprobes: tup
         handletextpad=0.4,
         columnspacing=1.0,
     )
+    for axis, label in ((ax_box, "(a) IVF list lengths"), (ax_bar, "(b) Effect on recall")):
+        position = axis.get_position()
+        fig.text((position.x0 + position.x1) / 2, 0.155625, label,
+                 ha="center", va="baseline", fontsize=8)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     # Keep the exact page size instead of letting a tight crop rescale fonts.
     fig.savefig(output_path, dpi=300)

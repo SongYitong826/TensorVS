@@ -193,37 +193,16 @@ def append_index_statistics(
     index_path: Path,
     index_type: str,
     dataset_name: str,
-    build_time_seconds: float,
+    build_time_seconds: float | None,
 ) -> None:
-    """Append build time and on-disk index size to the GPU index statistics."""
-    if index_path.is_file():
-        index_size_bytes = index_path.stat().st_size
-    else:
-        index_size_bytes = sum(
-            path.stat().st_size for path in index_path.rglob("*") if path.is_file()
-        )
-    statistics_path = index_path.parent / "statistic.csv"
-    fieldnames = (
-        "Index Type",
-        "Dataset Name",
-        "Method Name",
-        "Build Time (s)",
-        "Index Size (MB)",
-    )
-    has_content = statistics_path.exists() and statistics_path.stat().st_size > 0
-    with statistics_path.open("a", newline="", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-        if not has_content:
-            writer.writeheader()
-        writer.writerow(
-            {
-                "Index Type": index_type,
-                "Dataset Name": dataset_name,
-                "Method Name": "TensorVS",
-                "Build Time (s)": round(build_time_seconds, 4),
-                "Index Size (MB)": round(index_size_bytes / (1024 * 1024), 4),
-            }
-        )
+    """Write the canonical CUDA Build CSV/JSON pair."""
+    try:
+        from ._cuda_build_results import save_tensorvs_build
+    except ImportError:
+        from _cuda_build_results import save_tensorvs_build
+    name = LEGACY_RESULT_FILENAMES.get(dataset_name)
+    save_tensorvs_build(index_path, dataset_name, "ivfpq", build_seconds=build_time_seconds,
+                        query_path=RESULT_DIR / name if name else None)
 
 
 def _select_autotune_representatives(nprobes: tuple[int, ...]) -> tuple[int, ...]:
@@ -263,6 +242,7 @@ def _nearest_autotune_representative(
 def load_or_build_index() -> object:
     if INDEX_PATH.exists():
         print(f"Found existing IVF-PQ index: {INDEX_PATH}")
+        append_index_statistics(INDEX_PATH, "IVF PQ", DATASET_NAME, None)
         return load_ivfpq_index(INDEX_PATH, load_lists=True)
 
     print(f"Index not found; building IVF-PQ index at {INDEX_PATH}")

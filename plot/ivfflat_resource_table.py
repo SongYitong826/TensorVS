@@ -1,114 +1,21 @@
 #!/usr/bin/env python3
 """Generate the IVF-Flat index-resource LaTeX table.
 
-The script intentionally uses only the Python standard library.  Index sizes
-are read from the actual index files.  CUDA peak memory is the largest value
-reported for K=10 and QBatch=128 over nprobe values shared by all methods.
+The script uses canonical local result/Build CSV/JSON pairs. Serialized sizes
+and build times are separate from historical K=10, QBatch=128 query peaks.
 """
 
 from __future__ import annotations
 
 import argparse
-import csv
-from dataclasses import dataclass
 from pathlib import Path
+import sys
 
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from plot.ivf_resource_table import DATASETS, METHODS, TOPK, Q_BATCH, collect_records
 
-DATA_ROOT = Path("/storage/vector_data")
 DEFAULT_OUTPUT = Path(__file__).resolve().parents[1] / "tables" / "ivfflat_resource_statistics.tex"
-
-
-@dataclass(frozen=True)
-class Dataset:
-    key: str
-    label: str
-
-
-@dataclass(frozen=True)
-class Method:
-    label: str
-    stats_name: str
-    result_root: Path
-    index_name: str
-
-
-DATASETS = (
-    Dataset("sift10m", "SIFT"),
-    Dataset("glove1.2m", "GloVe"),
-    Dataset("tiny5m", "Tiny"),
-    Dataset("hunyuan", "Hunyuan"),
-    Dataset("gist", "GIST"),
-    Dataset("openai1536", "OpenAI"),
-)
-
-METHODS = (
-    Method(
-        "cuVS",
-        "cuvs",
-        Path("/home/songyitong/cuvs/python/cuvs/cuvs/result"),
-        "cuVS_IVFFlat_nlist1024.bin",
-    ),
-    Method(
-        "Faiss GPU",
-        "faiss",
-        Path("/home/songyitong/faiss/result"),
-        "Faiss_IVFFlat_nlist1024.index",
-    ),
-    Method(
-        "TensorVS",
-        "tensorvs",
-        Path("/home/songyitong/TensorVS/result"),
-        "TenVS_IVFFlat_nlist1024.bin",
-    ),
-)
-
-TOPK = 10
-Q_BATCH = 128
-
-
-def normalize(text: str) -> str:
-    return "".join(character for character in text.lower() if character.isalnum())
-
-
-def build_times(dataset: Dataset) -> dict[str, float]:
-    stats_path = DATA_ROOT / dataset.key / "GPUIndex" / "statistic.csv"
-    values: dict[str, float] = {}
-    with stats_path.open(newline="") as source:
-        for row in csv.DictReader(source):
-            if normalize(row["Index Type"]) != "ivfflat":
-                continue
-            values[normalize(row["Method Name"])] = float(row["Build Time (s)"])
-    missing = {method.stats_name for method in METHODS} - values.keys()
-    if missing:
-        raise ValueError(f"Missing IVF-Flat build times in {stats_path}: {sorted(missing)}")
-    return values
-
-
-def peak_memory_by_nprobe_gib(dataset: Dataset, method: Method) -> dict[int, float]:
-    result_path = method.result_root / f"IVFFLAT_{dataset.key}_nlist1024.csv"
-    candidates: dict[int, float] = {}
-    with result_path.open(newline="") as source:
-        for row in csv.DictReader(source):
-            k = int(float(row.get("K", row.get("k", "-1"))))
-            q_batch = int(float(row["q_batch"]))
-            if k == TOPK and q_batch == Q_BATCH:
-                nprobe = int(float(row["nprobes"]))
-                if nprobe in candidates:
-                    raise ValueError(
-                        f"Duplicate K={TOPK}, QBatch={Q_BATCH}, nprobe={nprobe} "
-                        f"row in {result_path}"
-                    )
-                candidates[nprobe] = float(row["peak_gpu_memory"]) / 1024.0
-    if not candidates:
-        raise ValueError(
-            f"No K={TOPK}, QBatch={Q_BATCH} rows in {result_path}"
-        )
-    return candidates  # benchmark CSVs report MiB
-
-
-def index_size_gib(dataset: Dataset, method: Method) -> float:
-    path = DATA_ROOT / dataset.key / "GPUIndex" / method.index_name
-    return path.stat().st_size / (1024.0**3)
 
 
 def highlighted(value: float, minimum: float, maximum: float) -> str:
@@ -123,26 +30,12 @@ def highlighted(value: float, minimum: float, maximum: float) -> str:
 def generate_table() -> str:
     rows: list[str] = []
     for dataset_index, dataset in enumerate(DATASETS):
-        times = build_times(dataset)
-        memory_by_method = {
-            method.label: peak_memory_by_nprobe_gib(dataset, method)
-            for method in METHODS
-        }
-        common_nprobes = set.intersection(
-            *(set(values) for values in memory_by_method.values())
-        )
-        if not common_nprobes:
-            raise ValueError(
-                f"No common K={TOPK}, QBatch={Q_BATCH} nprobe for {dataset.key}"
-            )
+        records = collect_records(dataset, "IVF-Flat")
         metrics = {
             method.label: {
-                "size": index_size_gib(dataset, method),
-                "time": times[method.stats_name],
-                "memory": max(
-                    memory_by_method[method.label][nprobe]
-                    for nprobe in common_nprobes
-                ),
+                "size": records[method.label].size_gib,
+                "time": records[method.label].build_seconds,
+                "memory": records[method.label].peak_memory_gib,
             }
             for method in METHODS
         }

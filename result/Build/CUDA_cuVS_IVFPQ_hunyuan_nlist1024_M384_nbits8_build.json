@@ -1,0 +1,105 @@
+{
+  "status": "source_index_metadata",
+  "index_type": "ivfpq",
+  "M": 384,
+  "nbits": 8,
+  "index_path": "/storage/vector_data/hunyuan/GPUIndex/cuVS_IVFPQ_nlist1024_pqdim384_pqbits8.bin",
+  "index_mtime_ns": 1793194874223678180,
+  "build_device": "cuda",
+  "source_index_metadata": {},
+  "statistics_source": "/storage/vector_data/hunyuan/GPUIndex/statistic.csv",
+  "statistics_sha256": "60c1accd42937dc246449b2ab2f68f513ea5297cf60effd3fcaedc1e34a3b795",
+  "matching_statistics": [
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "hunyuan",
+        "Method Name": "cuVS",
+        "Build Time (s)": "7.40042",
+        "Index Size (MB)": "389.0102"
+      },
+      "size_error": 2.9063415524888114e-05,
+      "recorded_size_unit": "MiB"
+    }
+  ],
+  "statistics_rows": [
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "hunyuan",
+      "Method Name": "cuVS",
+      "Build Time (s)": "7.40042",
+      "Index Size (MB)": "389.0102"
+    }
+  ],
+  "query_statistics": {
+    "source_path": "/home/songyitong/cuvs/python/cuvs/cuvs/result/IVFPQ_hunyuan_nlist1024_pqdim384_pqbits8.csv",
+    "sha256": "6274f0e01fdc9ad5fe58de650a34657412224ad09d52acd53ee7d86985ed4e4b",
+    "K": 10,
+    "q_batch": 128,
+    "peak_gpu_memory_mib_by_nprobe": {
+      "350": 858.0,
+      "380": 858.0,
+      "400": 858.0,
+      "450": 858.0,
+      "500": 858.0,
+      "550": 858.0,
+      "600": 858.0,
+      "650": 858.0,
+      "700": 858.0,
+      "750": 858.0,
+      "800": 858.0,
+      "850": 858.0,
+      "900": 858.0,
+      "950": 858.0,
+      "1000": 858.0
+    }
+  },
+  "measurement_notes": [
+    "Build time comes from saved index metadata or uniquely size-matched legacy statistics.",
+    "Index size is the exact serialized file size in bytes; legacy MB/MiB units are checked.",
+    "Serialization time and build peak GPU memory were not separately measured; empty means unknown.",
+    "Query memory is kept separately in query_statistics and is never used as build peak memory.",
+    "Multiple equally matched legacy timings are retained as candidates; an ambiguous build time stays empty."
+  ],
+  "source_host": "colossal",
+  "legacy_table_statistics": {
+    "peak_gpu_memory_gib": 0.84,
+    "K": 10,
+    "q_batch": 128,
+    "source_snapshot_sha256": "d412717ff568e1506445b6f8edc03bd40eb1c0e6a92cdf8c740ca8f666a053f5",
+    "original_rounded_record": {
+      "kind": "ivfpq",
+      "dataset": "Hunyuan",
+      "method": "cuVS",
+      "build": "7.40",
+      "size": "0.38",
+      "peak": "0.84"
+    },
+    "measurement_notes": "Historical query peak rounded to 0.01 GiB; retained separately from newer logical query-allocation counters and build peaks."
+  },
+  "dataset": "hunyuan",
+  "method": "cuVS",
+  "nlist": 1024,
+  "n_vectors": 1000000,
+  "dim": 768,
+  "build_seconds": 7.40042,
+  "save_seconds": null,
+  "index_size_bytes": 407906729,
+  "index_size_mib": 389.0101709365845,
+  "peak_build_gpu_memory_mib": null,
+  "schema_version": 1,
+  "platform": "CUDA",
+  "csv_columns": [
+    "dataset",
+    "method",
+    "nlist",
+    "n_vectors",
+    "dim",
+    "build_seconds",
+    "save_seconds",
+    "index_size_bytes",
+    "index_size_mib",
+    "peak_build_gpu_memory_mib"
+  ],
+  "csv_sha256": "5f9ed24fd6666e1eca1f03907c6dd2514538a660bbe6f27c40fec9a11ea6621e"
+}

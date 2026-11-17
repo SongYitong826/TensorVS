@@ -1,7 +1,7 @@
 """Generate a two-page, seven-inch-wide preview of all platform resource tables.
 
-Uses measured local summaries where available; xxx means pending. Rounded CUDA
-statistics are retained in ivf_cuda_resources.json independently of PDF outputs.
+Uses measured local summaries where available; xxx means pending. CUDA resource
+statistics are read from the canonical CSV/JSON pairs in result/Build/.
 """
 from __future__ import annotations
 
@@ -15,9 +15,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from bench._mps_results import comparison_paths, read_rows as mps_rows
 from plot.plot_amd_ivf_compare import DATASETS as AMD_DATASETS, result_path
+from plot.plot_ascend_ivf_compare import DATASETS as ASCEND_DATASETS
+from plot.ivf_resource_table import DATASETS as CUDA_DATASETS, collect_records
 
 RESULT = ROOT / "result"
-CUDA_SOURCE = ROOT / "plot" / "ivf_cuda_resources.json"
 DATASETS = ("SIFT", "GloVe", "Tiny", "Hunyuan", "GIST", "OpenAI")
 KEYS = {"GloVe": "glove1.2m", "Hunyuan": "hunyuan"}
 PLATFORMS = (
@@ -50,15 +51,15 @@ def pending():
 
 def cuda_snapshot():
     records = {}
-    for entry in load_json(CUDA_SOURCE)["records"]:
-        assert entry["dataset"] in DATASETS
-        key = entry["kind"], entry["dataset"], entry["method"]
-        assert key not in records
-        # The historical CUDA snapshot stores rounded GiB values.
-        def snapshot_gb(value):
-            return value if value in ("xxx", "N/S", "CPU") else number(float(value) * 1024**3 / 1e9)
-        records[key] = dict(build=entry["build"], size=snapshot_gb(entry["size"]), peak=snapshot_gb(entry["peak"]),
-                            reused=False, sources=[str(CUDA_SOURCE.relative_to(ROOT))])
+    for dataset in CUDA_DATASETS:
+        for kind in ("ivfflat", "ivfpq"):
+            measured = collect_records(dataset, "IVF-Flat" if kind == "ivfflat" else "IVF-PQ")
+            for method, record in measured.items():
+                label = "TensorVS (Triton)" if method == "TensorVS" else method
+                records[kind, dataset.label, label] = dict(
+                    build=number(record.build_seconds), size=number(record.size_gib * 1024**3 / 1e9),
+                    peak="N/S" if record.peak_memory_gib is None else number(record.peak_memory_gib * 1024**3 / 1e9),
+                    reused=False, sources=[str(record.source_path.relative_to(ROOT))])
     assert len(records) == 36, f"Expected 36 CUDA index/method/dataset records, got {len(records)}"
     return records
 
@@ -100,6 +101,47 @@ def amd_records(dataset, kind):
             record["sources"].append(str(build_paths[0].relative_to(ROOT)))
     add_peak(records, queries)
     assert records["TensorVS (Triton)"]["shared_index"] == records["TensorVS (Tensor)"]["shared_index"]
+    return records
+
+
+def ascend_records(dataset, kind):
+    key = KEYS[dataset]
+    pq_config = next(config for name, _, config in ASCEND_DATASETS if name == key)
+    suffix = f"_{pq_config}" if kind == "ivfpq" else ""
+    records, queries = {}, {}
+    for method, prefix in (("TensorVS (Tensor)", "Ascend_TensorVS_Tensor"),
+                           ("Faiss Ascend", "Ascend_Faiss")):
+        record = pending()
+        records[method] = record
+        if method == "Faiss Ascend" and (kind == "ivfflat" or key == "hunyuan"):
+            reason = ("Faiss IVF-Flat search on the Ascend host runs on CPU"
+                      if kind == "ivfflat" else "Faiss Ascend IVF-PQ does not support M=384")
+            record.update(build="N/S", size="N/S", peak="N/S", unsupported_reason=reason)
+            continue
+
+        path = RESULT / f"{prefix}_{kind.upper()}_{key}_nlist1024{suffix}.csv"
+        metadata_path = path.with_suffix(".json")
+        if not path.is_file():
+            continue
+        meta = load_json(metadata_path)
+        measurements = rows(path)
+        if (meta.get("status") != "complete"
+                or meta.get("completed_rows") != len(measurements)
+                or not meta.get("device", "").startswith("npu:")
+                or meta.get("memory_unit") != "MiB"):
+            raise ValueError(f"Expected a complete Ascend NPU benchmark: {path}")
+        if method == "TensorVS (Tensor)":
+            build = meta["index_metadata"]["build_time_seconds"]
+            size = meta["config"]["index_size_bytes"]
+            record["reused"] = True
+        else:
+            build = meta["build"]["build_time_seconds"]
+            size = meta["build"]["index_size_bytes"]
+        record.update(build=number(build), size=number(size / 1e9),
+                      sources=[str(p.relative_to(ROOT)) for p in (path, metadata_path)])
+        queries[method] = measurements
+    if queries:
+        add_peak(records, queries)
     return records
 
 
@@ -221,6 +263,8 @@ def make_table(kind, snapshot, audit):
                 records = apple_records(dataset, kind)
             elif platform_index == 2:
                 records = amd_records(dataset, kind)
+            elif platform_index == 3:
+                records = ascend_records(dataset, kind)
             else:
                 records = {method: pending() for method in methods}
             audit.extend(dict(platform=platform, dataset=dataset, kind=kind, method=method, **record)

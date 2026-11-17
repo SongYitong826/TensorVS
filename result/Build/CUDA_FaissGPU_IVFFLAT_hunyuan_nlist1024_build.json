@@ -1,0 +1,105 @@
+{
+  "status": "source_index_metadata",
+  "index_type": "ivfflat",
+  "M": 0,
+  "nbits": 0,
+  "index_path": "/storage/vector_data/hunyuan/GPUIndex/Faiss_IVFFlat_nlist1024.index",
+  "index_mtime_ns": 1793181533141250234,
+  "build_device": "cpu",
+  "source_index_metadata": {},
+  "statistics_source": "/storage/vector_data/hunyuan/GPUIndex/statistic.csv",
+  "statistics_sha256": "60c1accd42937dc246449b2ab2f68f513ea5297cf60effd3fcaedc1e34a3b795",
+  "matching_statistics": [
+    {
+      "row": {
+        "Index Type": "IVF-Flat",
+        "Dataset Name": "hunyuan",
+        "Method Name": "faiss",
+        "Build Time (s)": "17.894749618135393",
+        "Index Size (MB)": "3083.154059"
+      },
+      "size_error": 0.0,
+      "recorded_size_unit": "MB"
+    }
+  ],
+  "statistics_rows": [
+    {
+      "Index Type": "IVF-Flat",
+      "Dataset Name": "hunyuan",
+      "Method Name": "faiss",
+      "Build Time (s)": "17.894749618135393",
+      "Index Size (MB)": "3083.154059"
+    }
+  ],
+  "query_statistics": {
+    "source_path": "/home/songyitong/faiss/result/IVFFLAT_hunyuan_nlist1024.csv",
+    "sha256": "e1c37f03f9cf9d0b2044da0a07632fd1b38ed19c89716783dd5e4644c4845218",
+    "K": 10,
+    "q_batch": 128,
+    "peak_gpu_memory_mib_by_nprobe": {
+      "350": 5498.0,
+      "380": 5498.0,
+      "400": 5498.0,
+      "450": 5498.0,
+      "500": 5498.0,
+      "550": 5498.0,
+      "600": 5498.0,
+      "650": 5498.0,
+      "700": 5498.0,
+      "750": 5498.0,
+      "800": 5498.0,
+      "850": 5498.0,
+      "900": 5498.0,
+      "950": 5498.0,
+      "1000": 5498.0
+    }
+  },
+  "measurement_notes": [
+    "Build time comes from saved index metadata or uniquely size-matched legacy statistics.",
+    "Index size is the exact serialized file size in bytes; legacy MB/MiB units are checked.",
+    "Serialization time and build peak GPU memory were not separately measured; empty means unknown.",
+    "Query memory is kept separately in query_statistics and is never used as build peak memory.",
+    "Multiple equally matched legacy timings are retained as candidates; an ambiguous build time stays empty."
+  ],
+  "source_host": "colossal",
+  "legacy_table_statistics": {
+    "peak_gpu_memory_gib": 5.37,
+    "K": 10,
+    "q_batch": 128,
+    "source_snapshot_sha256": "d412717ff568e1506445b6f8edc03bd40eb1c0e6a92cdf8c740ca8f666a053f5",
+    "original_rounded_record": {
+      "kind": "ivfflat",
+      "dataset": "Hunyuan",
+      "method": "Faiss GPU",
+      "build": "17.89",
+      "size": "2.87",
+      "peak": "5.37"
+    },
+    "measurement_notes": "Historical query peak rounded to 0.01 GiB; retained separately from newer logical query-allocation counters and build peaks."
+  },
+  "dataset": "hunyuan",
+  "method": "faiss",
+  "nlist": 1024,
+  "n_vectors": 1000000,
+  "dim": 768,
+  "build_seconds": 17.894749618135393,
+  "save_seconds": null,
+  "index_size_bytes": 3083154059,
+  "index_size_mib": 2940.32483959198,
+  "peak_build_gpu_memory_mib": null,
+  "schema_version": 1,
+  "platform": "CUDA",
+  "csv_columns": [
+    "dataset",
+    "method",
+    "nlist",
+    "n_vectors",
+    "dim",
+    "build_seconds",
+    "save_seconds",
+    "index_size_bytes",
+    "index_size_mib",
+    "peak_build_gpu_memory_mib"
+  ],
+  "csv_sha256": "6f13f3c80a20cc2dbf92c588bda53bc4c6d19817b1e9e352080291f53e541b99"
+}

@@ -39,9 +39,15 @@ MIB = 1 << 20
 LABELS = {'cuvs': 'cuVS', 'faiss': 'FaissGPU'}
 
 
+def method_label(args):
+    if args.library == 'faiss' and getattr(args, 'flat_storage', None) == 'uint8':
+        return 'FaissGPU_SQ8Direct'
+    return LABELS[args.library]
+
+
 def stem(args, build=False):
-    name = f'CUDA_{LABELS[args.library]}_MultiGPU3_{args.kind.upper()}_{args.dataset_label}_nlist{args.nlist}'
-    if args.library == 'cuvs' and args.kind == 'ivfflat':
+    name = f'CUDA_{method_label(args)}_MultiGPU3_{args.kind.upper()}_{args.dataset_label}_nlist{args.nlist}'
+    if args.kind == 'ivfflat' and (args.library == 'cuvs' or getattr(args, 'flat_storage', None) == 'uint8'):
         name += '_UInt8'
     if args.kind == 'ivfpq':
         name += f'_M{args.pq_dim}_nbits{args.pq_bits}_train{args.pq_train_points}'
@@ -203,10 +209,13 @@ def benchmark(args):
         add_batch_size=args.add_batch_size, actual_nq=actual_nq, topk=args.topk,
         query_input=args.query_input, lut_dtype=args.lut_dtype, cpu_threads=args.cpu_threads,
         faiss_temp_memory_mib=args.faiss_temp_memory_mib)
+    faiss_sq8_direct = method_label(args) == 'FaissGPU_SQ8Direct'
+    worker_config['faiss_sq8_direct'] = faiss_sq8_direct
     build_config = dict(library=args.library, kind=args.kind, base=fingerprint(base_path),
         dataset=args.dataset_label, shards=3, nlist_per_shard=args.nlist,
         global_nlist=3*args.nlist, independent_quantizers=True,
-        dtype='uint8' if args.library=='cuvs' and args.kind=='ivfflat' else 'float32', metric='squared L2', bounds=bounds,
+        dtype='uint8' if args.kind=='ivfflat' and (args.library=='cuvs' or faiss_sq8_direct) else 'float32',
+        metric='squared L2', bounds=bounds,
         coarse_iters=args.coarse_iters, train_fraction=args.train_fraction,
         pq_dim=args.pq_dim, pq_bits=args.pq_bits, pq_train_points=args.pq_train_points,
         actual_pq_iters=args.coarse_iters if args.library=='cuvs' else args.pq_iters,
@@ -214,6 +223,9 @@ def benchmark(args):
         seed='native library default (API has no seed parameter)' if args.library=='cuvs' else args.seed,
         add_batch_size=args.add_batch_size, faiss_use_cuvs=False if args.library=='faiss' else None,
         source_hashes=sources())
+    if faiss_sq8_direct:
+        build_config.update(faiss_index_type='GpuIndexIVFScalarQuantizer',
+                            faiss_quantizer_type='QT_8bit_direct', by_residual=False, query_dtype='float32')
     build_config = json.loads(json.dumps(build_config))
     config = dict(build=build_config, gpus=args.gpus, worker_env=args.worker_env or args.library,
         queries=fingerprint(args.dataset_dir/'query.bin'), truth=fingerprint(args.dataset_dir/'groundtruth.bin'),
@@ -293,7 +305,7 @@ def benchmark(args):
                     progress(f'Saved shard {rank}: {result["metrics"]["index_size_bytes"]/MIB:.1f} MiB')
                 save_seconds = time.perf_counter()-started
             size = sum(item['metrics']['index_size_bytes'] for item in saved)
-            row = dict(dataset=args.dataset_label, method=LABELS[args.library]+'-MultiGPU3-'+args.kind,
+            row = dict(dataset=args.dataset_label, method=method_label(args)+'-MultiGPU3-'+args.kind,
                 nlist=args.nlist, n_vectors=count, dim=dimension, build_seconds=build_seconds,
                 save_seconds=save_seconds, index_size_bytes=size, index_size_mib=size/MIB,
                 peak_build_gpu_memory_mib=sampler.peak_bytes/MIB)
@@ -387,6 +399,7 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--library',choices=('cuvs','faiss'),required=True)
     parser.add_argument('--kind',choices=('ivfflat','ivfpq'),required=True)
+    parser.add_argument('--flat-storage',choices=('uint8',),help='Use lossless Faiss SQ8Direct storage for IVF-Flat')
     parser.add_argument('--phase',choices=('build','query','all'),default='all')
     parser.add_argument('--dataset-dir',type=Path,default=Path('/storage/vector_data/sift100M'))
     parser.add_argument('--dataset-label',default='sift100m')
@@ -418,6 +431,8 @@ def parse_args(argv=None):
     parser.add_argument('--cpu-threads',type=int,default=4)
     parser.add_argument('--resume',action='store_true')
     args = parser.parse_args(argv)
+    if args.flat_storage is not None and (args.kind != 'ivfflat' or args.library != 'faiss'):
+        parser.error('--flat-storage uint8 is for Faiss IVF-Flat; cuVS IVF-Flat already uses UInt8')
     counts = [args.expected_vectors,args.nlist,args.pq_dim,args.coarse_iters,args.pq_iters,
         args.pq_restarts,args.pq_train_points,args.add_batch_size,args.faiss_temp_memory_mib,
         args.nq,args.topk,args.repetitions,args.cpu_threads,*args.q_batches,*args.nprobes]

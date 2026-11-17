@@ -1,0 +1,2 @@
+dataset,method,nlist,n_vectors,dim,build_seconds,save_seconds,index_size_bytes,index_size_mib,peak_build_gpu_memory_mib
+gist,cuVS,1024,1000000,960,5.121704,,150940073,143.94767093658447,

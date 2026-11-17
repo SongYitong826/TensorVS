@@ -3,6 +3,7 @@
 Rows are GloVe and Hunyuan; columns are QBatch=32, 128, and 512.  Each
 panel compares hipVS, TensorVS (Tensor/Triton), and Faiss ROCm CSVs.
 Faiss ROCm is omitted for Hunyuan IVF-PQ, which it does not support.
+Use --q-batch to plot one batch with the two datasets side by side.
 On the local paper workspace, generated PDFs are also copied to
 ~/Desktop/TensorVS_SIGMOD27/expFig when that directory exists.
 
@@ -24,7 +25,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FormatStrFormatter, LogLocator, NullFormatter
+from matplotlib.ticker import FormatStrFormatter, LogLocator, MaxNLocator, NullFormatter
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -118,7 +119,10 @@ def performance_frontier(points: list[tuple[int, float, float]]):
     return list(reversed(frontier))
 
 
-def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
+def plot(result_dir: Path, output_dir: Path, kind: str,
+         q_batch: int | None = None) -> tuple[Path, Path]:
+    batches = (q_batch,) if q_batch is not None else QBATCHES
+    single_batch = q_batch is not None
     curves = {}
     for dataset, _label, pq_config in DATASETS:
         methods = methods_for(dataset, kind)
@@ -126,7 +130,7 @@ def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
             method: read_curves(result_path(result_dir, method, kind, dataset, pq_config))
             for method in methods
         }
-        for batch in QBATCHES:
+        for batch in batches:
             probes = [set(point[0] for point in curves[dataset][method][batch])
                       for method in methods]
             if any(probe_set != probes[0] for probe_set in probes[1:]):
@@ -136,11 +140,20 @@ def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
         "font.family": "DejaVu Sans", "font.size": 13.5, "pdf.fonttype": 42,
         "savefig.facecolor": "white",
     })
-    # Match the MPS canvas; IVF-PQ needs room for each row's Recall ticks.
-    figure, axes = plt.subplots(2, 3, figsize=(9.8, 4.34), squeeze=False)
-    figure.subplots_adjust(left=.085, right=.99, top=.79, bottom=.145,
-                           wspace=.18, hspace=.05 if kind == "ivfflat" else .28)
-    legend_bottom = .802
+    mps_layout = not single_batch and kind == "ivfflat"
+    if single_batch:
+        figure, axes = plt.subplots(1, 2, figsize=(6.4, 2.5), squeeze=False)
+        figure.subplots_adjust(left=.12, right=.97, top=.79, bottom=.23, wspace=.38)
+    else:
+        # Match the MPS IVF-Flat layout.
+        figure, axes = plt.subplots(2, 3, figsize=(9.8, 4.34), squeeze=False)
+        if mps_layout:
+            figure.subplots_adjust(left=.085, right=.975, top=.79, bottom=.145,
+                                   wspace=.30, hspace=.18)
+        else:
+            figure.subplots_adjust(left=.085, right=.99, top=.79, bottom=.145,
+                                   wspace=.18, hspace=.28)
+    legend_bottom = .833 if mps_layout else .825 if single_batch else .802
     handles = {}
 
     for row_index, (dataset, label, _pq_config) in enumerate(DATASETS):
@@ -152,7 +165,7 @@ def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
             (method, batch): (sorted(curves[dataset][method][batch])
                               if kind == "ivfflat" else
                               performance_frontier(curves[dataset][method][batch]))
-            for method in methods for batch in QBATCHES
+            for method in methods for batch in batches
         }
         all_points = [point for points in frontiers.values() for point in points]
         if kind == "ivfflat":
@@ -165,8 +178,8 @@ def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
             xlim = (max(0, recall_low - .05 * recall_span),
                     min(1.005, recall_high + .05 * recall_span))
 
-        for column, batch in enumerate(QBATCHES):
-            axis = axes[row_index][column]
+        for column, batch in enumerate(batches):
+            axis = axes[0][row_index] if single_batch else axes[row_index][column]
             visible_qps = [point[2] for method in methods
                            for point in frontiers[(method, batch)]
                            if xlim[0] <= point[1] <= xlim[1]]
@@ -193,27 +206,35 @@ def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
                 subs=tuple(range(2, 10)), numticks=12))
             axis.yaxis.set_minor_formatter(NullFormatter())
             axis.xaxis.set_major_formatter(FormatStrFormatter(recall_format))
+            if single_batch:
+                axis.xaxis.set_major_locator(MaxNLocator(nbins=4, steps=[1, 2, 5, 10]))
             axis.grid(True, which="both", linestyle="--", linewidth=.6, alpha=.35)
             axis.tick_params(axis="both", labelsize=14)
             axis.tick_params(axis="x",
-                             labelbottom=kind == "ivfpq" or row_index == len(DATASETS) - 1,
+                             labelbottom=not mps_layout or row_index == len(DATASETS) - 1,
                              labeltop=False, top=False)
-            if row_index == len(DATASETS) - 1:
-                axis.set_xlabel("Recall", fontsize=16)
-            if column == 0:
+            if single_batch or row_index == len(DATASETS) - 1:
+                xlabel = f"Recall (QBatch = {batch})" if mps_layout else "Recall"
+                axis.set_xlabel(xlabel, fontsize=16)
+            if column == 0 and (not single_batch or row_index == 0):
                 axis.set_ylabel("QPS", fontsize=16)
-            panel_label = f"{label} (QBatch = {batch})"
+            panel_label = label if single_batch or mps_layout else f"{label} (QBatch = {batch})"
             axis.text(.04, .05, panel_label, transform=axis.transAxes,
-                      fontsize=11.5, fontweight="bold", ha="left", va="bottom")
+                      fontsize=15 if mps_layout else 14 if single_batch else 11.5,
+                      fontweight="bold", ha="left", va="bottom")
 
-    legend_center = (figure.subplotpars.left + figure.subplotpars.right) / 2
+    legend_center = (.5 if single_batch or mps_layout else
+                     (figure.subplotpars.left + figure.subplotpars.right) / 2)
     figure.legend([handles[method] for method in METHODS], list(METHODS),
                   loc="lower center", bbox_to_anchor=(legend_center, legend_bottom),
                   borderaxespad=0, ncol=len(METHODS),
-                  frameon=True, fontsize=14, handlelength=2.5,
-                  columnspacing=1.2)
+                  frameon=True, fontsize=16 if mps_layout else 12 if single_batch else 14,
+                  handlelength=2 if mps_layout else 1.5 if single_batch else 2.5,
+                  handletextpad=.5 if single_batch else .8,
+                  columnspacing=.9 if single_batch or mps_layout else 1.2)
     output_dir.mkdir(parents=True, exist_ok=True)
-    stem = f"{kind.upper()}_AMD_QBatch32_128_512_K10"
+    batch_suffix = "_".join(str(batch) for batch in batches)
+    stem = f"{kind.upper()}_AMD_QBatch{batch_suffix}_K10"
     pdf_path, png_path = output_dir / f"{stem}.pdf", output_dir / f"{stem}.png"
     figure.savefig(pdf_path, dpi=300)
     figure.savefig(png_path, dpi=300)
@@ -231,10 +252,12 @@ def plot(result_dir: Path, output_dir: Path, kind: str) -> tuple[Path, Path]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--kind", choices=("ivfflat", "ivfpq"), required=True)
+    parser.add_argument("--q-batch", type=int, choices=QBATCHES,
+                        help="Plot one batch in a 1x2 dataset layout.")
     parser.add_argument("--result-dir", type=Path, default=ROOT / "result")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "plot" / "Figures")
     args = parser.parse_args()
-    plot(args.result_dir, args.output_dir, args.kind)
+    plot(args.result_dir, args.output_dir, args.kind, q_batch=args.q_batch)
 
 
 if __name__ == "__main__":

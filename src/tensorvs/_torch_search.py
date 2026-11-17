@@ -15,7 +15,9 @@ from typing import Any
 
 import torch
 
-from ._layout_cache import normalize_device, prepare_torch_layout, prepare_pq_adc_words
+from ._coarse import _coarse_centroid_scores_addmm
+from ._layout_cache import normalize_device, prepare_pq_adc_words, prepare_torch_layout
+from ._pq_math import _apply_pq_rotation, _build_global_query_luts_bmm, _normalize_lut_dtype
 from .refine import refine_search_results
 from .util import get_default_device
 
@@ -753,7 +755,6 @@ class _Timer:
 
 
 def _pq_query_lut(batch, layout, lut_dtype):
-    from .index_ivfpq import _apply_pq_rotation, _build_global_query_luts_bmm
     pq_q = _apply_pq_rotation(batch, layout.tensors.get("pq_rotation_matrix"))
     m, _, subdim = layout.tensors["pq_codebooks"].shape
     lut = _build_global_query_luts_bmm(pq_q, layout.tensors["pq_codebooks"],
@@ -812,10 +813,8 @@ def search_torch(index: Any, queries: torch.Tensor, *, kind: str, topk: int, npr
         timer.finish()
         return distances[:, :topk], result_ids[:, :topk]
     if kind == "flat":
-        from .index_ivfflat import _coarse_centroid_scores_addmm
         block_function = _flat_block
     else:
-        from .index_ivfpq import _coarse_centroid_scores_addmm, _normalize_lut_dtype
         lut_dtype = _normalize_lut_dtype(lut_dtype)
         block_function = _pq_block if use_compile or pq_lookup == "gather" else _pq_block_eager
     budget = int(memory_budget_mb * (1 << 20))

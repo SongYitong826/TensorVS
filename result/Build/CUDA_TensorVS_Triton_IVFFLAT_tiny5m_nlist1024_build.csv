@@ -1,0 +1,2 @@
+dataset,method,nlist,n_vectors,dim,build_seconds,save_seconds,index_size_bytes,index_size_mib,peak_build_gpu_memory_mib
+tiny5m,TensorVS,1024,5000000,384,6.064323173835874,,7846481105,7482.987504005432,

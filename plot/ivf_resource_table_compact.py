@@ -9,7 +9,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from plot.ivf_resource_table_example import (
-    PLATFORMS, amd_records, apple_records, cell, cuda_snapshot, method_label, pending,
+    PLATFORMS, amd_records, apple_records, ascend_records, cell, cuda_snapshot, method_label, pending,
 )
 
 UNSUPPORTED_CONFIGURATIONS = {
@@ -19,8 +19,6 @@ UNSUPPORTED_CONFIGURATIONS = {
         "Metal IVF-PQ wrapper supports M<=64; Hunyuan uses M=384",
     (2, "Hunyuan", "ivfpq", "Faiss ROCm"):
         "ROCm GPU IVF-PQ LUT exceeds per-thread-block shared memory for M=384, nbits=8",
-    (3, "Hunyuan", "ivfpq", "Faiss Ascend"):
-        "M=384 exceeds the supported range of the current Faiss Ascend NPU implementation",
 }
 
 
@@ -36,6 +34,8 @@ def collect():
                     entries = apple_records(dataset, kind)
                 elif platform_index == 2:
                     entries = amd_records(dataset, kind)
+                elif platform_index == 3:
+                    entries = ascend_records(dataset, kind)
                 else:
                     entries = {method: pending() for method in methods}
                 for method, entry in entries.items():
@@ -112,7 +112,7 @@ def generate(output):
 Build: s; Size/Peak: GB. Peak: search at $K=10$, QBatch$=128$, maximized over common nprobe settings.
 \textit{xxx}: pending; \textsf{N/S}: unsupported; \textsf{CPU}: CPU search.
 \textsuperscript{r}Reused source-index build time.
-Memory counters and PQ configurations follow each source run; compare within a platform. CUDA uses the existing rounded values.\par}
+Memory counters and PQ configurations follow each source run; compare within a platform. CUDA uses canonical Build records and historical query-memory summaries.\par}
 \endgroup
 """
     preamble = r"""\documentclass[border=4pt]{standalone}

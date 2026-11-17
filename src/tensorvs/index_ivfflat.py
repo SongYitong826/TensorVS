@@ -1,3 +1,5 @@
+"""Build, persist, and search IVF-Flat indexes."""
+
 from __future__ import annotations
 
 import json
@@ -15,6 +17,10 @@ from flash_kmeans import (
     FAISS_DEFAULT_SEED,
     fit_best_kmeans,
 )
+from ._coarse import (
+    _coarse_centroid_scores_addmm as _coarse_centroid_scores_addmm,
+    _coarse_squared_l2_distance_addmm as _coarse_squared_l2_distance_addmm,
+)
 from ._ivf_interleaved import (
     INTERLEAVED_GROUP_SIZE,
     build_interleaved_flat_lists,
@@ -25,56 +31,14 @@ from ._ivfflat_triton import can_run_topk as can_run_ivfflat_triton_topk
 from ._ivfflat_triton import can_use_uint8_scan, prepare_uint8_centered_norms
 from ._ivfflat_triton import triton_topk
 from ._ivfflat_triton import triton as _triton
-from ._layout_cache import (LayoutCache, logical_lists, normalize_device,
-                            prepare_torch_layout, record_triton_layout)
-from ._torch_search import search_torch, search_device, validate_backend
-
-
-def _coarse_centroid_scores_addmm(
-    queries: torch.Tensor,
-    centroids: torch.Tensor,
-    centroid_norms: torch.Tensor,
-) -> torch.Tensor:
-    """Compute ``||c||^2 - 2 q^T c`` for coarse-list selection.
-
-    The omitted query norm is constant across every centroid in a query row,
-    so it cannot change the selected lists. Keeping it out of the full
-    ``[nq, nlist]`` matrix avoids two pointwise passes before Top-K.
-    """
-    centroid_norm_base = centroid_norms.unsqueeze(0)
-    if not queries.is_cuda:
-        distances = torch.addmm(
-            centroid_norm_base,
-            queries,
-            centroids.transpose(0, 1),
-            beta=1.0,
-            alpha=-2.0,
-        )
-    else:
-        previous_allow_tf32 = torch.backends.cuda.matmul.allow_tf32
-        try:
-            torch.backends.cuda.matmul.allow_tf32 = False
-            distances = torch.addmm(
-                centroid_norm_base,
-                queries,
-                centroids.transpose(0, 1),
-                beta=1.0,
-                alpha=-2.0,
-            )
-        finally:
-            torch.backends.cuda.matmul.allow_tf32 = previous_allow_tf32
-    return distances
-
-
-def _coarse_squared_l2_distance_addmm(
-    queries: torch.Tensor,
-    centroids: torch.Tensor,
-    centroid_norms: torch.Tensor,
-) -> torch.Tensor:
-    """Compute all coarse ``||q-c||^2`` distances with cached norms."""
-    query_norms = (queries * queries).sum(dim=1, keepdim=True)
-    distances = _coarse_centroid_scores_addmm(queries, centroids, centroid_norms)
-    return distances.add_(query_norms).clamp_min_(0.0)
+from ._layout_cache import (
+    LayoutCache,
+    logical_lists,
+    normalize_device,
+    prepare_torch_layout,
+    record_triton_layout,
+)
+from ._torch_search import search_device, search_torch, validate_backend
 
 
 def _get_interleaved_flat_lists(
@@ -845,23 +809,43 @@ def search_ivfflat_index(
         raise ValueError("Queries must have shape [num_queries, index dimension]")
     target = search_device(queries, device)
     supported = can_run_ivfflat_triton_topk(
-        device=target, topk=max(1, int(topk)), num_queries=queries.shape[0],
-        nprobe=max(1, min(int(nprobe), index.centroids.shape[0])), dim=queries.shape[1])
-    selected = "triton" if backend == "auto" and supported else ("torch" if backend == "auto" else backend)
-    if selected == "torch":
-        return search_torch(index, queries, kind="flat", topk=topk, nprobe=nprobe,
-                            device=target, profile=profile, query_batch_size=torch_query_batch_size,
-                            candidate_chunk_size=torch_candidate_chunk_size,
-                            memory_budget_mb=torch_memory_budget_mb, use_compile=use_compile,
-                            persist_layout=persist_layout, flat_scan=torch_flat_scan,
-                            query_tile_size=torch_query_tile_size,
-                            max_tasks_per_batch=torch_max_tasks_per_batch,
-                            min_query_tile_size=torch_min_query_tile_size)
+        device=target,
+        topk=max(1, int(topk)),
+        num_queries=queries.shape[0],
+        nprobe=max(1, min(int(nprobe), index.centroids.shape[0])),
+        dim=queries.shape[1],
+    )
+    if backend == "torch" or (backend == "auto" and not supported):
+        return search_torch(
+            index,
+            queries,
+            kind="flat",
+            topk=topk,
+            nprobe=nprobe,
+            device=target,
+            profile=profile,
+            query_batch_size=torch_query_batch_size,
+            candidate_chunk_size=torch_candidate_chunk_size,
+            memory_budget_mb=torch_memory_budget_mb,
+            use_compile=use_compile,
+            persist_layout=persist_layout,
+            flat_scan=torch_flat_scan,
+            query_tile_size=torch_query_tile_size,
+            max_tasks_per_batch=torch_max_tasks_per_batch,
+            min_query_tile_size=torch_min_query_tile_size,
+        )
     if not supported:
         raise RuntimeError("The requested Triton IVF-Flat backend does not support this device or shape")
     index.reside_on_device(target, persist_layout=persist_layout)
-    return _search_ivfflat_index_triton(index, queries, topk=topk, nprobe=nprobe,
-                                       device=target, profile=profile, selection_mode=selection_mode)
+    return _search_ivfflat_index_triton(
+        index,
+        queries,
+        topk=topk,
+        nprobe=nprobe,
+        device=target,
+        profile=profile,
+        selection_mode=selection_mode,
+    )
 
 
 def build_ivfflat_index(

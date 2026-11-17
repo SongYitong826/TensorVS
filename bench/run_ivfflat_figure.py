@@ -147,7 +147,7 @@ def make_config(args: argparse.Namespace) -> Config:
         groundtruth_path=groundtruth_path,
         result_path=PROJECT_ROOT / "result" / f"IVFFLAT_{dataset}_nlist{nlist}.csv",
         index_path=gpu_index_dir / f"TenVS_IVFFlat_nlist{nlist}.bin",
-        statistics_path=gpu_index_dir / "statistic.csv",
+        statistics_path=PROJECT_ROOT / "result" / "Build" / f"CUDA_TensorVS_Triton_IVFFLAT_{dataset}_nlist{nlist}_build.csv",
         nlist=nlist,
         topk=args.topk,
         q_batches=q_batches,
@@ -234,9 +234,10 @@ def validate_outputs(config: Config) -> None:
     with config.statistics_path.open(newline="", encoding="utf-8") as csv_file:
         statistics = list(csv.DictReader(csv_file))
     if not any(
-        row.get("Dataset Name") == config.dataset
-        and row.get("Method Name") == "TensorVS"
-        and row.get("Build Time (s)") and row.get("Index Size (MB)")
+        row.get("dataset") == config.dataset
+        and row.get("method") == "TensorVS"
+        and int(row.get("nlist", -1)) == config.nlist
+        and row.get("build_seconds") and row.get("index_size_bytes")
         for row in statistics
     ):
         raise RuntimeError(f"TensorVS build statistics missing: {config.statistics_path}")

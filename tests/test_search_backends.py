@@ -359,7 +359,18 @@ def test_experimental_compact_pq_matches_decoded_oracle(indexes, monkeypatch, de
         pytest.skip("requires Apple MPS")
     import tensorvs._torch_search as native
     from bench._pq_compact_candidate import compact_search
-    monkeypatch.setattr(native, "_packed_pq_search", lambda *a, **kw: compact_search(*a, **kw, mode=mode))
+
+    def scan_with_compact_candidate(
+        batch, layout, lut, bias, probes, best, best_ids, budget, chunk, timer,
+        use_compile, query_tile=None, lut_chunk_size=16, pq_lookup="flat",
+    ):
+        # The experimental scanner has its own ADC loop and lookup settings.
+        return compact_search(
+            batch, layout, lut, bias, probes, best, best_ids, budget, chunk,
+            timer, use_compile, query_tile, mode=mode,
+        )
+
+    monkeypatch.setattr(native, "_packed_pq_search", scan_with_compact_candidate)
     _, index, _, decoded, queries, labels, centers, rotation = indexes
     queries = queries.clone()
     queries[-1] = centers[5]
@@ -795,12 +806,15 @@ def test_large_gpu_batches_use_streamed_scans_and_match_oracle(indexes, kind, co
         # The existing LUT policy allows TF32; force IEEE here so the
         # decoded-vector oracle isolates the scan/merge rather than cuBLAS
         # choosing different LUT precision for different matrix shapes.
-        from tensorvs import index_ivfpq
-        original = index_ivfpq._build_global_query_luts_bmm
+        from tensorvs import _torch_search
+
+        original = _torch_search._build_global_query_luts_bmm
+
         def ieee_luts(*args, **kwargs):
             kwargs["use_tf32"] = False
             return original(*args, **kwargs)
-        monkeypatch.setattr(index_ivfpq, "_build_global_query_luts_bmm", ieee_luts)
+
+        monkeypatch.setattr(_torch_search, "_build_global_query_luts_bmm", ieee_luts)
     profile = {}
     # K exceeds both the entire index and the number of eligible candidates.
     # This also exercises empty lists and final blocks shorter than K.

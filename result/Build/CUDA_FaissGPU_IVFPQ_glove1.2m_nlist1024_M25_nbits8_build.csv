@@ -1,0 +1,2 @@
+dataset,method,nlist,n_vectors,dim,build_seconds,save_seconds,index_size_bytes,index_size_mib,peak_build_gpu_memory_mib
+glove1.2m,faiss,1024,1193514,200,6.59399856813252,,40418334,38.54592704772949,

@@ -167,30 +167,28 @@ STAGE_LABELS = {
     "topk_selection": "Top-K selection",
     "topk_final_merge": "Final Top-K merge",
     "query_transform": "Query transform",
-    "lut_computation": "LUT Construction",
+    "lut_computation": "LUT construction",
     "lut_build_lookup_accumulation": "LUT computation + lookup/accumulation (fused)",
     "lut_lookup_accumulation": "LUT lookup + accumulation",
     "lut_lookup_topk_fused": "LUT lookup/accumulation + Top-K (fused)",
     "unsplit_library_search": "Unsplit library search",
 }
 STAGE_COLORS = {
-    # This ordering maximizes the minimum CIELAB distance between adjacent
-    # segments in both the IVF-Flat and IVF-PQ stacks while staying within
-    # the paper's six-color palette.
+    # Reserve dark blue for LUT lookups and light blue for data preparation.
     "coarse_ivf_selection": "#F5A86E",
-    "list_scheduling_preparation": "#00609D",
-    "vector_gather_read": "#F4D291",
-    "dot_product_computation": "#F4D291",
+    "list_scheduling_preparation": "#7EABCE",
+    "vector_gather_read": "#2CA02C",
+    "dot_product_computation": "#2CA02C",
     "l2_epilogue_distance_writeback": "#7EABCE",
-    "vector_read_distance": "#F4D291",
-    "vector_read_distance_topk_fused": "#F4D291",
+    "vector_read_distance": "#2CA02C",
+    "vector_read_distance_topk_fused": "#2CA02C",
     "topk_selection": "#C02635",
     "topk_final_merge": "#C02635",
-    "query_transform": "#00609D",
-    "lut_computation": "#F58966",
-    "lut_build_lookup_accumulation": "#7EABCE",
-    "lut_lookup_accumulation": "#7EABCE",
-    "lut_lookup_topk_fused": "#7EABCE",
+    "query_transform": "#7EABCE",
+    "lut_computation": "#F4D291",
+    "lut_build_lookup_accumulation": "#00609D",
+    "lut_lookup_accumulation": "#00609D",
+    "lut_lookup_topk_fused": "#00609D",
     "unsplit_library_search": "#F4D291",
 }
 
@@ -979,8 +977,8 @@ def plot_breakdown(result: dict[str, Any], output_path: Path) -> None:
 
     font_manager.findfont(font_manager.FontProperties(family="Arial"), fallback_to_default=False)
     with plt.rc_context({
-        "font.family": "Arial", "font.size": 6.5,
-        "axes.labelsize": 6.5, "xtick.labelsize": 6.5, "ytick.labelsize": 6.5,
+        "font.family": "Arial", "font.size": 8,
+        "axes.labelsize": 8, "xtick.labelsize": 8, "ytick.labelsize": 8,
         "axes.linewidth": 0.6, "pdf.fonttype": 42, "ps.fonttype": 42,
         "text.usetex": False,
     }):
@@ -995,10 +993,10 @@ def _plot_breakdown(result: dict[str, Any], output_path: Path) -> None:
 
     ms_to_us = 1000.0
     algorithms = (("IVFFlat", FLAT_STAGES), ("IVFPQ", PQ_STAGES))
-    # Keep the final column width and use two compact legend rows.
-    fig, axes = plt.subplots(1, 2, figsize=(3.33, 1.35), sharey=True)
-    fig.subplots_adjust(left=0.21, right=0.98, bottom=0.24, top=0.73, wspace=0.10)
-    numeric_font = font_manager.FontProperties(family="Arial", size=6.5, weight="bold")
+    # Match the adjacent KMeans figure's height in the paper's column layout.
+    fig, axes = plt.subplots(1, 2, figsize=(3.33, 1.30), sharey=True)
+    fig.subplots_adjust(left=0.195, right=0.99, bottom=0.37, top=0.735, wspace=0.04)
+    numeric_font = font_manager.FontProperties(family="Arial", size=6.5)
     renderer = fig.canvas.get_renderer()
 
     legend_stages: set[str] = set()
@@ -1025,75 +1023,61 @@ def _plot_breakdown(result: dict[str, Any], output_path: Path) -> None:
                     continue
                 legend_stages.add(stage)
                 axis.barh(
-                    y_position, value, left=left, height=0.74,
+                    y_position, value, left=left, height=0.85,
                     color=STAGE_COLORS[stage], edgecolor="white", linewidth=0.4,
                 )
                 # Preserve the original selection of significant values.
-                # Lay them out together below so bold labels stay on the
-                # bar even when individual segments are narrow.
+                # Fit each label inside its own colored segment below.
                 if value >= max(total * 0.10, panel_max_total * 0.055, 0.001):
-                    label = f"{value:.1f}"
+                    label = f"{value:.1f}".removesuffix(".0")
                     label_width, _, _ = renderer.get_text_width_height_descent(
                         label, numeric_font, ismath=False,
                     )
-                    value_labels.append((left + value / 2.0, label, label_width, stage))
+                    value_labels.append((left + value / 2.0, value, label, label_width, stage))
                 left += value
             if value_labels:
-                # Adjust horizontal positions to prevent adjacent numbers
-                # from overlapping. Very short bars may have a small label
-                # overhang, but all values remain vertically on their bars.
+                # Narrow segments need a smaller label to keep all digits visible.
                 pixels_per_unit = axis.get_window_extent().width / axis.get_xlim()[1]
-                gap = 1.5 * fig.dpi / 72
-                widths = [item[2] for item in value_labels]
-                occupied_width = sum(widths) + gap * (len(widths) - 1)
-                right_limit = max(total * pixels_per_unit, occupied_width + gap)
-                centers = []
-                previous_right = 0.0
-                for (center, _, label_width, _) in value_labels:
-                    position = max(center * pixels_per_unit, previous_right + gap + label_width / 2)
-                    centers.append(position)
-                    previous_right = position + label_width / 2
-                next_left = right_limit
-                for index in range(len(centers) - 1, -1, -1):
-                    centers[index] = min(centers[index], next_left - widths[index] / 2)
-                    next_left = centers[index] - widths[index] / 2 - gap
-                for position, (_, label, _, stage) in zip(centers, value_labels):
+                for center, value, label, label_width, stage in value_labels:
+                    available_width = max(value * pixels_per_unit - fig.dpi / 72, 1.0)
+                    label_font = numeric_font.copy()
+                    label_font.set_size(numeric_font.get_size_in_points() * min(1.0, available_width / label_width))
                     rgb = matplotlib.colors.to_rgb(STAGE_COLORS[stage])
                     linear = [v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in rgb]
                     luminance = sum(v * w for v, w in zip(linear, (0.2126, 0.7152, 0.0722)))
                     axis.text(
-                        position / pixels_per_unit, y_position, label,
-                        ha="center", va="center", fontproperties=numeric_font,
-                        color="black" if luminance > 0.179 else "white",
+                        center, y_position, label,
+                        ha="center", va="center", fontproperties=label_font,
+                        color="black" if STAGE_COLORS[stage] != "#2CA02C" and luminance > 0.179 else "white",
                     )
             if not has_real_stage_values and total > 0.0:
                 legend_stages.add("unsplit_library_search")
                 axis.barh(
-                    y_position, total, left=0.0, height=0.74,
+                    y_position, total, left=0.0, height=0.85,
                     color=STAGE_COLORS["unsplit_library_search"],
                     edgecolor="white", linewidth=0.4, hatch="//",
                 )
                 axis.text(total / 2.0, y_position, f"{total:.1f}",
                           ha="center", va="center", fontproperties=numeric_font, color="black")
 
-        axis.text(
-            0.97, 0.04, "IVF-Flat" if algorithm == "IVFFlat" else "IVF-PQ",
-            transform=axis.transAxes, ha="right", va="bottom", fontsize=6.5,
-            fontweight="bold",
-        )
-        axis.set_xlabel("Query time (μs)", labelpad=0, fontsize=6)
+        axis.set_xlabel("Query time (μs)", labelpad=0, fontsize=8)
         axis.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=3, min_n_ticks=3))
         axis.set_yticks(
             np.arange(len(PLOT_METHODS)),
             [METHOD_LABELS[method] for method in PLOT_METHODS],
         )
         axis.tick_params(width=0.6, length=3, pad=2)
+        axis.tick_params(axis="y", labelsize=7)
         axis.grid(axis="x", color="#DDDDDD", linewidth=0.5)
         axis.set_axisbelow(True)
         axis.spines["top"].set_visible(False)
         axis.spines["right"].set_visible(False)
 
     axes[0].invert_yaxis()
+    for axis, label in zip(axes, ("(a) IVF-Flat", "(b) IVF-PQ")):
+        position = axis.get_position()
+        fig.text((position.x0 + position.x1) / 2, 0.035, label,
+                 ha="center", va="baseline", fontsize=8)
     # Stable de-duplication is required because coarse selection and final
     # Top-K merge can appear in both algorithm panels.
     all_stages = tuple(
@@ -1103,7 +1087,7 @@ def _plot_breakdown(result: dict[str, Any], output_path: Path) -> None:
         "coarse_ivf_selection": "Coarse Selection",
         "list_scheduling_preparation": "Data preparation",
         "query_transform": "Data preparation",
-        "vector_read_distance": "Vector Read + Distance Comp.",
+        "vector_read_distance": "Vector access + distance comp.",
     }
     # Read across each row: keep the LUT stages adjacent and Top-K last.
     legend_order = (
@@ -1128,9 +1112,9 @@ def _plot_breakdown(result: dict[str, Any], output_path: Path) -> None:
     for start in range(0, len(handles), 3):
         fig.legend(
             handles[start:start + 3], labels[start:start + 3],
-            loc="upper center", bbox_to_anchor=(0.5, 0.90 - (start // 3) * 0.08),
-            ncol=3, fontsize=6.5, frameon=False, handlelength=0.6,
-            handletextpad=0.2, columnspacing=1.2, borderpad=0, borderaxespad=0,
+            loc="upper center", bbox_to_anchor=(0.5, 0.95 - (start // 3) * 0.09),
+            ncol=3, fontsize=7, frameon=False, handlelength=0.5,
+            handletextpad=0.15, columnspacing=0.7, borderpad=0, borderaxespad=0,
         )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=300)

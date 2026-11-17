@@ -28,6 +28,10 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter, LogLocator, NullFormatter
+try:
+    from ._cuda_sift_column import sift_file, update_sift_column
+except ImportError:
+    from _cuda_sift_column import sift_file, update_sift_column
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -50,7 +54,7 @@ class Method:
 
 
 DATASETS = (
-    Dataset("sift10m", "SIFT"),
+    Dataset("sift100m", "SIFT"),
     Dataset("glove1.2m", "GloVe"),
     Dataset("tiny5m", "Tiny"),
     Dataset("hunyuan", "Hunyuan"),
@@ -58,10 +62,11 @@ DATASETS = (
     Dataset("openai1536", "OpenAI"),
 )
 QBATCHES = (32, 128, 512)
+SIFT_RECALL_MIN = 0.94
 
 METHODS = {
     # Keep a consistent paper palette and filled-marker mapping.
-    "tensorvs": Method("TensorVS", "#00609d", "s", "-", "#00609d"),
+    "tensorvs": Method("TensorVS (Triton)", "#00609d", "s", "-", "#00609d"),
     "cuvs": Method("cuVS", "#f5ba03", "o", "-", "#f5ba03"),
     "faiss": Method("Faiss GPU", "#e43d33", "^", "-", "#e43d33"),
 }
@@ -76,10 +81,12 @@ DATASET_Y_LIMITS = {
 DEFAULT_RESULT_DIRS = {
     "tensorvs": (PROJECT_ROOT / "result", PROJECT_ROOT / "results"),
     "cuvs": (
+        PROJECT_ROOT / "result",
         Path("/home/songyitong/cuvs/python/cuvs/cuvs/result"),
         Path("/home/songyitong/cuvs/python/cuvs/cuvs/results"),
     ),
     "faiss": (
+        PROJECT_ROOT / "result",
         Path("/home/songyitong/faiss/result"),
         Path("/home/songyitong/faiss/results"),
     ),
@@ -110,6 +117,9 @@ def discover_result_files(
         for result_dir in result_dirs[method]:
             if not result_dir.is_dir():
                 continue
+            native = sift_file(result_dir, method, "ivfflat")
+            if native is not None and "sift100m" not in discovered[method]:
+                discovered[method]["sift100m"] = ResultFile(native, None)
             for path in sorted(result_dir.glob("*.csv")):
                 match = FILENAME_PATTERN.match(path.name)
                 if match is None:
@@ -245,7 +255,8 @@ def collect_curves(
                     for row in rows
                     if int(row["q_batch"]) == q_batch and int(row["topk"]) == topk
                 ]
-                curve = clip_recall_curve(matching, recall_min, recall_max)
+                lower = max(recall_min, SIFT_RECALL_MIN) if dataset.key == "sift100m" else recall_min
+                curve = clip_recall_curve(matching, lower, recall_max)
                 if curve:
                     curves[dataset.key][q_batch][method] = curve
                 else:
@@ -318,11 +329,13 @@ def plot_figure(
                 )
                 legend_handles.setdefault(method_key, line)
 
-            axis.set_xlim(recall_min, recall_max)
+            lower = max(recall_min, SIFT_RECALL_MIN) if dataset.key == "sift100m" else recall_min
+            intervals = 3 if dataset.key == "sift100m" else 5
+            axis.set_xlim(lower, recall_max)
             axis.set_xticks(
                 [
-                    recall_min + index * (recall_max - recall_min) / 5
-                    for index in range(6)
+                    lower + index * (recall_max - lower) / intervals
+                    for index in range(intervals + 1)
                 ]
             )
             axis.xaxis.set_major_formatter(FormatStrFormatter("%.2f"))
@@ -447,6 +460,10 @@ def parse_args() -> argparse.Namespace:
         help="Faiss GPU result directory; repeat to search multiple directories.",
     )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--sift-only", action="store_true",
+                        help="Replace the SIFT column in the existing paper PDF using SIFT100M results.")
+    parser.add_argument("--sift-result-dir", type=Path,
+                        help="SIFT100M result directory for the column update.")
     parser.add_argument(
         "--output-stem",
         default=None,
@@ -462,6 +479,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.sift_only:
+        stem = args.output_stem or f"IVFFlat_CUDA_QBatch{'_'.join(map(str, args.q_batches))}_K{args.k}"
+        update_sift_column("ivfflat", args.output_dir, stem, args.q_batches, args.k,
+                           max(args.recall_min, SIFT_RECALL_MIN), args.recall_max,
+                           result_dir=args.sift_result_dir)
+        return
     if not 0.0 <= args.recall_min < args.recall_max <= 1.0:
         raise ValueError("Recall bounds must satisfy 0 <= min < max <= 1.")
     q_batches = tuple(args.q_batches)

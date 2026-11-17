@@ -1,0 +1,105 @@
+{
+  "status": "source_index_metadata",
+  "index_type": "ivfpq",
+  "M": 120,
+  "nbits": 8,
+  "index_path": "/storage/vector_data/gist/GPUIndex/cuVS_IVFPQ_nlist1024_pqdim120_pqbits8.bin",
+  "index_mtime_ns": 1788705009033303283,
+  "build_device": "cuda",
+  "source_index_metadata": {},
+  "statistics_source": "/storage/vector_data/gist/GPUIndex/statistic.csv",
+  "statistics_sha256": "6ec3dfc3dfa6a115ebd2f3211172f6c170da6cb23290dd75949299181626c1ec",
+  "matching_statistics": [
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "gist",
+        "Method Name": "cuVS",
+        "Build Time (s)": "5.121704",
+        "Index Size (MB)": "143.9477"
+      },
+      "size_error": 2.9063415524888114e-05,
+      "recorded_size_unit": "MiB"
+    }
+  ],
+  "statistics_rows": [
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "gist",
+      "Method Name": "cuVS",
+      "Build Time (s)": "5.121704",
+      "Index Size (MB)": "143.9477"
+    }
+  ],
+  "query_statistics": {
+    "source_path": "/home/songyitong/cuvs/python/cuvs/cuvs/result/IVFPQ_gist_nlist1024_pqdim120_pqbits8.csv",
+    "sha256": "6c6cdb3b5fa8348ea59cfc4b1fe8519e3d0a5ba27160bc17d7f78a7fb9c952e9",
+    "K": 10,
+    "q_batch": 128,
+    "peak_gpu_memory_mib_by_nprobe": {
+      "10": 600.0,
+      "20": 600.0,
+      "30": 600.0,
+      "40": 600.0,
+      "50": 600.0,
+      "60": 600.0,
+      "80": 600.0,
+      "100": 600.0,
+      "120": 600.0,
+      "140": 600.0,
+      "160": 600.0,
+      "180": 600.0,
+      "200": 600.0,
+      "250": 600.0,
+      "300": 600.0
+    }
+  },
+  "measurement_notes": [
+    "Build time comes from saved index metadata or uniquely size-matched legacy statistics.",
+    "Index size is the exact serialized file size in bytes; legacy MB/MiB units are checked.",
+    "Serialization time and build peak GPU memory were not separately measured; empty means unknown.",
+    "Query memory is kept separately in query_statistics and is never used as build peak memory.",
+    "Multiple equally matched legacy timings are retained as candidates; an ambiguous build time stays empty."
+  ],
+  "source_host": "colossal",
+  "legacy_table_statistics": {
+    "peak_gpu_memory_gib": 0.59,
+    "K": 10,
+    "q_batch": 128,
+    "source_snapshot_sha256": "d412717ff568e1506445b6f8edc03bd40eb1c0e6a92cdf8c740ca8f666a053f5",
+    "original_rounded_record": {
+      "kind": "ivfpq",
+      "dataset": "GIST",
+      "method": "cuVS",
+      "build": "5.12",
+      "size": "0.14",
+      "peak": "0.59"
+    },
+    "measurement_notes": "Historical query peak rounded to 0.01 GiB; retained separately from newer logical query-allocation counters and build peaks."
+  },
+  "dataset": "gist",
+  "method": "cuVS",
+  "nlist": 1024,
+  "n_vectors": 1000000,
+  "dim": 960,
+  "build_seconds": 5.121704,
+  "save_seconds": null,
+  "index_size_bytes": 150940073,
+  "index_size_mib": 143.94767093658447,
+  "peak_build_gpu_memory_mib": null,
+  "schema_version": 1,
+  "platform": "CUDA",
+  "csv_columns": [
+    "dataset",
+    "method",
+    "nlist",
+    "n_vectors",
+    "dim",
+    "build_seconds",
+    "save_seconds",
+    "index_size_bytes",
+    "index_size_mib",
+    "peak_build_gpu_memory_mib"
+  ],
+  "csv_sha256": "96f4362f060ab19ef38c7f66d13fe178bb84214015011f6af7a8cb9ee62b8b38"
+}

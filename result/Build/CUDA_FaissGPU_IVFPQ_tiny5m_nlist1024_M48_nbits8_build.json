@@ -1,0 +1,93 @@
+{
+  "status": "source_index_metadata",
+  "index_type": "ivfpq",
+  "M": 48,
+  "nbits": 8,
+  "index_path": "/storage/vector_data/tiny5m/GPUIndex/Faiss_IVFPQ_nlist1024_M48_nbits8.index",
+  "index_mtime_ns": 1788713816562788227,
+  "build_device": "cpu",
+  "source_index_metadata": {},
+  "statistics_source": "/storage/vector_data/tiny5m/GPUIndex/statistic.csv",
+  "statistics_sha256": "3e64589852f7254debd18d687c1581068ef6d148ccab6f1d71a05f5dcaf90091",
+  "matching_statistics": [
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "tiny5m",
+        "Method Name": "faiss",
+        "Build Time (s)": "24.52285548299551",
+        "Index Size (MB)": "281.974452"
+      },
+      "size_error": 0.0,
+      "recorded_size_unit": "MB"
+    },
+    {
+      "row": {
+        "Index Type": "IVF-PQ",
+        "Dataset Name": "tiny5m",
+        "Method Name": "faiss",
+        "Build Time (s)": "19.292318627238274",
+        "Index Size (MB)": "281.974452"
+      },
+      "size_error": 0.0,
+      "recorded_size_unit": "MB"
+    }
+  ],
+  "statistics_rows": [
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "tiny5m",
+      "Method Name": "faiss",
+      "Build Time (s)": "24.52285548299551",
+      "Index Size (MB)": "281.974452"
+    },
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "tiny5m",
+      "Method Name": "faiss",
+      "Build Time (s)": "19.292318627238274",
+      "Index Size (MB)": "281.974452"
+    },
+    {
+      "Index Type": "IVF-PQ",
+      "Dataset Name": "tiny5m",
+      "Method Name": "faiss",
+      "Build Time (s)": "35.77586597763002",
+      "Index Size (MB)": "363.555508"
+    }
+  ],
+  "query_statistics": null,
+  "measurement_notes": [
+    "Build time comes from saved index metadata or uniquely size-matched legacy statistics.",
+    "Index size is the exact serialized file size in bytes; legacy MB/MiB units are checked.",
+    "Serialization time and build peak GPU memory were not separately measured; empty means unknown.",
+    "Query memory is kept separately in query_statistics and is never used as build peak memory.",
+    "Multiple equally matched legacy timings are retained as candidates; an ambiguous build time stays empty."
+  ],
+  "source_host": "colossal",
+  "dataset": "tiny5m",
+  "method": "faiss",
+  "nlist": 1024,
+  "n_vectors": 5000000,
+  "dim": 384,
+  "build_seconds": null,
+  "save_seconds": null,
+  "index_size_bytes": 281974452,
+  "index_size_mib": 268.91179275512695,
+  "peak_build_gpu_memory_mib": null,
+  "schema_version": 1,
+  "platform": "CUDA",
+  "csv_columns": [
+    "dataset",
+    "method",
+    "nlist",
+    "n_vectors",
+    "dim",
+    "build_seconds",
+    "save_seconds",
+    "index_size_bytes",
+    "index_size_mib",
+    "peak_build_gpu_memory_mib"
+  ],
+  "csv_sha256": "b850618fc0dcb2e91d7927eaedb3f9291e05d74a29e032887d622e2b865c47e9"
+}
