@@ -145,7 +145,7 @@ def recall_tick_step(xlim: tuple[float, float], max_ticks: int = 6) -> float:
 
 
 def plot(result_dir: Path, output_dir: Path, kind: str,
-         q_batch: int | None = None) -> tuple[Path, Path]:
+         q_batch: int | None = None, *, sync_paper: bool = True) -> tuple[Path, Path]:
     batches = (q_batch,) if q_batch is not None else QBATCHES
     single_batch = q_batch is not None
     curves = {}
@@ -275,9 +275,10 @@ def plot(result_dir: Path, output_dir: Path, kind: str,
     plt.close(figure)
     print(f"Saved {pdf_path}")
     print(f"Saved {png_path}")
-    if PAPER_FIGURE_DIR.is_dir() and (PAPER_FIGURE_DIR / pdf_path.name).resolve() != pdf_path.resolve():
-        shutil.copy2(pdf_path, PAPER_FIGURE_DIR / pdf_path.name)
-        print(f"Synced {PAPER_FIGURE_DIR / pdf_path.name}")
+    paper_pdf = PAPER_FIGURE_DIR / pdf_path.name
+    if sync_paper and PAPER_FIGURE_DIR.is_dir() and paper_pdf.resolve() != pdf_path.resolve():
+        shutil.copy2(pdf_path, paper_pdf)
+        print(f"Synced {paper_pdf}")
     return pdf_path, png_path
 
 

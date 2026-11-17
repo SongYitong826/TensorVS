@@ -20,32 +20,56 @@
 
 ## Benchmarks
 
-**GloVe 1.2M and Tencent Hunyuan.** Queries per second versus Recall@10 with batch size 128 and 1,024 IVF lists. Each line sweeps the number of probed lists.
+**GloVe 1.2M and Tencent Hunyuan.** QPS versus Recall@10 with 1,024 IVF lists. Each line sweeps the number of probed lists. IVF-Flat shows query batches of 32, 128, and 512 on the three GPU platforms and 128 on Ascend. IVF-PQ uses 128.
 
 **NVIDIA RTX 4090 · CUDA**
 
-<img src="docs/assets/benchmark-nvidia.png" width="830" alt="RTX 4090: TensorVS Triton, cuVS and Faiss GPU on GloVe and Hunyuan, with IVF-Flat and IVF-PQ panels">
+**IVF-Flat**
+
+<img src="docs/assets/benchmark-nvidia-ivfflat.png" width="670" alt="RTX 4090 IVF-Flat on GloVe and Hunyuan at query batches of 32, 128, and 512">
+
+**IVF-PQ**
+
+<img src="docs/assets/benchmark-nvidia-ivfpq.png" width="670" alt="RTX 4090 IVF-PQ on GloVe and Hunyuan at query batch 128">
 
 <details>
 <summary><strong>AMD MI300X VF · ROCm</strong></summary>
 
-<img src="docs/assets/benchmark-amd.png" width="830" alt="AMD MI300X VF: TensorVS Tensor and Triton, hipVS and Faiss ROCm on GloVe and Hunyuan">
+**IVF-Flat**
+
+<img src="docs/assets/benchmark-amd-ivfflat.png" width="830" alt="AMD MI300X VF IVF-Flat on GloVe and Hunyuan at query batches of 32, 128, and 512">
+
+**IVF-PQ**
+
+<img src="docs/assets/benchmark-amd-ivfpq.png" width="670" alt="AMD MI300X VF IVF-PQ on GloVe and Hunyuan at query batch 128">
 
 </details>
 
 <details>
 <summary><strong>Apple M5 · Metal / MPS</strong></summary>
 
-<img src="docs/assets/benchmark-apple.png" width="830" alt="Apple M5: TensorVS and Faiss on GloVe and Hunyuan, with CPU references labeled">
+**IVF-Flat**
+
+<img src="docs/assets/benchmark-apple-ivfflat.png" width="830" alt="Apple M5 IVF-Flat on GloVe and Hunyuan at query batches of 32, 128, and 512">
+
+**IVF-PQ**
+
+<img src="docs/assets/benchmark-apple-ivfpq.png" width="670" alt="Apple M5 IVF-PQ on GloVe and Hunyuan at query batch 128">
 
 </details>
 
 <details>
 <summary><strong>Huawei Ascend 910B4 · NPU</strong></summary>
 
-<img src="docs/assets/benchmark-ascend.png" width="830" alt="Ascend 910B4: TensorVS on GloVe and Hunyuan with available Faiss CPU references">
+**IVF-Flat**
 
-The GloVe IVF-PQ Faiss Ascend run uses inner-product ground truth. This panel shows the squared-L2 TensorVS run.
+<img src="docs/assets/benchmark-ascend-ivfflat.png" width="670" alt="Ascend 910B4 IVF-Flat on GloVe and Hunyuan at query batch 128">
+
+**IVF-PQ**
+
+<img src="docs/assets/benchmark-ascend-ivfpq.png" width="670" alt="Ascend 910B4 IVF-PQ on GloVe and Hunyuan at query batch 128">
+
+The GloVe IVF-PQ panel includes Faiss Ascend with inner-product ground truth and TensorVS with squared-L2 ground truth.
 
 </details>
 

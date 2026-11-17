@@ -102,7 +102,8 @@ def performance_frontier(points: list[tuple[int, float, float]]):
     return list(reversed(frontier))
 
 
-def plot_kind(kind: str, result_dir: Path, output_dir: Path, q_batch: int | None = None):
+def plot_kind(kind: str, result_dir: Path, output_dir: Path, q_batch: int | None = None,
+              *, sync_paper: bool = True):
     batches = (q_batch,) if q_batch is not None else QBATCHES
     single_batch = q_batch is not None
     batch_in_xlabel = kind == "ivfflat" and not single_batch
@@ -217,8 +218,9 @@ def plot_kind(kind: str, result_dir: Path, output_dir: Path, q_batch: int | None
     figure.savefig(pdf_path, dpi=300)
     figure.savefig(png_path, dpi=300)
     plt.close(figure)
-    if PAPER_FIGURE_DIR.is_dir() and (PAPER_FIGURE_DIR / pdf_path.name).resolve() != pdf_path.resolve():
-        shutil.copy2(pdf_path, PAPER_FIGURE_DIR / pdf_path.name)
+    paper_pdf = PAPER_FIGURE_DIR / pdf_path.name
+    if sync_paper and PAPER_FIGURE_DIR.is_dir() and paper_pdf.resolve() != pdf_path.resolve():
+        shutil.copy2(pdf_path, paper_pdf)
 
     peak_metal = max(float(row["peak_gpu_memory"]) for row in rows)
     peak_rss = max(float(row["peak_rss_memory"]) for row in rows)

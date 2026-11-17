@@ -122,28 +122,26 @@ Execution layouts are cached by default under `~/.cache/tensorvs/layouts`. Set `
 
 ### README figures
 
-The four README cards show GloVe 1.2M and Tencent Hunyuan at query batch size
-128, top-k 10, and 1,024 IVF lists. The AMD, Apple, and Ascend cards read the
-completed CSV/JSON pairs in [`result/`](../result/). They show measured IVF-Flat
-points from 85% recall onward and the measured QPS/recall frontier for IVF-PQ.
-The NVIDIA card uses the corresponding panels already drawn in the paper's
-CUDA figures, including the cuVS and Faiss GPU comparisons. The Hunyuan CUDA
-and ROCm IVF-PQ panels have no Faiss GPU curve for the 384-subquantizer setup.
+The README figures show GloVe 1.2M and Tencent Hunyuan with top-k 10 and 1,024
+IVF lists. IVF-Flat uses query batches 32, 128, and 512 on NVIDIA, AMD, and
+Apple Silicon. Ascend IVF-Flat and all IVF-PQ plots use batch 128.
 
-CPU references are labeled in the Apple and Ascend cards. In particular, the
-GloVe IVF-PQ result from the tested Faiss Metal package ran on CPU. The Ascend
-GloVe IVF-PQ card reports only TensorVS because the saved Faiss Ascend run uses
-inner-product ground truth while TensorVS uses squared L2.
+The AMD, Apple, and Ascend plots reuse the paper's plotting scripts and
+the completed CSV/JSON pairs in [`result/`](../result/). The NVIDIA plots
+use approximate points recovered from the vector paths and axis ticks of
+the two paper figures. The coordinates describe the visible curves,
+including the cuVS and Faiss GPU baselines. [NVIDIA plot data](benchmark-data/nvidia-paper-curves.csv)
 
-From the repository root, with Matplotlib, Pillow, and Poppler's `pdftoppm`:
+The Apple GloVe IVF-PQ run from the Faiss Metal package used CPU search.
+The Ascend GloVe IVF-PQ panel shows Faiss Ascend with inner-product ground
+truth and TensorVS with squared-L2 ground truth.
+
+Run the [plotting script](../plot/readme_benchmarks.py) from the repository
+root with Matplotlib installed. It writes the eight PNGs to `docs/assets/`.
 
 ```bash
-conda run -n tensorvs python -m plot.readme_benchmarks \
-  --nvidia-pq /path/to/paper/expFig/IVFPQ_CUDA_QBatch128_K10.pdf
+conda run -n tensorvs python -m plot.readme_benchmarks
 ```
-
-The command writes PNGs to `docs/assets/`. The CUDA IVF-Flat source defaults
-to the [paper figure in this repository](../plot/Figures/IVFFlat_CUDA_QBatch32_128_512_K10.pdf).
 
 Apple Silicon query results are stored in `result/` as one CSV/JSON pair per
 method, dataset, and index configuration. Names follow the same platform-first
