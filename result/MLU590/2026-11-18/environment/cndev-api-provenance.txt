@@ -1,0 +1,9 @@
+f538365f1b5ae27309183655cc70c21efb695cbea05081f0c88ae4fe1bce704b  /usr/local/neuware/include/cndev.h
+8b7c328dcfbbf7d5d1f1979cc2b2b8640b71763169b066a53494dedf18925e72  /usr/local/neuware/lib64/libcndev.so
+/** Process information.*/
+typedef struct {
+	__int32_t version;             /**< IN: API version.*/
+	__uint32_t pid;                /**< OUT: Process ID.*/
+	__uint64_t physicalMemoryUsed; /**< OUT: MLU physical memory used by the process, unit: KiB.*/
+	__uint64_t virtualMemoryUsed;  /**< OUT: MLU virtual memory used by the process, unit: KiB.*/
+} cndevProcessInfo_t;

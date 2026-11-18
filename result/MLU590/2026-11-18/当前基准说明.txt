@@ -1,0 +1,48 @@
+TensorVS / 单张寒武纪 MLU590-M9DG 80 GiB / 当前版本基准
+状态：论文口径 batch=128 主基准全部22点及四组独立搜索显存测量已完成。
+范围：batch128，两个百万向量数据集、两种索引，共22个主实验点；其他批次仅作附加数据。
+TensorVS commit：fe15d623ac6e0493842e685a5dd67cf1f5e70ae9
+flash-kmeans commit：2c3c68481761caea2c6100f9bd5c951dc04271f8
+CPU：2×AMD EPYC 9K84 96核，192物理核/384逻辑线程；实验16线程；主存1.5TiB。
+OS：TencentOS4宿主，Ubuntu24.04容器；Linux6.6.98-40.9.tl4.x86_64；glibc2.39。
+驱动6.5.48，固件1.1.2；Python3.10.20，NumPy1.26.4，Torch2.7.1+cpu，torch_mlu1.29.2+torch2.7.1。
+实际设备mlu:0；Torch路径；Triton/compile/TF32关闭；原生uint8选取；未启用P800兼容开关和后续调优。
+数据：每份base1000000条、query1000条；GloVe维度200，原始向量不归一化；Gauss维度768，自行生成标准高斯数据，不是真实Hunyuan embedding。
+参数：nlist1024、topk10；PQ M25/M384、8bit、LUT fp16；2轮完整预热，3轮1000-query同步计时取中位数。
+Build单次测量；包含训练、全量分配和PQ编码；排除读文件和保存。保存包含列表布局打包及序列化。
+
+构建：dataset method Build(s) 保存(s) 大小(GB) 构建allocator峰值(MiB)
+glove1m ivfflat 0.8435 3.0431 0.8473 6017.01
+glove1m ivfpq 2.2264 0.6591 0.0797 6017.01
+gauss768 ivfflat 1.7126 11.4368 3.1633 4312.30
+gauss768 ivfpq 46.7677 3.9922 0.8068 9192.36
+
+主查询：dataset method nprobe QPS Recall@10(%) 搜索进程采样峰值(GB)
+glove1m ivfflat 50 5933.08 78.66 1.5219
+glove1m ivfflat 100 4564.79 93.03 1.5252
+glove1m ivfflat 200 3057.11 99.74 1.5252
+glove1m ivfflat 400 1726.53 100.00 1.5252
+glove1m ivfflat 800 1552.25 100.00 1.5252
+glove1m ivfflat 1024 1426.21 100.00 1.5252
+glove1m ivfpq 50 2082.43 27.42 0.4246
+glove1m ivfpq 100 1182.74 29.58 0.4283
+glove1m ivfpq 200 667.93 30.41 0.4283
+glove1m ivfpq 400 349.33 30.34 0.4285
+glove1m ivfpq 800 184.14 30.32 0.4288
+glove1m ivfpq 1024 158.96 30.32 0.4288
+gauss768 ivfflat 350 1405.17 82.53 4.1368
+gauss768 ivfflat 500 1125.44 97.03 4.1402
+gauss768 ivfflat 700 1124.33 99.95 4.1402
+gauss768 ivfflat 900 1069.67 100.00 4.1402
+gauss768 ivfflat 1024 957.87 100.00 4.1402
+gauss768 ivfpq 350 10.12 48.29 0.9675
+gauss768 ivfpq 500 12.27 59.49 0.9676
+gauss768 ivfpq 700 8.41 68.30 0.9676
+gauss768 ivfpq 900 5.58 74.15 0.9676
+gauss768 ivfpq 1024 13.77 76.01 0.9676
+
+进程显存来自独立memory-only重放、CNDEV物理显存计数；目标采样间隔20ms，实际间隔见原始JSON；采样最大值可能漏掉短暂峰值。
+Torch分配器显存和进程物理显存分别保留，不把原始null字段解释为0。吞吐计时不含该显存重放。
+完整协议、环境和口径见report.html；原始计时及逐点数据见query-results.csv、results/和baseline-summary.json；归档范围见README.md；复现包暂未上传。
+未混入CPU/P800对照、调优或作废计时；附加batch32/512数据另存additional-query-results.csv。
+生成时间：2026-11-18T06:21:10.179Z

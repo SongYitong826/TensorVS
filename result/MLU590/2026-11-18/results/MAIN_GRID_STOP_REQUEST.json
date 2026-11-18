@@ -1,0 +1,9 @@
+{
+  "scope": "Current TensorVS MLU590; paper main grid, batch128 only",
+  "points": 22,
+  "completed_at": "2026-11-18T06:05:18.407135+00:00",
+  "stopped_optional_sweep_pids": [
+    4128
+  ],
+  "note": "Optional batch32/512 Gauss PQ sweep intentionally interrupted after the complete batch128 baseline; full 66-point grid is not claimed complete."
+}

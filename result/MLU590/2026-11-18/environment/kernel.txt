@@ -1,0 +1,1 @@
+Linux 3166ca4315d5 6.6.98-40.9.tl4.x86_64 #1 SMP Thu Jan 22 12:13:09 CST 2026 x86_64 x86_64 x86_64 GNU/Linux

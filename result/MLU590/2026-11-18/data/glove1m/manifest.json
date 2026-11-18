@@ -1,0 +1,16 @@
+{
+  "dataset": "GloVe200 first 1M ANN-benchmarks train rows",
+  "source": "https://ann-benchmarks.com/glove-200-angular.hdf5",
+  "base_shape": [
+    1000000,
+    200
+  ],
+  "query_shape": [
+    1000,
+    200
+  ],
+  "metric": "squared_l2",
+  "normalization": "none; original float32 vectors preserved",
+  "groundtruth": "exact faiss.IndexFlatL2 against selected 1M rows",
+  "groundtruth_seconds": 0.6408674998674542
+}

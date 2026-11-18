@@ -78,3 +78,10 @@ dist/
 !/bench/run_sift100m_library_suite.sh
 
 !/bench/SIFT100M_LIBRARY_MULTIGPU.md
+
+# Archived MLU590 baseline measurements.
+!/result/MLU590/
+/result/MLU590/*
+!/result/MLU590/2026-11-18/
+!/result/MLU590/2026-11-18/results/Build/
+!/result/MLU590/2026-11-18/results/Build/*
