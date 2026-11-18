@@ -1,0 +1,42 @@
+{
+  "dataset": "glove1.2m",
+  "method": "Faiss-CPU",
+  "nlist": 1024,
+  "n_vectors": 1193514,
+  "dim": 224,
+  "original_dim": 200,
+  "padded_dim": 224,
+  "pq_m": 32,
+  "nbits": 8,
+  "pq_train_points": 512,
+  "cpu_threads": 64,
+  "build_threads": 64,
+  "query_threads": 1,
+  "build_time_seconds": 63.08261609310284,
+  "train_seconds": 57.869892741087824,
+  "add_seconds": 5.212428843136877,
+  "serialize_seconds": 0.919332614634186,
+  "index_size_bytes": 48895812,
+  "index_size_mb": 46.630680084228516,
+  "peak_build_cpu_memory_mib": 2272.6875,
+  "preparation_seconds": 0.9450571122579277,
+  "index_path": "/storage/vector_data/glove1.2m/CPUIndex/Faiss/CPU_Faiss_IVFPQ_glove1.2m_nlist1024_M32_nbits8_train512.faiss",
+  "memory_definition": "10ms sampled process RSS including base loading, padding, training, add and serialization; may miss shorter peaks",
+  "timing_definition": "index creation + training + add, excluding input load and serialization",
+  "cpu_information": {
+    "architecture": "x86_64",
+    "processor": "x86_64",
+    "logical_cpu_count": 192,
+    "available_cpu_threads": 192,
+    "cpuinfo": {
+      "model name": "Intel(R) Xeon(R) Platinum 8457C"
+    }
+  },
+  "faiss_version": "1.15.0",
+  "base": {
+    "path": "/storage/vector_data/glove1.2m/glove1.2m_base.fvecs",
+    "size_bytes": 959585256,
+    "mtime_ns": 1533628423000000000
+  },
+  "metric": "squared_l2"
+}

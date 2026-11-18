@@ -1,0 +1,2 @@
+dataset,method,nlist,n_vectors,dim,cpu_threads,build_time_seconds,train_seconds,add_seconds,serialize_seconds,index_size_bytes,index_size_mb,peak_build_cpu_memory_mib
+glove1.2m,Faiss-CPU,1024,1193514,200,16,50.048062161076814,46.02780593186617,4.020022007171065,10.091231547761708,965186843,920.4739027023315,2457.9921875

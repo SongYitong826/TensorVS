@@ -1,0 +1,904 @@
+{
+  "status": "complete",
+  "build": {
+    "dataset": "glove1.2m",
+    "method": "Faiss-CPU",
+    "nlist": 1024,
+    "n_vectors": 1193514,
+    "dim": 200,
+    "original_dim": 200,
+    "padded_dim": 200,
+    "pq_m": null,
+    "nbits": null,
+    "pq_train_points": null,
+    "cpu_threads": 16,
+    "build_time_seconds": 50.048062161076814,
+    "train_seconds": 46.02780593186617,
+    "add_seconds": 4.020022007171065,
+    "serialize_seconds": 10.091231547761708,
+    "index_size_bytes": 965186843,
+    "index_size_mb": 920.4739027023315,
+    "peak_build_cpu_memory_mib": 2457.9921875,
+    "preparation_seconds": 0.595611329190433,
+    "index_path": "/storage/vector_data/glove1.2m/CPUIndex/Faiss/CPU_Faiss_IVFFLAT_glove1.2m_nlist1024.faiss",
+    "memory_definition": "10ms sampled process RSS including base loading, padding, training, add and serialization; may miss shorter peaks",
+    "timing_definition": "index creation + training + add, excluding input load and serialization",
+    "cpu_information": {
+      "architecture": "x86_64",
+      "processor": "x86_64",
+      "logical_cpu_count": 192,
+      "available_cpu_threads": 192,
+      "cpuinfo": {
+        "model name": "Intel(R) Xeon(R) Platinum 8457C"
+      }
+    },
+    "faiss_version": "1.15.0",
+    "base": {
+      "path": "/storage/vector_data/glove1.2m/glove1.2m_base.fvecs",
+      "size_bytes": 959585256,
+      "mtime_ns": 1533628423000000000
+    },
+    "metric": "squared_l2"
+  },
+  "config": {
+    "dataset": "glove1.2m",
+    "kind": "ivfflat",
+    "build_threads": 16,
+    "query_threads": 1,
+    "index_loaded_from_cache": true,
+    "nq": 512,
+    "topk": 10,
+    "q_batches": [
+      32,
+      128,
+      512
+    ],
+    "nprobes": [
+      50,
+      80,
+      100,
+      120,
+      140,
+      160,
+      180,
+      200,
+      220,
+      240,
+      260,
+      280,
+      300,
+      320,
+      340,
+      360,
+      380,
+      400
+    ],
+    "warmup": 2,
+    "repetitions": 3,
+    "query": {
+      "path": "/storage/vector_data/glove1.2m/glove1.2m_query.fvecs",
+      "size_bytes": 804000,
+      "mtime_ns": 1533628387000000000
+    },
+    "truth": {
+      "path": "/storage/vector_data/glove1.2m/glove1.2m_groundtruth.ivecs",
+      "size_bytes": 404000,
+      "mtime_ns": 1758175381288319284
+    }
+  },
+  "results": [
+    {
+      "nprobes": 50,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 126.23104888776159,
+      "recall": 0.8373046875000001,
+      "visited_vectors_per_query": 120907.4375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        3.8724955921061337,
+        4.05605439003557,
+        4.263483582995832
+      ],
+      "peak_rss_memory_mib": 1142.6953125
+    },
+    {
+      "nprobes": 80,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 73.45692667299195,
+      "recall": 0.9148437500000001,
+      "visited_vectors_per_query": 195055.36328125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        6.9700710768811405,
+        7.366363782901317,
+        6.806106643751264
+      ],
+      "peak_rss_memory_mib": 1142.9765625
+    },
+    {
+      "nprobes": 100,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 67.32474673405352,
+      "recall": 0.9378906250000001,
+      "visited_vectors_per_query": 243412.861328125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        7.8440618249587715,
+        7.439930128399283,
+        7.604930205270648
+      ],
+      "peak_rss_memory_mib": 1143.69921875
+    },
+    {
+      "nprobes": 120,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 43.087129218359124,
+      "recall": 0.9607421875,
+      "visited_vectors_per_query": 291173.337890625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        10.386493249796331,
+        12.879325528629124,
+        11.882898890879005
+      ],
+      "peak_rss_memory_mib": 1143.71875
+    },
+    {
+      "nprobes": 140,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 41.07478348063227,
+      "recall": 0.973828125,
+      "visited_vectors_per_query": 338191.47265625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        12.33984701987356,
+        12.568434549961239,
+        12.465068750549108
+      ],
+      "peak_rss_memory_mib": 1143.73828125
+    },
+    {
+      "nprobes": 160,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 36.68891977831688,
+      "recall": 0.98203125,
+      "visited_vectors_per_query": 384157.96484375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        13.081818259321153,
+        13.95516693033278,
+        15.052168618422002
+      ],
+      "peak_rss_memory_mib": 1143.75390625
+    },
+    {
+      "nprobes": 180,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 30.97625498766882,
+      "recall": 0.987890625,
+      "visited_vectors_per_query": 429164.08984375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        15.782234598882496,
+        16.528789558447897,
+        17.106453344691545
+      ],
+      "peak_rss_memory_mib": 1143.765625
+    },
+    {
+      "nprobes": 200,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 28.03145697687337,
+      "recall": 0.9916015625,
+      "visited_vectors_per_query": 473263.4609375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        17.396919631399214,
+        18.265194007661194,
+        19.113655757624656
+      ],
+      "peak_rss_memory_mib": 1143.7734375
+    },
+    {
+      "nprobes": 220,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 26.08360074374159,
+      "recall": 0.994140625,
+      "visited_vectors_per_query": 516623.78515625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        19.62919172970578,
+        19.957013161852956,
+        19.58445961261168
+      ],
+      "peak_rss_memory_mib": 1143.8046875
+    },
+    {
+      "nprobes": 240,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 25.283298300531794,
+      "recall": 0.9951171875,
+      "visited_vectors_per_query": 559325.14453125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        19.84991113608703,
+        20.250522456131876,
+        20.622343173250556
+      ],
+      "peak_rss_memory_mib": 1143.81640625
+    },
+    {
+      "nprobes": 260,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 22.040592523947137,
+      "recall": 0.9966796874999999,
+      "visited_vectors_per_query": 601361.880859375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        23.309128386434168,
+        23.229865505825728,
+        23.130492018070072
+      ],
+      "peak_rss_memory_mib": 1144.7421875
+    },
+    {
+      "nprobes": 280,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 19.669285151550376,
+      "recall": 0.9974609375,
+      "visited_vectors_per_query": 642595.86328125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        26.03043252741918,
+        24.685624978505075,
+        27.326396336313337
+      ],
+      "peak_rss_memory_mib": 1144.7578125
+    },
+    {
+      "nprobes": 300,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 19.421443381845762,
+      "recall": 0.9976562499999999,
+      "visited_vectors_per_query": 682503.646484375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        26.043498610146344,
+        26.370670079253614,
+        26.362613217439502
+      ],
+      "peak_rss_memory_mib": 1144.77734375
+    },
+    {
+      "nprobes": 320,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 19.216359114431782,
+      "recall": 0.9982421875,
+      "visited_vectors_per_query": 721979.287109375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        26.237122698221356,
+        26.643965017050505,
+        28.007611384615302
+      ],
+      "peak_rss_memory_mib": 1144.79296875
+    },
+    {
+      "nprobes": 340,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 16.849482495856417,
+      "recall": 0.9986328124999999,
+      "visited_vectors_per_query": 760302.541015625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        29.257468312978745,
+        30.386689925100654,
+        30.755062418989837
+      ],
+      "peak_rss_memory_mib": 1144.8125
+    },
+    {
+      "nprobes": 360,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 17.052015607547773,
+      "recall": 0.9990234375,
+      "visited_vectors_per_query": 797712.142578125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        30.120162998791784,
+        30.02577594248578,
+        28.91640495415777
+      ],
+      "peak_rss_memory_mib": 1144.8359375
+    },
+    {
+      "nprobes": 380,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 16.228042676065286,
+      "recall": 0.9990234375,
+      "visited_vectors_per_query": 834286.294921875,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        30.609115201979876,
+        31.55032373405993,
+        33.20859342115
+      ],
+      "peak_rss_memory_mib": 1144.84765625
+    },
+    {
+      "nprobes": 400,
+      "q_batch": 32,
+      "K": 10,
+      "qps": 18.18700171637404,
+      "recall": 0.9990234375,
+      "visited_vectors_per_query": 870046.71875,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        28.15197402983904,
+        28.54915078682825,
+        28.04150204313919
+      ],
+      "peak_rss_memory_mib": 1144.86328125
+    },
+    {
+      "nprobes": 50,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 138.17987442502405,
+      "recall": 0.8373046875000001,
+      "visited_vectors_per_query": 120907.4375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        3.7053152793087065,
+        3.6402308004908264,
+        3.719534716103226
+      ],
+      "peak_rss_memory_mib": 1145.00390625
+    },
+    {
+      "nprobes": 80,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 84.70064392522502,
+      "recall": 0.9148437500000001,
+      "visited_vectors_per_query": 195055.36328125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        6.044818271417171,
+        6.108997357077897,
+        6.013059382792562
+      ],
+      "peak_rss_memory_mib": 1145.015625
+    },
+    {
+      "nprobes": 100,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 69.53440311755813,
+      "recall": 0.9378906250000001,
+      "visited_vectors_per_query": 243412.861328125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        7.363261594902724,
+        7.29653575271368,
+        7.439259942620993
+      ],
+      "peak_rss_memory_mib": 1145.015625
+    },
+    {
+      "nprobes": 120,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 56.712615251881296,
+      "recall": 0.9607421875,
+      "visited_vectors_per_query": 291173.337890625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        9.215180387720466,
+        9.02797371847555,
+        8.86938864691183
+      ],
+      "peak_rss_memory_mib": 1145.015625
+    },
+    {
+      "nprobes": 140,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 48.90127899979086,
+      "recall": 0.973828125,
+      "visited_vectors_per_query": 338191.47265625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        10.568288379814476,
+        10.470073799137026,
+        10.417809230275452
+      ],
+      "peak_rss_memory_mib": 1145.01953125
+    },
+    {
+      "nprobes": 160,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 43.14216876688724,
+      "recall": 0.98203125,
+      "visited_vectors_per_query": 384157.96484375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        12.045486103743315,
+        11.867739027366042,
+        11.727244436275214
+      ],
+      "peak_rss_memory_mib": 1145.1796875
+    },
+    {
+      "nprobes": 180,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 38.438803510021195,
+      "recall": 0.987890625,
+      "visited_vectors_per_query": 429164.08984375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        13.271236784290522,
+        13.319873493630439,
+        13.526225783396512
+      ],
+      "peak_rss_memory_mib": 1145.19921875
+    },
+    {
+      "nprobes": 200,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 34.21299427134294,
+      "recall": 0.9916015625,
+      "visited_vectors_per_query": 473263.4609375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        14.965074262116104,
+        14.995199047960341,
+        14.869051026646048
+      ],
+      "peak_rss_memory_mib": 1145.21875
+    },
+    {
+      "nprobes": 220,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 31.25148017488434,
+      "recall": 0.994140625,
+      "visited_vectors_per_query": 516623.78515625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        16.383223998825997,
+        16.296800039708614,
+        16.656414980534464
+      ],
+      "peak_rss_memory_mib": 1145.2421875
+    },
+    {
+      "nprobes": 240,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 28.884412164977565,
+      "recall": 0.9951171875,
+      "visited_vectors_per_query": 559325.14453125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        17.904790136497468,
+        17.725823779124767,
+        17.56473985267803
+      ],
+      "peak_rss_memory_mib": 1145.26171875
+    },
+    {
+      "nprobes": 260,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 26.8188394493304,
+      "recall": 0.9966796874999999,
+      "visited_vectors_per_query": 601361.880859375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        19.09105727588758,
+        19.3751271776855,
+        19.001080732792616
+      ],
+      "peak_rss_memory_mib": 1145.28515625
+    },
+    {
+      "nprobes": 280,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 24.632043755175552,
+      "recall": 0.9974609375,
+      "visited_vectors_per_query": 642595.86328125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        20.367549828719348,
+        20.84217448113486,
+        20.785932547412813
+      ],
+      "peak_rss_memory_mib": 1145.30859375
+    },
+    {
+      "nprobes": 300,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 23.45664704089953,
+      "recall": 0.9976562499999999,
+      "visited_vectors_per_query": 682503.646484375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        21.827501565217972,
+        22.014513357076794,
+        21.629113901872188
+      ],
+      "peak_rss_memory_mib": 1145.328125
+    },
+    {
+      "nprobes": 320,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 22.017418217871747,
+      "recall": 0.9982421875,
+      "visited_vectors_per_query": 721979.287109375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        23.3217224041,
+        23.25431596627459,
+        23.167219867929816
+      ],
+      "peak_rss_memory_mib": 1145.34765625
+    },
+    {
+      "nprobes": 340,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 20.988196175658857,
+      "recall": 0.9986328124999999,
+      "visited_vectors_per_query": 760302.541015625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        24.347733652219176,
+        24.394664301536977,
+        24.51054430520162
+      ],
+      "peak_rss_memory_mib": 1145.375
+    },
+    {
+      "nprobes": 360,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 19.59310374602718,
+      "recall": 0.9990234375,
+      "visited_vectors_per_query": 797712.142578125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        28.609920288901776,
+        26.13164339028299,
+        26.00504036480561
+      ],
+      "peak_rss_memory_mib": 1145.74609375
+    },
+    {
+      "nprobes": 380,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 18.89406163832024,
+      "recall": 0.9990234375,
+      "visited_vectors_per_query": 834286.294921875,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        27.098461400251836,
+        27.191874287091196,
+        27.0435472833924
+      ],
+      "peak_rss_memory_mib": 1145.7890625
+    },
+    {
+      "nprobes": 400,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 17.95908643883721,
+      "recall": 0.9990234375,
+      "visited_vectors_per_query": 870046.71875,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        28.680882182437927,
+        28.032631491776556,
+        28.509245263878256
+      ],
+      "peak_rss_memory_mib": 1145.83203125
+    },
+    {
+      "nprobes": 50,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 137.73910583665818,
+      "recall": 0.8373046875000001,
+      "visited_vectors_per_query": 120907.4375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        3.719551690854132,
+        3.7097854670137167,
+        3.717172381002456
+      ],
+      "peak_rss_memory_mib": 1145.83203125
+    },
+    {
+      "nprobes": 80,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 86.7756021061802,
+      "recall": 0.9148437500000001,
+      "visited_vectors_per_query": 195055.36328125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        5.873161805793643,
+        5.900275971274823,
+        5.903449840378016
+      ],
+      "peak_rss_memory_mib": 1145.84765625
+    },
+    {
+      "nprobes": 100,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 68.23050136396176,
+      "recall": 0.9378906250000001,
+      "visited_vectors_per_query": 243412.861328125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        7.496548656839877,
+        7.503975344821811,
+        7.534136709757149
+      ],
+      "peak_rss_memory_mib": 1145.84765625
+    },
+    {
+      "nprobes": 120,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 56.459765202524785,
+      "recall": 0.9607421875,
+      "visited_vectors_per_query": 291173.337890625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        9.038038412109017,
+        9.122295388020575,
+        9.068404697813094
+      ],
+      "peak_rss_memory_mib": 1146.3984375
+    },
+    {
+      "nprobes": 140,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 48.53060609866986,
+      "recall": 0.973828125,
+      "visited_vectors_per_query": 338191.47265625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        10.526028549764305,
+        10.667685604654253,
+        10.550043388269842
+      ],
+      "peak_rss_memory_mib": 1146.5546875
+    },
+    {
+      "nprobes": 160,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 42.41191201458068,
+      "recall": 0.98203125,
+      "visited_vectors_per_query": 384157.96484375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        12.10886391531676,
+        12.06294224364683,
+        12.072080122772604
+      ],
+      "peak_rss_memory_mib": 1146.71875
+    },
+    {
+      "nprobes": 180,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 37.88281424876937,
+      "recall": 0.987890625,
+      "visited_vectors_per_query": 429164.08984375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        13.588702226988971,
+        13.515363368671387,
+        13.493962277192622
+      ],
+      "peak_rss_memory_mib": 1146.87890625
+    },
+    {
+      "nprobes": 200,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 34.4569478170933,
+      "recall": 0.9916015625,
+      "visited_vectors_per_query": 473263.4609375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        14.832231350708753,
+        14.859122250694782,
+        15.016356850974262
+      ],
+      "peak_rss_memory_mib": 1147.03515625
+    },
+    {
+      "nprobes": 220,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 31.121667598645317,
+      "recall": 0.994140625,
+      "visited_vectors_per_query": 516623.78515625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        16.451560584828258,
+        16.519203850999475,
+        16.24284961493686
+      ],
+      "peak_rss_memory_mib": 1147.19140625
+    },
+    {
+      "nprobes": 240,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 28.7585561676281,
+      "recall": 0.9951171875,
+      "visited_vectors_per_query": 559325.14453125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        17.58491163002327,
+        17.964620795100927,
+        17.80339725734666
+      ],
+      "peak_rss_memory_mib": 1147.1953125
+    },
+    {
+      "nprobes": 260,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 26.69813974961519,
+      "recall": 0.9966796874999999,
+      "visited_vectors_per_query": 601361.880859375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        19.177366093732417,
+        19.074926224071532,
+        19.316606014035642
+      ],
+      "peak_rss_memory_mib": 1147.0
+    },
+    {
+      "nprobes": 280,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 23.832515040480978,
+      "recall": 0.9974609375,
+      "visited_vectors_per_query": 642595.86328125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        21.36240828409791,
+        21.635180875193328,
+        21.483255087863654
+      ],
+      "peak_rss_memory_mib": 1147.1171875
+    },
+    {
+      "nprobes": 300,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 22.850792361632205,
+      "recall": 0.9976562499999999,
+      "visited_vectors_per_query": 682503.646484375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        22.406225215177983,
+        22.78693595994264,
+        22.218284433241934
+      ],
+      "peak_rss_memory_mib": 1147.234375
+    },
+    {
+      "nprobes": 320,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 21.918324161694393,
+      "recall": 0.9982421875,
+      "visited_vectors_per_query": 721979.287109375,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        23.29495216626674,
+        23.66865674685687,
+        23.35945012141019
+      ],
+      "peak_rss_memory_mib": 1147.3515625
+    },
+    {
+      "nprobes": 340,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 20.845461811816133,
+      "recall": 0.9986328124999999,
+      "visited_vectors_per_query": 760302.541015625,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        24.7253158390522,
+        24.561700989026576,
+        24.46883267071098
+      ],
+      "peak_rss_memory_mib": 1148.0
+    },
+    {
+      "nprobes": 360,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 19.81448788351529,
+      "recall": 0.9990234375,
+      "visited_vectors_per_query": 797712.142578125,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        25.63090070988983,
+        25.839678674004972,
+        25.95534549606964
+      ],
+      "peak_rss_memory_mib": 1147.58984375
+    },
+    {
+      "nprobes": 380,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 19.39521674094776,
+      "recall": 0.9990234375,
+      "visited_vectors_per_query": 834286.294921875,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        26.51158310798928,
+        26.364472274202853,
+        26.39826132589951
+      ],
+      "peak_rss_memory_mib": 1148.66015625
+    },
+    {
+      "nprobes": 400,
+      "q_batch": 512,
+      "K": 10,
+      "qps": 18.632607709462444,
+      "recall": 0.9990234375,
+      "visited_vectors_per_query": 870046.71875,
+      "peak_gpu_memory": 0.0,
+      "samples_seconds": [
+        27.478708723094314,
+        27.862511340063065,
+        27.457975166849792
+      ],
+      "peak_rss_memory_mib": 1147.828125
+    }
+  ],
+  "timing": "median of full-query sweeps; sum of per-batch index.search wall times, excluding statistics",
+  "memory": "CPU process RSS in JSON per query; peak_gpu_memory=0 because CPU-only",
+  "completed_rows": 54
+}
