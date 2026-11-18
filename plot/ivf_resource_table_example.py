@@ -23,11 +23,11 @@ DATASETS = ("SIFT", "GloVe", "Tiny", "Hunyuan", "GIST", "OpenAI")
 KEYS = {"GloVe": "glove1.2m", "Hunyuan": "hunyuan"}
 PLATFORMS = (
     ("NVIDIA GPU (CUDA)", DATASETS, ("TensorVS (Triton)", "cuVS", "Faiss GPU")),
-    ("Apple Silicon (MPS / Metal)", ("GloVe", "Hunyuan"), ("TensorVS (Tensor)", "Faiss Metal")),
     ("AMD GPU (ROCm)", ("GloVe", "Hunyuan"),
      ("TensorVS (Triton)", "TensorVS (Tensor)", "Faiss ROCm", "hipVS")),
+    ("Apple Silicon (MPS / Metal)", ("GloVe", "Hunyuan"), ("TensorVS (Tensor)", "Faiss Metal")),
     ("Ascend NPU", ("GloVe", "Hunyuan"), ("TensorVS (Tensor)", "Faiss Ascend")),
-    ("Cambricon MLU", ("GloVe", "Hunyuan"), ("TensorVS (Tensor)", "Baseline (TBD)")),
+    ("Cambricon MLU", ("GloVe", "Hunyuan"), ("TensorVS (Tensor)",)),
     ("Kunlunxin XPU", ("GloVe", "Hunyuan"), ("TensorVS (Tensor)",)),
 )
 
@@ -68,7 +68,7 @@ def amd_records(dataset, kind):
     key = KEYS[dataset]
     config = next(config for name, _, config in AMD_DATASETS if name == key)
     records, queries = {}, {}
-    for method in PLATFORMS[2][2]:
+    for method in PLATFORMS[1][2]:
         record = pending()
         records[method] = record
         if kind == "ivfpq" and key == "hunyuan" and method == "Faiss ROCm":
@@ -147,7 +147,7 @@ def ascend_records(dataset, kind):
 
 def apple_records(dataset, kind):
     key = KEYS[dataset]
-    records = {method: pending() for method in PLATFORMS[1][2]}
+    records = {method: pending() for method in PLATFORMS[2][2]}
     queries = {}
     for path in comparison_paths(RESULT, key, kind):
         measurements = mps_rows(path)
@@ -260,9 +260,9 @@ def make_table(kind, snapshot, audit):
             if platform_index == 0:
                 records = {method: snapshot[kind, dataset, method] for method in methods}
             elif platform_index == 1:
-                records = apple_records(dataset, kind)
-            elif platform_index == 2:
                 records = amd_records(dataset, kind)
+            elif platform_index == 2:
+                records = apple_records(dataset, kind)
             elif platform_index == 3:
                 records = ascend_records(dataset, kind)
             else:
@@ -274,10 +274,10 @@ def make_table(kind, snapshot, audit):
                 dataset_cell = (rf"\multirow{{{len(methods)}}}{{*}}{{{dataset}}}" if len(methods) > 1 else dataset) if method_index == 0 else ""
                 build_cell = cell(record["build"], record["reused"])
                 size_cell = cell(record["size"])
-                if platform_index == 2 and method_index == 0:
+                if platform_index == 1 and method_index == 0:
                     build_cell = rf"\multirow{{2}}{{*}}{{{build_cell}}}"
                     size_cell = rf"\multirow{{2}}{{*}}{{{size_cell}}}"
-                elif platform_index == 2 and method_index == 1:
+                elif platform_index == 1 and method_index == 1:
                     build_cell = size_cell = ""
                 body.append(f"{dataset_cell} & {method_label(method)} & {build_cell} & {size_cell} & {cell(record['peak'])} " + r"\\")
             if dataset_index != len(datasets) - 1:

@@ -20,7 +20,8 @@ sys.path.insert(0, str(ROOT))
 from plot.ivf_resource_table_compact import collect
 from plot.ivf_resource_table_example import PLATFORMS, cell
 
-PLATFORM_NAMES = ("NVIDIA", "Apple", "AMD", "Ascend", "Cambricon", "Kunlunxin")
+PLATFORM_NAMES = ("NVIDIA GPU", "AMD GPU", "Apple Silicon GPU", "Huawei Ascend NPU",
+                  "Cambricon MLU", "Kunlunxin XPU")
 PAPER_EXPERIMENTS = Path("/Users/yitongsong/Desktop/TensorVS_SIGMOD27/6-experiments.tex")
 PAPER_TABLE_LABEL = r"\label{tab:ivf-cuda-resource-statistics}"
 HEADERS = {
@@ -30,7 +31,6 @@ HEADERS = {
     "Faiss Metal": r"\shortstack{Faiss\\Metal}",
     "Faiss ROCm": r"\shortstack{Faiss\\ROCm}", "hipVS": "hipVS",
     "Faiss Ascend": r"\shortstack{Faiss\\Ascend}",
-    "Baseline (TBD)": r"\shortstack{Baseline\\(TBD)}",
 }
 COLORS = r"""\definecolor{e8qrow}{HTML}{EEF3F8}
 \definecolor{pending}{HTML}{929AA4}
@@ -46,7 +46,7 @@ PREAMBLE = r"""\documentclass[border=4pt]{standalone}
 
 
 def best_tensorvs_cells(records):
-    """Compare numeric values within each platform/dataset/index/metric group."""
+    """Mark TensorVS values within 5% of each group minimum."""
     groups = {}
     for (platform, dataset, kind, method), entry in records.items():
         for metric in ("build", "size", "peak"):
@@ -61,7 +61,7 @@ def best_tensorvs_cells(records):
         minimum = min(value for _, value in values)
         best.update((platform, dataset, kind, method, metric)
                     for method, value in values
-                    if method.startswith("TensorVS (") and value == minimum)
+                    if method.startswith("TensorVS (") and value <= minimum * Decimal("1.05"))
     return best
 
 
@@ -76,9 +76,16 @@ def table(records, platforms, datasets):
     best = best_tensorvs_cells(records)
     columns = [(p, method) for p in platforms for method in PLATFORMS[p][2]]
     count = len(columns) + 2
-    header_size = "5.8" if len(columns) > 3 else "7.0"
+    header_size = "4.8" if len(columns) > 3 else "7.0"
     # Equal method-column widths keep all neighboring values evenly spaced.
-    specs = r">{\centering\arraybackslash}X" * len(columns)
+    specs_parts = []
+    for group_index, platform in enumerate(platforms):
+        if group_index:
+            gap = "10pt" if (len(PLATFORMS[platform][2]) == 1
+                             and len(PLATFORMS[platforms[group_index - 1]][2]) == 1) else "2.1pt"
+            specs_parts.append(r"@{\hspace{" + gap + "}}")
+        specs_parts.extend(r">{\centering\arraybackslash}X" for _ in PLATFORMS[platform][2])
+    specs = "".join(specs_parts)
     parts = [r"""\begingroup
 \scriptsize
 \setlength{\tabcolsep}{1.05pt}
@@ -86,7 +93,7 @@ def table(records, platforms, datasets):
 \setlength{\belowrulesep}{0.20ex}
 \renewcommand{\arraystretch}{.88}
 \renewcommand{\tabularxcolumn}[1]{m{#1}}
-""", r"\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}m{32pt}>{\raggedright\arraybackslash}m{40pt}"
+""", r"\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash\fontsize{6.3}{7}\selectfont}m{28pt}>{\raggedleft\arraybackslash\fontsize{6.3}{7}\selectfont}m{34pt}"
        + specs + r"@{}}",
              r"\toprule"]
     # Account for the two-line method labels and cmidrule spacing in the header.
@@ -96,9 +103,11 @@ def table(records, platforms, datasets):
     start = 3
     for platform in platforms:
         methods = PLATFORMS[platform][2]
-        name = rf"\fontsize{{{header_size}}}{{7.4}}\selectfont\textbf{{{PLATFORM_NAMES[platform]}}}"
-        if len(methods) == 1:
-            name = r"\scalebox{.85}{" + name + "}"
+        name = rf"\fontsize{{{header_size}}}{{5.6}}\selectfont\textbf{{{PLATFORM_NAMES[platform]}}}"
+        if PLATFORM_NAMES[platform] == "Cambricon MLU":
+            name = r"\hspace{-2pt}" + name
+        elif PLATFORM_NAMES[platform] == "Kunlunxin XPU":
+            name = r"\hspace{2pt}" + name
         # A platform label must not widen its method columns (notably Kunlunxin).
         row.append(rf"\multicolumn{{{len(methods)}}}{{c}}{{\makebox[0pt]{{{name}}}}}")
         rules.append(rf"\cmidrule(lr){{{start}-{start + len(methods) - 1}}}")
@@ -107,7 +116,8 @@ def table(records, platforms, datasets):
     method_size = "5.5" if len(columns) > 3 else header_size
     for _, method in columns:
         label = HEADERS[method]
-        method_headers.append(r"{\fontsize{" + method_size + r"}{7.4}\selectfont " + label + "}")
+        weight = r"\bfseries " if method.startswith("TensorVS (") else ""
+        method_headers.append(r"{\fontsize{" + method_size + r"}{7.4}\selectfont " + weight + label + "}")
     parts.extend((" & ".join(row) + r" \\", "".join(rules),
                   " & & " + " & ".join(method_headers) + r" \\",
                   r"\midrule"))
@@ -217,7 +227,7 @@ def main():
     extra = work_dir / "cuda_resources.tex"
     first = save(main_tex, records, tuple(range(6)), ("GloVe", "Hunyuan"))
     second = save(extra, records, (0,), ("SIFT", "Tiny", "GIST", "OpenAI"))
-    assert first == 56 and second == 24
+    assert first == 52 and second == 24
     compiler = shutil.which("pdflatex") or "/Library/TeX/texbin/pdflatex"
     for source in (main_tex, extra):
         result = subprocess.run(
@@ -233,7 +243,7 @@ def main():
             shutil.copy2(artifact, destination)
             print(f"Saved {destination}")
     sync_paper_table(records)
-    print(f"Wrote main table ({first} records) and CUDA companion ({second} records); total 80 preserved")
+    print(f"Wrote main table ({first} records) and CUDA companion ({second} records); total 76 preserved")
 
 
 if __name__ == "__main__":

@@ -15,9 +15,9 @@ from plot.ivf_resource_table_example import (
 UNSUPPORTED_CONFIGURATIONS = {
     (0, "Hunyuan", "ivfpq", "Faiss GPU"):
         "Native CUDA IVF-PQ LUT exceeds per-thread-block shared memory for M=384, nbits=8",
-    (1, "Hunyuan", "ivfpq", "Faiss Metal"):
+    (2, "Hunyuan", "ivfpq", "Faiss Metal"):
         "Metal IVF-PQ wrapper supports M<=64; Hunyuan uses M=384",
-    (2, "Hunyuan", "ivfpq", "Faiss ROCm"):
+    (1, "Hunyuan", "ivfpq", "Faiss ROCm"):
         "ROCm GPU IVF-PQ LUT exceeds per-thread-block shared memory for M=384, nbits=8",
 }
 
@@ -31,9 +31,9 @@ def collect():
                 if platform_index == 0:
                     entries = {method: snapshot[kind, dataset, method] for method in methods}
                 elif platform_index == 1:
-                    entries = apple_records(dataset, kind)
-                elif platform_index == 2:
                     entries = amd_records(dataset, kind)
+                elif platform_index == 2:
+                    entries = apple_records(dataset, kind)
                 elif platform_index == 3:
                     entries = ascend_records(dataset, kind)
                 else:
@@ -46,7 +46,7 @@ def collect():
                         entry = dict(entry, build="N/S", size="N/S", peak="N/S",
                                      reused=False, unsupported_reason=UNSUPPORTED_CONFIGURATIONS[key])
                     records[key] = entry
-    assert len(records) == 80
+    assert len(records) == 76
     return records
 
 
@@ -73,10 +73,10 @@ def panel(platform_indexes, records):
                     entry = records[platform_index, dataset, kind, method]
                     build = cell(entry["build"], entry["reused"])
                     size = cell(entry["size"])
-                    if platform_index == 2 and method_index == 0:
+                    if platform_index == 1 and method_index == 0:
                         build = rf"\multirow{{2}}{{*}}{{{build}}}"
                         size = rf"\multirow{{2}}{{*}}{{{size}}}"
-                    elif platform_index == 2 and method_index == 1:
+                    elif platform_index == 1 and method_index == 1:
                         build = size = ""
                     values.extend((build, size, cell(entry["peak"])))
                 parts.append(" & ".join((dataset_cell, method_label(method), *values)) + r" \\")
