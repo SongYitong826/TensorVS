@@ -306,6 +306,56 @@ path and writes diagnostic JSON to `diagnostics/`, separately from experiment
 CSVs. Its batch QPS is a tuning measurement, not a replacement for full-query
 benchmark sweeps.
 
+The shared tuner, `bench/tune_tensor_tiles.py`, also supports **Cambricon MLU**
+and **Kunlun**, with the same fixed-index validation and synchronized batch
+timing. The Ascend command above remains a compatible entry point. Platform
+selection imports the vendor plugin only when needed:
+
+| `--platform` | Default device | Required vendor module |
+| --- | --- | --- |
+| `ascend` | `npu:0` | `torch_npu` |
+| `mlu` | `mlu:0` | `torch_mlu` |
+| `kunlun` | `cuda:0` | `torch_xmlir` (xpytorch CUDA compatibility interface) |
+| `cuda` / `mps` / `cpu` | `cuda:0` / `mps` / `cpu` | None |
+
+Use the matching vendor PyTorch environment; the tuner does not install or
+replace a runtime. For Kunlun stacks exposing another device API, override
+`--device` and `--device-module` with the registration provided by that stack.
+Stock PyTorch's `xpu` device denotes Intel, so `xpu` alone does not identify
+Kunlun. The tuner requires the selected accelerator and its synchronization
+API; it does not silently select CPU. Runtime versions, the actual device,
+precision flags and the unchanged index metadata are recorded in the report.
+
+Pass explicit input paths to reuse MLU's existing `.bin` indexes and `.npy`
+queries/ground truth, including the `glove1m` and `gauss768` datasets. For example
+(replace `/path/to` with the existing files):
+
+```bash
+conda run -n tensorvs python bench/tune_tensor_tiles.py ivfpq \
+  --platform mlu --device mlu:0 --dataset gauss768 \
+  --index /path/to/indexes/MLU590_Tensor_ivfpq_gauss768.bin \
+  --queries /path/to/data/gauss768/gauss768_query.npy \
+  --groundtruth /path/to/data/gauss768/gauss768_groundtruth.npy \
+  --q-batch 128 --nprobe 650 --query-tiles 8 16 32 64 \
+  --candidate-chunks 512 1024 2048 --task-caps 64 256 \
+  --memory-budgets 128 256 --lut-chunks 16 32 --pq-lookup flat gather
+```
+
+For Kunlun, use the same command with `--platform kunlun --device cuda:0`
+and the paths to that machine's unchanged index and dataset. Tune `ivfflat`
+with the same shared entry point; PQ-specific options only apply to `ivfpq`.
+Choose the existing experiment's NProbe, batch size and LUT dtype before each
+sweep; the example's NProbe is not a new search setting to apply universally.
+Only query tiles, candidate chunks, task caps, workspace, LUT reduction chunks
+and lookup organization vary. No padding, rotation, codebook, M, nbits, nlist,
+probe count, K or LUT precision is changed by tuning. Apply the winning
+`best` settings from the diagnostic JSON to the benchmark runner explicitly;
+the tuner does not overwrite indexes, experiment results or launcher presets.
+MLU/Kunlun batch timings synchronize the device on both sides of the search;
+their internal stage profile is skipped where supported stage timers are
+unavailable. These adapters have local CPU/mock regression coverage; actual
+MLU/Kunlun validation requires the target hardware and vendor runtime.
+
 The GloVe launcher applies the measured Ascend settings: 512 MiB workspace;
 PQ uses grouped `gather` lookup, a query tile up to 16, 1024 candidates per
 chunk, and 16 subspaces per reduction. The launcher uses one CPU thread.
