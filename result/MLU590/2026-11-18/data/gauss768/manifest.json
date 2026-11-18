@@ -1,0 +1,15 @@
+{
+  "dataset": "gauss768-synthetic",
+  "distribution": "independent standard normal N(0,1)",
+  "seed": 20261118,
+  "generator": "NumPy PCG64 standard_normal float32",
+  "numpy": "1.26.4",
+  "n_base": 1000000,
+  "n_query": 1000,
+  "dim": 768,
+  "normalized": false,
+  "metric": "squared_l2",
+  "groundtruth": "Faiss IndexFlatL2 exact top100",
+  "groundtruth_seconds": 34.816854218021035,
+  "warning": "Synthetic Gaussian; not real Hunyuan embeddings or comparable to original Hunyuan recall curves"
+}

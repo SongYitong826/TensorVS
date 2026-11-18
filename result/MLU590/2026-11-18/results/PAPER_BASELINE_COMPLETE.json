@@ -1,0 +1,43 @@
+{
+  "scope": "Current TensorVS MLU590; paper main grid, batch128 only",
+  "points": 22,
+  "completed_at": "2026-11-18T06:05:18.407135+00:00",
+  "stopped_optional_sweep_pids": [
+    4128
+  ],
+  "note": "Optional batch32/512 Gauss PQ sweep intentionally interrupted after the complete batch128 baseline; full 66-point grid is not claimed complete.",
+  "coverage": [
+    {
+      "dataset": "glove1m",
+      "kind": "ivfflat",
+      "query_batch": 128,
+      "points": 6,
+      "raw_status": "complete",
+      "raw_file": "/root/petrizhang/tensorvs-mlu/results/MLU590_Tensor_ivfflat_glove1m.json"
+    },
+    {
+      "dataset": "glove1m",
+      "kind": "ivfpq",
+      "query_batch": 128,
+      "points": 6,
+      "raw_status": "complete",
+      "raw_file": "/root/petrizhang/tensorvs-mlu/results/MLU590_Tensor_ivfpq_glove1m.json"
+    },
+    {
+      "dataset": "gauss768",
+      "kind": "ivfflat",
+      "query_batch": 128,
+      "points": 5,
+      "raw_status": "complete",
+      "raw_file": "/root/petrizhang/tensorvs-mlu/results/MLU590_Tensor_ivfflat_gauss768.json"
+    },
+    {
+      "dataset": "gauss768",
+      "kind": "ivfpq",
+      "query_batch": 128,
+      "points": 5,
+      "raw_status": "failed",
+      "raw_file": "/root/petrizhang/tensorvs-mlu/results/MLU590_Tensor_ivfpq_gauss768.json"
+    }
+  ]
+}

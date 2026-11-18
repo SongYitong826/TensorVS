@@ -1,0 +1,167 @@
+================CNMON v6.5.48================
+Card 0
+    Product Name                        : MLU590-M9DG 
+    SN                                  : 802B102612900843 
+    Motherboard SN                      : 8031132612900065 
+    Part Number                         : BD259195 
+    UUID                                : 43089012-2610-2b80-0000-000000000000 
+    Vendor                              : Cambricon 
+    Firmware                            : v1.1.2 
+    Driver                              : v6.5.48 
+    Compute Mode                        : Default 
+    Mode                                : FULL 
+    Health State
+        Device                          : Good 
+        Driver                          : Running 
+    Utilization
+        Image Codec 0                   : 0 %
+        Image Codec 1                   : 0 %
+        Image Codec 2                   : 0 %
+        Image Codec 3                   : 0 %
+        Video Decoder 0                 : 0 %
+        Video Decoder 1                 : 0 %
+        Video Decoder 2                 : 0 %
+        Video Decoder 3                 : 0 %
+        MLU Average                     : 28 %
+        MLU 0-3                         : 32 % 32 % 32 % 32 % 
+        MLU 4-7                         : 30 % 30 % 30 % 30 % 
+        MLU 8-11                        : 28 % 28 % 28 % 28 % 
+        MLU 12-15                       : 28 % 28 % 28 % 28 % 
+        MLU 16-19                       : 27 % 27 % 27 % 28 % 
+        MLU 20-23                       : 28 % 28 % 28 % 28 % 
+        MLU 24-27                       : 27 % 27 % 27 % 27 % 
+        MLU 28-31                       : 27 % 27 % 27 % 27 % 
+        idle                            : 0 
+        busy                            : 32 
+        Tensor Average                  : 1 %
+        MLU Activity                    : 48 %
+    Chassis Fan Speed                   : N/A 
+    Performance Throttle Reason
+        TDP                             : Not Active 
+        Power Setting                   : Not Active 
+        Clock Setting                   : Not Active 
+        Frequency Locked                : Not Active 
+        Power Brake                     : Not Active 
+        Thermal Slowdown                : Not Active 
+    Temperature
+        Board                           : 40 C
+        Chip                            : 56 C
+        Memory                          : 48 C
+        Cluster                         : 56 C
+    Over Temperature
+        PowerOff Counter                : 0 
+        PowerOff Temp                   : N/A 
+        UnderClock Counter              : 0 
+        UnderClock Temp                 : N/A 
+        SlowDown Temp                   : 102 C
+        ShutDown Temp                   : 110 C
+    Frequency
+        IPU                             : 1850 MHz
+        Default                         : 1850 MHz
+    Physical Memory Usage
+        Total                           : 81920 MiB
+        Used                            : 4502 MiB
+        Reserved                        : 1170 MiB
+        Free                            : 76248 MiB
+    Global Memory                       : 81920 MiB
+    MEM Data Widths                     : 5120 Bit
+    MEM BandWidth                       : 2304000 MB/s
+    MEM Transfer Rate                   : 3600 Mbps
+    Virtual Memory Usage
+        Total                           : 1048576 MiB
+        Used                            : 14676 MiB
+        Free                            : 1033900 MiB
+    Device System Memory Usage
+        Total                           : 623868 KB
+        Used                            : 269456 KB
+        Free                            : 354412 KB
+    Fast Alloc Memory
+        Total                           : 131072 KB
+        Used                            : 63296 KB
+        Free                            : 67776 KB
+    Power
+        Usage                           : 158 W
+        Cap                             : 470 W
+        Thermal Design Power            : 470 W
+        Max Power                       : 700 W
+        Max Power Cap                   : 470 W
+        Min Power Cap                   : 235 W
+    Initialized                         : On 
+    DRAM ECC Err Count
+        Volatile  Corrected Err         : 0 
+        Volatile  Uncorrect Err         : 0 
+        Aggregate Corrected Err         : 0 
+        Aggregate Uncorrect Err         : 0 
+    SRAM ECC Err Count
+        Volatile  Corrected Err         : 0 
+        Volatile  Uncorrect Err         : 0 
+        Volatile  Parity Err            : 0 
+        Aggregate Corrected Err         : 0 
+        Aggregate Uncorrect Err         : 0 
+        Aggregate Parity Err            : 0 
+        Aggregate Threshold Exceeded    : No 
+    Parity Err Count                    : 0 
+    CRC Err Count                       : N/A 
+    PCI
+        Vendor ID                       : 0xcabc  
+        Device ID                       : 0x590  
+        Sub-Vendor ID                   : 0xcabc  
+        Sub-System ID                   : 0x802b  
+        Domain ID                       : 0000  
+        Bus num                         : 03  
+        Device                          : 00  
+        Function                        : 0  
+        Module ID                       : 0 
+        Slot ID                         : 6403 
+        Max Speed                       : 32 GT/s 
+        Max Width                       : x16 
+        Current Speed                   : 32 GT/s 
+        Current Width                   : x16 
+        NUMA node id                    : 0 
+        PCIe Replay Counter             : 0 
+        Throughput reading              : 329096 MB
+        Throughput writing              : 14948792 MB
+    Chassis
+        Product name                    : HBBU-M9DG 
+        Vendor name                     : Cambricon 
+        Product date                    : 2026-03-27 
+        Part number                     : DS591048 
+        SN                              : 80391F2613900049 
+        BMC IP                          : N/A 
+    Memory Error Recovery
+        Row-Remapping                   : N/A 
+        AddressSwap
+            Correctable Counts          : 0 
+            Uncorrectable Counts        : 0 
+            Channel Swap None           : 0 
+            Channel Swap Low            : 0 
+            Channel Swap Partial        : 0 
+            Channel Swap High           : 0 
+            Channel Swap Max            : 40 
+        Retired Pages
+            Page Retirement             : On 
+            Single Bit ECC              : 0 
+            Double Bit ECC              : 0 
+        Repair Pending                  : No 
+        Repair Failed                   : No 
+        Retire Pending                  : No 
+    Processes
+        ProcessNo0
+            PID                         : 3811170 
+            cmdline                     : python 
+            MLU Memory Usage            : 4436 MiB
+    Device Config
+        WatchDog Time                   : 96 s
+        Fast Alloc                      : 1 
+        Compress Memory                 : N/A 
+        Linear Memory                   : 2 
+        IPU LLC Data Cache              : 0 
+        Pinned NUMA node                : 0 
+    Voltage
+        Core Voltage                    : 910 mV
+        SoC Voltage                     : 750 mV
+        MEM Voltage                     : 1200 mV
+    Current
+        Core Current                    : 58000 mA
+        SoC Current                     : 26620 mA
+        MEM Current                     : 31560 mA

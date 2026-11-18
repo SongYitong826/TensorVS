@@ -1,0 +1,49 @@
+diff --git a/src/tensorvs/_torch_search.py b/src/tensorvs/_torch_search.py
+index a67c550..0779238 100644
+--- a/src/tensorvs/_torch_search.py
++++ b/src/tensorvs/_torch_search.py
+@@ -8,6 +8,7 @@ the bounded final/online merge.
+ from __future__ import annotations
+ 
+ import math
++import os
+ import time
+ import types
+ from functools import lru_cache
+@@ -22,6 +23,18 @@ from .refine import refine_search_results
+ from .util import get_default_device
+ 
+ 
++_PQ_INT8_SELECT = os.environ.get("TENSORVS_PQ_INT8_SELECT") == "1"
++
++
++def _select_pq_rows(data: torch.Tensor, positions: torch.Tensor) -> torch.Tensor:
++    """Optional P800 byte-preserving workaround for uint8 index_select."""
++    if _PQ_INT8_SELECT and data.is_cuda and data.dtype == torch.uint8:
++        # Select raw bytes through the supported signed-byte operator, then
++        # restore unsigned values before the existing LUT-address conversion.
++        return data.view(torch.int8).index_select(0, positions).view(torch.uint8)
++    return data.index_select(0, positions)
++
++
+ def search_device(queries: torch.Tensor, device: torch.device | str | None) -> torch.device:
+     """Honor explicit devices and non-CPU queries before selecting a device."""
+     if device is None:
+@@ -114,7 +127,7 @@ def _pq_packed_block_eager(luts, data, ids, corrections, bias, probes, offsets,
+     positions = torch.where(valid, offsets.index_select(0, lists.flatten()).reshape_as(lists)
+                             + ordinals[None, :] - previous.gather(1, ranks), 0)
+     index_dtype = torch.int32 if luts.numel() <= 2147483647 else torch.int64
+-    codes = data.index_select(0, positions.flatten()).reshape(*positions.shape, data.shape[1]).to(index_dtype)
++    codes = _select_pq_rows(data, positions.flatten()).reshape(*positions.shape, data.shape[1]).to(index_dtype)
+     if data.dtype == torch.int16:
+         codes = codes & 65535
+     query_offsets = torch.arange(luts.shape[0], device=luts.device, dtype=index_dtype)[:, None, None]
+@@ -548,7 +561,7 @@ def _pq_block_eager(luts, data, ids, corrections, probe_bias, query_ids, list_id
+     # LUT addresses fit in int32 for ordinary batches; retain int64 when
+     # the global table exceeds its range. index_select accepts both types.
+     index_dtype = torch.int32 if luts.numel() <= 2147483647 else torch.int64
+-    codes = data.index_select(0, positions_flat).reshape(*positions.shape, data.shape[1]).to(index_dtype)
++    codes = _select_pq_rows(data, positions_flat).reshape(*positions.shape, data.shape[1]).to(index_dtype)
+     if data.dtype == torch.int16:
+         codes = codes & 65535
+     # A single global LUT is shared by all list tasks. Construct its direct

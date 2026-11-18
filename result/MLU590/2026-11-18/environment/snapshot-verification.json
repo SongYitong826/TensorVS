@@ -1,0 +1,8 @@
+{
+  "verified_files": 29,
+  "excluded_diagnostic_files": [
+    "scripts/mlu_tune.py",
+    "scripts/prepare_baseline.py"
+  ],
+  "note": "Original captured source-sha256.txt retained; diagnostics are intentionally excluded from baseline delivery."
+}

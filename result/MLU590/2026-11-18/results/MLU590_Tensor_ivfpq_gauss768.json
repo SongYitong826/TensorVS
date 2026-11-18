@@ -1,0 +1,193 @@
+{
+  "status": "failed",
+  "config": {
+    "dataset": "gauss768",
+    "kind": "ivfpq",
+    "n_base": 1000000,
+    "n_query": 1000,
+    "dimension": 768,
+    "nlist": 1024,
+    "m": 384,
+    "nbits": 8,
+    "coarse_niter": 25,
+    "pq_niter": 50,
+    "seed": 1234,
+    "n_init": 1,
+    "max_points_per_centroid": 256,
+    "topk": 10,
+    "q_batches": [
+      128,
+      32,
+      512
+    ],
+    "warmup": 2,
+    "repetitions": 3,
+    "metric": "squared_l2",
+    "device": "mlu:0",
+    "hardware": "Cambricon MLU590-M9DG",
+    "torch": "2.7.1+cpu",
+    "python": "3.10.20 (main, Jul 18 2026, 17:02:35) [Clang 22.1.3 ]",
+    "numpy": "1.26.4",
+    "cpu_threads": 16,
+    "source_commit": "fe15d623ac6e0493842e685a5dd67cf1f5e70ae9",
+    "dataset_manifest": {
+      "dataset": "gauss768-synthetic",
+      "distribution": "independent standard normal N(0,1)",
+      "seed": 20261118,
+      "generator": "NumPy PCG64 standard_normal float32",
+      "numpy": "1.26.4",
+      "n_base": 1000000,
+      "n_query": 1000,
+      "dim": 768,
+      "normalized": false,
+      "metric": "squared_l2",
+      "groundtruth": "Faiss IndexFlatL2 exact top100",
+      "groundtruth_seconds": 34.816854218021035,
+      "warning": "Synthetic Gaussian; not real Hunyuan embeddings or comparable to original Hunyuan recall curves"
+    },
+    "pq_execution_codes": "uint8 one-byte payload; native MLU index_select",
+    "process_memory_metric": null,
+    "allocator_memory_metric": "torch.mlu.max_memory_allocated; excludes driver/runtime allocations",
+    "source_sha256": "b7cdadf131c4ea02e8ebdfde49813525e5c29721d54d6caff67d9ed316c4ecf3",
+    "torch_mlu_version": "1.29.2+torch2.7.1",
+    "mlu_allow_tf32": false,
+    "pq_int8_select": null,
+    "pq_lookup": "flat",
+    "source_files_sha256": {
+      "src/tensorvs/__init__.py": "9e466ab9e177ab54e257f8134577772bc03a0611972670af530820cf62b7489c",
+      "src/tensorvs/_coarse.py": "39369cd1ddbdb9fde67271d823f4c53c319540a6811bf62ce1a27a5d53242833",
+      "src/tensorvs/_coarse_triton.py": "08055a3812ed38cd1b744394b81f3489c1ad80be9201d73226cf5e5f00e2bc2f",
+      "src/tensorvs/_ivf_interleaved.py": "eb1810de4e9d4257151d7c62b085764bbb959f1a4064db8b16163ff8f048514d",
+      "src/tensorvs/_ivfflat_triton.py": "4a0ce2640dfa62478d8f2bbb018a5f161379d2297285aae9a16fa453394d388f",
+      "src/tensorvs/_ivfpq_pruned.py": "741e2782e7231be30cd8ee09bd33f35b74b8bc2176468be93db044928e58eb37",
+      "src/tensorvs/_ivfpq_triton.py": "81e23641832545c1942ff5da78fb1a0ab0933b94b494ddbbc0a2e4cb18518f30",
+      "src/tensorvs/_layout_cache.py": "31c84eb6900c8672008e66fd962ac1a38426f1a0f0ad944eec294d432d1f4a03",
+      "src/tensorvs/_pq_math.py": "856e1dca8704b473d4e5ea35e2063a266a4b80825dd52a48d109dfd48de95c9c",
+      "src/tensorvs/_torch_pq_bucketed.py": "a34b2f3b480579127af3cc0397a5d992df3146711bd0f74d9275abd52df8420d",
+      "src/tensorvs/_torch_search.py": "619c3987b02cab68356f92c82670928b7c96c39f9fd998cdf82c7dce5ad30bbe",
+      "src/tensorvs/distance.py": "d3b23e1302334b985a0f4de0717ab3daffda0f07acd37de945bca7812cbb82c1",
+      "src/tensorvs/index_ivfflat.py": "ae9342fb11ba6edf0134cbdb5b19428292409872de41787fa07b20af63b08ec3",
+      "src/tensorvs/index_ivfpq.py": "3ffd64c6dd39618f2898e2674dc3de20187623014d50c8cec151d129cde110ad",
+      "src/tensorvs/refine.py": "41488b2606701b916384e08ba92aafe94db73c54325d8427260c4dd542be2c13",
+      "src/tensorvs/torch_baseline.py": "d60dd7f7a3181822f82f5cad630c461cf0b48f2657b9804758e2d10b0b4e7aeb",
+      "src/tensorvs/util.py": "5e472ac00d58e65fab6531fb6b2535012575d8095fbeb3db6e0816cd8549ec77"
+    }
+  },
+  "build": {
+    "dataset": "gauss768",
+    "method": "Tensor",
+    "nlist": 1024,
+    "n_vectors": 1000000,
+    "dim": 768,
+    "build_seconds": 46.76774147152901,
+    "save_seconds": 3.992245187982917,
+    "index_size_bytes": 806773177,
+    "index_size_mib": 769.3988580703735,
+    "peak_build_gpu_memory_mib": null
+  },
+  "results": [
+    {
+      "nprobes": 350,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 10.115353908584275,
+      "recall": 0.48290000000000044,
+      "visited_vectors_per_query": 342418.416,
+      "peak_gpu_memory": null,
+      "samples_seconds": [
+        98.83372219651937,
+        98.85961569286883,
+        98.8624312095344
+      ],
+      "peak_torch_allocated_mib": 609.85302734375
+    },
+    {
+      "nprobes": 500,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 12.270642376396436,
+      "recall": 0.5949000000000015,
+      "visited_vectors_per_query": 488982.633,
+      "peak_gpu_memory": null,
+      "samples_seconds": [
+        81.49091976322234,
+        81.4953259434551,
+        81.50606125220656
+      ],
+      "peak_torch_allocated_mib": 608.80322265625
+    },
+    {
+      "nprobes": 700,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 8.405878588908388,
+      "recall": 0.6830000000000023,
+      "visited_vectors_per_query": 684317.843,
+      "peak_gpu_memory": null,
+      "samples_seconds": [
+        118.96436397731304,
+        119.20415886491537,
+        118.93391631171107
+      ],
+      "peak_torch_allocated_mib": 610.541015625
+    },
+    {
+      "nprobes": 900,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 5.5812228058424775,
+      "recall": 0.7414999999999999,
+      "visited_vectors_per_query": 879398.324,
+      "peak_gpu_memory": null,
+      "samples_seconds": [
+        179.17220558784902,
+        179.19859507866204,
+        179.1439943164587
+      ],
+      "peak_torch_allocated_mib": 610.73828125
+    },
+    {
+      "nprobes": 1024,
+      "q_batch": 128,
+      "K": 10,
+      "qps": 13.768707960753959,
+      "recall": 0.7600999999999989,
+      "visited_vectors_per_query": 1000000.0,
+      "peak_gpu_memory": null,
+      "samples_seconds": [
+        72.6084919013083,
+        72.7836887203157,
+        72.62845597788692
+      ],
+      "peak_torch_allocated_mib": 610.79248046875
+    }
+  ],
+  "hardware_before": "Wed Nov 18 12:52:33 2026\n+------------------------------------------------------------------------------+\n| CNMON v6.5.48                                                 Driver v6.5.48 |\n+-------------------------------+----------------------+-----------------------+\n| Card  VF  Name       Firmware |               Bus-Id | Util        Ecc-Error |\n| Module-Id Temp  Pwr:Usage/Cap |         Memory-Usage | Mode     Compute-Mode |\n|===============================+======================+=======================|\n| 0     /   MLU590-M9DG  v1.1.2 |         0000:03:00.0 | 0%                  0 |\n| 0         52C    112 W/ 470 W |     0 MiB/ 81920 MiB | FULL          Default |\n+-------------------------------+----------------------+-----------------------+\n\n+------------------------------------------------------------------------------+\n| Processes:                                                                   |\n|  Card  MI  PID     Command Line                             MLU Memory Usage |\n|==============================================================================|\n|  No running processes found                                                  |\n+------------------------------------------------------------------------------+\n\n\n",
+  "timing": "median of 3 synchronized resident padded full-query sweeps after 2 warmups; excludes recall and visit accounting",
+  "shared_hardware": "Idle device at start; see cnmon snapshots",
+  "index_ready_seconds": 50.759986659511924,
+  "save_seconds_scope": "list layout packing and index serialization",
+  "peak_build_torch_allocated_mib": 9192.3564453125,
+  "index": "/root/petrizhang/tensorvs-mlu/indexes/MLU590_Tensor_ivfpq_gauss768.bin",
+  "build_reused": true,
+  "harness_history": [
+    {
+      "previous_sha256": "b7cdadf131c4ea02e8ebdfde49813525e5c29721d54d6caff67d9ed316c4ecf3",
+      "resumed_sha256": "b7cdadf131c4ea02e8ebdfde49813525e5c29721d54d6caff67d9ed316c4ecf3",
+      "time": 1794978026.1638083
+    },
+    {
+      "previous_sha256": "b7cdadf131c4ea02e8ebdfde49813525e5c29721d54d6caff67d9ed316c4ecf3",
+      "resumed_sha256": "b7cdadf131c4ea02e8ebdfde49813525e5c29721d54d6caff67d9ed316c4ecf3",
+      "time": 1794978609.9330678
+    }
+  ],
+  "previous_errors": [
+    {
+      "error": "KeyboardInterrupt()",
+      "traceback": "Traceback (most recent call last):\n  File \"/root/petrizhang/tensorvs-mlu/scripts/mlu_experiment.py\", line 127, in main\n    for _ in range(1 if a.smoke else cfg['warmup']):sweep()\n  File \"/root/petrizhang/tensorvs-mlu/scripts/mlu_experiment.py\", line 117, in sweep\n    else:dist,ids=search(index,qb,topk=10,nprobe=probe,**options);torch.mlu.synchronize()\n  File \"/root/petrizhang/tensorvs-mlu/TensorVS/src/tensorvs/index_ivfpq.py\", line 1700, in search_ivfpq_index\n    return search_torch(\n  File \"/root/petrizhang/tensorvs-mlu/TensorVS/src/tensorvs/_torch_search.py\", line 1007, in search_torch\n    values, ids = block_fn(*block_args)\n  File \"/root/petrizhang/tensorvs-mlu/TensorVS/src/tensorvs/_torch_search.py\", line 581, in _pq_block_eager\n    values = flat_luts.index_select(0, indices.flatten()).reshape_as(indices)\nKeyboardInterrupt\n"
+    }
+  ],
+  "error": "KeyboardInterrupt()",
+  "traceback": "Traceback (most recent call last):\n  File \"/root/petrizhang/tensorvs-mlu/scripts/mlu_experiment.py\", line 127, in main\n    for _ in range(1 if a.smoke else cfg['warmup']):sweep()\n  File \"/root/petrizhang/tensorvs-mlu/scripts/mlu_experiment.py\", line 117, in sweep\n    else:dist,ids=search(index,qb,topk=10,nprobe=probe,**options);torch.mlu.synchronize()\n  File \"/root/petrizhang/tensorvs-mlu/TensorVS/src/tensorvs/index_ivfpq.py\", line 1700, in search_ivfpq_index\n    return search_torch(\n  File \"/root/petrizhang/tensorvs-mlu/TensorVS/src/tensorvs/_torch_search.py\", line 1007, in search_torch\n    values, ids = block_fn(*block_args)\n  File \"/root/petrizhang/tensorvs-mlu/TensorVS/src/tensorvs/_torch_search.py\", line 581, in _pq_block_eager\n    values = flat_luts.index_select(0, indices.flatten()).reshape_as(indices)\nKeyboardInterrupt\n"
+}
