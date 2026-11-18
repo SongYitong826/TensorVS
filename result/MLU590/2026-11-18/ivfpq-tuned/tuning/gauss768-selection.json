@@ -1,0 +1,259 @@
+{
+  "status": "complete",
+  "dataset": "gauss768",
+  "candidates": [
+    {
+      "query_tile_size": 64,
+      "candidate_chunk_size": 1024,
+      "max_tasks_per_batch": 256,
+      "memory_budget_mb": 256,
+      "lut_chunk_size": 32,
+      "pq_lookup": "gather",
+      "min_query_tile_size": 1
+    },
+    {
+      "query_tile_size": 64,
+      "candidate_chunk_size": 1024,
+      "max_tasks_per_batch": 256,
+      "memory_budget_mb": 1024.0,
+      "lut_chunk_size": 64,
+      "pq_lookup": "gather",
+      "min_query_tile_size": 1
+    }
+  ],
+  "reference": {
+    "query_tile_size": 64,
+    "candidate_chunk_size": 1024,
+    "max_tasks_per_batch": 256,
+    "memory_budget_mb": 256,
+    "lut_chunk_size": 32,
+    "pq_lookup": "gather",
+    "min_query_tile_size": 1
+  },
+  "heldout_offsets": [
+    512,
+    768
+  ],
+  "heldout_query_count": 256,
+  "probes": [
+    400,
+    650,
+    1000
+  ],
+  "selection": "maximize geometric mean batch QPS over six held-out cases; no case slower than 90% of previous settings",
+  "timing": "one warmup then median of three synchronized resident 128-query batch timings",
+  "diagnostic_only": true,
+  "results": [
+    {
+      "candidate": 0,
+      "offset": 512,
+      "nprobe": 400,
+      "qps": 127.85891936435473,
+      "samples_seconds": [
+        1.0007918756455183,
+        1.001303631812334,
+        1.0011034086346626
+      ],
+      "recall": 0.5382812500000004,
+      "reference_recall": 0.5382812500000004,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 1,
+      "offset": 512,
+      "nprobe": 400,
+      "qps": 138.07642470959928,
+      "samples_seconds": [
+        0.9269664883613586,
+        0.9274712558835745,
+        0.9270228445529938
+      ],
+      "recall": 0.5382812500000004,
+      "reference_recall": 0.5382812500000004,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 0,
+      "offset": 512,
+      "nprobe": 650,
+      "qps": 96.70850264815003,
+      "samples_seconds": [
+        1.3240230288356543,
+        1.3235651105642319,
+        1.32334990426898
+      ],
+      "recall": 0.6757812500000002,
+      "reference_recall": 0.6757812500000002,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 1,
+      "offset": 512,
+      "nprobe": 650,
+      "qps": 98.9716733669622,
+      "samples_seconds": [
+        1.292899463325739,
+        1.294633449986577,
+        1.2932993415743113
+      ],
+      "recall": 0.6757812500000002,
+      "reference_recall": 0.6757812500000002,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 0,
+      "offset": 512,
+      "nprobe": 1000,
+      "qps": 68.31187018998065,
+      "samples_seconds": [
+        1.8731549233198166,
+        1.8738718032836914,
+        1.8737592697143555
+      ],
+      "recall": 0.7695312499999998,
+      "reference_recall": 0.7695312499999998,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 1,
+      "offset": 512,
+      "nprobe": 1000,
+      "qps": 69.09339735109221,
+      "samples_seconds": [
+        1.8525648601353168,
+        1.8524076715111732,
+        2.0425861198455095
+      ],
+      "recall": 0.7695312499999998,
+      "reference_recall": 0.7695312499999998,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 1,
+      "offset": 768,
+      "nprobe": 400,
+      "qps": 137.91622774891016,
+      "samples_seconds": [
+        0.926957868039608,
+        0.9286684077233076,
+        0.9280996304005384
+      ],
+      "recall": 0.5382812499999999,
+      "reference_recall": 0.5382812499999999,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 0,
+      "offset": 768,
+      "nprobe": 400,
+      "qps": 127.6264232337293,
+      "samples_seconds": [
+        1.0029271114617586,
+        1.0035964455455542,
+        1.002794636413455
+      ],
+      "recall": 0.5382812499999999,
+      "reference_recall": 0.5382812499999999,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 0,
+      "offset": 768,
+      "nprobe": 650,
+      "qps": 96.84538174758019,
+      "samples_seconds": [
+        1.3222799003124237,
+        1.320985373109579,
+        1.3216944132000208
+      ],
+      "recall": 0.6781250000000003,
+      "reference_recall": 0.6781250000000003,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 1,
+      "offset": 768,
+      "nprobe": 650,
+      "qps": 99.15869789226122,
+      "samples_seconds": [
+        1.2908600326627493,
+        1.2905056588351727,
+        1.2910126186907291
+      ],
+      "recall": 0.6781250000000003,
+      "reference_recall": 0.6781250000000003,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 1,
+      "offset": 768,
+      "nprobe": 1000,
+      "qps": 69.04457824195102,
+      "samples_seconds": [
+        1.8538873884826899,
+        1.853874746710062,
+        1.8536436539143324
+      ],
+      "recall": 0.7539062499999999,
+      "reference_recall": 0.7539062499999999,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 0,
+      "offset": 768,
+      "nprobe": 1000,
+      "qps": 68.23567657725096,
+      "samples_seconds": [
+        1.8758515547960997,
+        2.0726629830896854,
+        1.8736919593065977
+      ],
+      "recall": 0.7539062499999999,
+      "reference_recall": 0.7539062499999999,
+      "id_overlap": 1.0
+    }
+  ],
+  "source_commit": "a010611aba6d1f889172fc4fe250ab2f56ec1302",
+  "scores": [
+    {
+      "candidate": 0,
+      "geomean_speedup": 1.0,
+      "min_speedup": 1.0,
+      "eligible": true,
+      "config": {
+        "query_tile_size": 64,
+        "candidate_chunk_size": 1024,
+        "max_tasks_per_batch": 256,
+        "memory_budget_mb": 256,
+        "lut_chunk_size": 32,
+        "pq_lookup": "gather",
+        "min_query_tile_size": 1
+      }
+    },
+    {
+      "candidate": 1,
+      "geomean_speedup": 1.0380939183601718,
+      "min_speedup": 1.0114405762708307,
+      "eligible": true,
+      "config": {
+        "query_tile_size": 64,
+        "candidate_chunk_size": 1024,
+        "max_tasks_per_batch": 256,
+        "memory_budget_mb": 1024.0,
+        "lut_chunk_size": 64,
+        "pq_lookup": "gather",
+        "min_query_tile_size": 1
+      }
+    }
+  ],
+  "selected": {
+    "query_tile_size": 64,
+    "candidate_chunk_size": 1024,
+    "max_tasks_per_batch": 256,
+    "memory_budget_mb": 1024.0,
+    "lut_chunk_size": 64,
+    "pq_lookup": "gather",
+    "min_query_tile_size": 1
+  },
+  "selected_candidate": 1
+}

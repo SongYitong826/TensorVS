@@ -1,0 +1,24 @@
+{
+  "source_commit": "a010611aba6d1f889172fc4fe250ab2f56ec1302",
+  "selected": {
+    "glove1.2m": {
+      "query_tile_size": 16,
+      "candidate_chunk_size": 2048,
+      "max_tasks_per_batch": 256,
+      "memory_budget_mb": 1024.0,
+      "lut_chunk_size": 32,
+      "pq_lookup": "gather",
+      "min_query_tile_size": 1
+    },
+    "gauss768": {
+      "query_tile_size": 64,
+      "candidate_chunk_size": 1024,
+      "max_tasks_per_batch": 256,
+      "memory_budget_mb": 1024.0,
+      "lut_chunk_size": 64,
+      "pq_lookup": "gather",
+      "min_query_tile_size": 1
+    }
+  },
+  "time": 1794993577.7840726
+}

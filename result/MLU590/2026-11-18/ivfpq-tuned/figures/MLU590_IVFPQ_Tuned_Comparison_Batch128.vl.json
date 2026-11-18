@@ -1,0 +1,1960 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "background": "white",
+  "padding": 8,
+  "spacing": 24,
+  "hconcat": [
+    {
+      "width": 270,
+      "height": 155,
+      "layer": [
+        {
+          "data": {
+            "values": [
+              {
+                "qps": 300
+              },
+              {
+                "qps": 400
+              },
+              {
+                "qps": 500
+              },
+              {
+                "qps": 600
+              },
+              {
+                "qps": 700
+              },
+              {
+                "qps": 800
+              },
+              {
+                "qps": 900
+              },
+              {
+                "qps": 1000
+              },
+              {
+                "qps": 2000
+              },
+              {
+                "qps": 3000
+              },
+              {
+                "qps": 4000
+              },
+              {
+                "qps": 5000
+              }
+            ]
+          },
+          "mark": {
+            "type": "rule",
+            "color": "#888",
+            "opacity": 0.35,
+            "strokeWidth": 0.6,
+            "strokeDash": [
+              3,
+              3
+            ]
+          },
+          "encoding": {
+            "y": {
+              "field": "qps",
+              "type": "quantitative",
+              "title": "QPS",
+              "scale": {
+                "type": "log",
+                "domain": [
+                  224.47590177618176,
+                  5608.88608153553
+                ],
+                "nice": false
+              },
+              "axis": {
+                "values": [
+                  100,
+                  200,
+                  500,
+                  1000,
+                  2000,
+                  5000,
+                  10000,
+                  20000,
+                  50000
+                ],
+                "labelExpr": "{\"100\":\"10²\",\"200\":\"2×10²\",\"500\":\"5×10²\",\"1000\":\"10³\",\"2000\":\"2×10³\",\"5000\":\"5×10³\",\"10000\":\"10⁴\",\"20000\":\"2×10⁴\",\"50000\":\"5×10⁴\"}[datum.value]",
+                "grid": false,
+                "titleFontSize": 16,
+                "titlePadding": 5,
+                "labelFontSize": 13.5
+              }
+            }
+          }
+        },
+        {
+          "data": {
+            "values": [
+              {
+                "recall": 0.315
+              },
+              {
+                "recall": 0.32
+              },
+              {
+                "recall": 0.325
+              },
+              {
+                "recall": 0.33
+              },
+              {
+                "recall": 0.335
+              },
+              {
+                "recall": 0.34
+              },
+              {
+                "recall": 0.345
+              },
+              {
+                "recall": 0.35
+              }
+            ]
+          },
+          "mark": {
+            "type": "rule",
+            "color": "#888",
+            "opacity": 0.22,
+            "strokeWidth": 0.6,
+            "strokeDash": [
+              3,
+              3
+            ]
+          },
+          "encoding": {
+            "x": {
+              "field": "recall",
+              "type": "quantitative",
+              "title": "Recall",
+              "scale": {
+                "domain": [
+                  0.3109999999999996,
+                  0.3523999999999998
+                ],
+                "nice": false
+              },
+              "axis": {
+                "format": ".2f",
+                "tickCount": 5,
+                "grid": false,
+                "titleFontSize": 16,
+                "titlePadding": 4,
+                "labelFontSize": 13.5
+              }
+            }
+          }
+        },
+        {
+          "data": {
+            "values": [
+              {
+                "nprobes": 50,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 3963.4575548280563,
+                "recall": 0.3209999999999996,
+                "visited_vectors_per_query": 65435.891,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.25219141133129597,
+                  0.25230496004223824,
+                  0.2524103317409754
+                ],
+                "peak_torch_allocated_mib": 867.3955078125,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 80,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 2965.622976887696,
+                "recall": 0.33249999999999946,
+                "visited_vectors_per_query": 104675.422,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.3370456863194704,
+                  0.33727228082716465,
+                  0.3371972795575857
+                ],
+                "peak_torch_allocated_mib": 867.80029296875,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 100,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 2526.5135087652884,
+                "recall": 0.3364999999999996,
+                "visited_vectors_per_query": 130810.146,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.3958023563027382,
+                  0.3955227732658386,
+                  0.3960690163075924
+                ],
+                "peak_torch_allocated_mib": 869.17138671875,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 120,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 2188.2373720643773,
+                "recall": 0.33789999999999976,
+                "visited_vectors_per_query": 156853.372,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.45698881335556507,
+                  0.4565866030752659,
+                  0.5681125055998564
+                ],
+                "peak_torch_allocated_mib": 869.59765625,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 140,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1934.5501644127023,
+                "recall": 0.3414999999999996,
+                "visited_vectors_per_query": 182845.699,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.5150261577218771,
+                  0.6274034474045038,
+                  0.5169160347431898
+                ],
+                "peak_torch_allocated_mib": 870.0537109375,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 160,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1456.6238084139795,
+                "recall": 0.3411999999999996,
+                "visited_vectors_per_query": 208738.315,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.6865190546959639,
+                  0.5766186323016882,
+                  0.688907977193594
+                ],
+                "peak_torch_allocated_mib": 871.18701171875,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 180,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1546.2270187982404,
+                "recall": 0.34329999999999955,
+                "visited_vectors_per_query": 234676.184,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.6467355620115995,
+                  0.7616759482771158,
+                  0.646374898031354
+                ],
+                "peak_torch_allocated_mib": 871.26513671875,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 200,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1213.8031139587022,
+                "recall": 0.3445999999999996,
+                "visited_vectors_per_query": 260611.753,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.8238568417727947,
+                  0.7116807866841555,
+                  0.8264438267797232
+                ],
+                "peak_torch_allocated_mib": 871.458984375,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 220,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1294.8897233848234,
+                "recall": 0.34529999999999955,
+                "visited_vectors_per_query": 286433.754,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.7713060211390257,
+                  0.8847274929285049,
+                  0.7722665350884199
+                ],
+                "peak_torch_allocated_mib": 864.34716796875,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 240,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1056.8791959444775,
+                "recall": 0.34549999999999953,
+                "visited_vectors_per_query": 312288.41,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.8308080974966288,
+                  0.946181932464242,
+                  0.9480496067553759
+                ],
+                "peak_torch_allocated_mib": 864.9560546875,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 260,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1003.8164461688718,
+                "recall": 0.3461999999999998,
+                "visited_vectors_per_query": 338048.108,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.885163551196456,
+                  0.998981399461627,
+                  0.9961980637162924
+                ],
+                "peak_torch_allocated_mib": 865.568359375,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 280,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 948.0695256467823,
+                "recall": 0.34619999999999984,
+                "visited_vectors_per_query": 363710.926,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  1.0547749642282724,
+                  0.942754065617919,
+                  1.0551661476492882
+                ],
+                "peak_torch_allocated_mib": 866.14453125,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 300,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 893.9075009992525,
+                "recall": 0.3467999999999998,
+                "visited_vectors_per_query": 389254.429,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  1.1192244123667479,
+                  1.0055853333324194,
+                  1.1186839789152145
+                ],
+                "peak_torch_allocated_mib": 866.7568359375,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 320,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 839.366249305705,
+                "recall": 0.34679999999999983,
+                "visited_vectors_per_query": 414731.336,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  1.1883590463548899,
+                  1.1913750413805246,
+                  1.1942163482308388
+                ],
+                "peak_torch_allocated_mib": 868.31103515625,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 340,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 802.6194013071323,
+                "recall": 0.3464999999999998,
+                "visited_vectors_per_query": 440112.591,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  1.245920542627573,
+                  1.2485988326370716,
+                  1.131188727915287
+                ],
+                "peak_torch_allocated_mib": 868.763671875,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 360,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 766.3651170821822,
+                "recall": 0.3468999999999998,
+                "visited_vectors_per_query": 465405.906,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  1.3048610612750053,
+                  1.3079286012798548,
+                  1.3043793216347694
+                ],
+                "peak_torch_allocated_mib": 869.18017578125,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 380,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 730.8432233220736,
+                "recall": 0.3468999999999998,
+                "visited_vectors_per_query": 490714.973,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  1.3682825099676847,
+                  1.369195619598031,
+                  1.3673385363072157
+                ],
+                "peak_torch_allocated_mib": 870.453125,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 400,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 700.6291385018351,
+                "recall": 0.34679999999999983,
+                "visited_vectors_per_query": 515829.752,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  1.4303859528154135,
+                  1.4239092841744423,
+                  1.4272886253893375
+                ],
+                "peak_torch_allocated_mib": 870.73974609375,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 500,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 545.1797313278179,
+                "recall": 0.3473999999999998,
+                "visited_vectors_per_query": 639169.402,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  2.029044846072793,
+                  1.8342574797570705,
+                  1.8334483858197927
+                ],
+                "peak_torch_allocated_mib": 865.38623046875,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 700,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 388.55174479260126,
+                "recall": 0.3472999999999997,
+                "visited_vectors_per_query": 872994.946,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  2.573659785091877,
+                  2.6045376248657703,
+                  2.3797789569944143
+                ],
+                "peak_torch_allocated_mib": 862.9287109375,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 900,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 304.0346174664682,
+                "recall": 0.3472999999999997,
+                "visited_vectors_per_query": 1081311.714,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  3.289099143818021,
+                  3.087637195363641,
+                  3.2918081171810627
+                ],
+                "peak_torch_allocated_mib": 860.64794921875,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 1024,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 291.8186723090363,
+                "recall": 0.3472999999999997,
+                "visited_vectors_per_query": 1183514,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  3.452294699847698,
+                  3.229501273483038,
+                  3.4267855174839497
+                ],
+                "peak_torch_allocated_mib": 863.03955078125,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 50,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 4597.447607816009,
+                "recall": 0.3209999999999996,
+                "visited_vectors_per_query": 65435.891,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.2175119947642088,
+                  0.21745691262185574,
+                  0.21771608106791973
+                ],
+                "peak_torch_allocated_mib": 1229.46484375,
+                "previous_recall": 0.3209999999999996,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 80,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 3397.1659393623077,
+                "recall": 0.33249999999999946,
+                "visited_vectors_per_query": 104675.422,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.2944265455007553,
+                  0.2943630125373602,
+                  0.29420169442892075
+                ],
+                "peak_torch_allocated_mib": 1230.7001953125,
+                "previous_recall": 0.33249999999999946,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 100,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 2886.70348200737,
+                "recall": 0.3364999999999996,
+                "visited_vectors_per_query": 130810.146,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.5243994072079659,
+                  0.34641590528190136,
+                  0.34534372575581074
+                ],
+                "peak_torch_allocated_mib": 1230.8515625,
+                "previous_recall": 0.3364999999999996,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 120,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 2548.683353565029,
+                "recall": 0.33789999999999976,
+                "visited_vectors_per_query": 156853.372,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.3923370912671089,
+                  0.3923594504594803,
+                  0.5727280862629414
+                ],
+                "peak_torch_allocated_mib": 1231.013671875,
+                "previous_recall": 0.33789999999999976,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 140,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 2252.703518663462,
+                "recall": 0.3414999999999996,
+                "visited_vectors_per_query": 182845.699,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.4439110569655895,
+                  0.4433061983436346,
+                  0.624250216409564
+                ],
+                "peak_torch_allocated_mib": 1231.17138671875,
+                "previous_recall": 0.3414999999999996,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 160,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 2034.7590236105248,
+                "recall": 0.3411999999999996,
+                "visited_vectors_per_query": 208738.315,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.4914586879312992,
+                  0.49141536466777325,
+                  0.4915492422878742
+                ],
+                "peak_torch_allocated_mib": 1232.3505859375,
+                "previous_recall": 0.3411999999999996,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 180,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1847.3808803523148,
+                "recall": 0.34329999999999955,
+                "visited_vectors_per_query": 234676.184,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.5404893402010202,
+                  0.7208926491439342,
+                  0.5413068905472755
+                ],
+                "peak_torch_allocated_mib": 1232.6201171875,
+                "previous_recall": 0.34329999999999955,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 200,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1704.6273420821365,
+                "recall": 0.3445999999999996,
+                "visited_vectors_per_query": 260611.753,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.7707676813006401,
+                  0.5865875147283077,
+                  0.5866384841501713
+                ],
+                "peak_torch_allocated_mib": 1232.86669921875,
+                "previous_recall": 0.3445999999999996,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 220,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1567.520307962341,
+                "recall": 0.34529999999999955,
+                "visited_vectors_per_query": 286433.754,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.6363154780119658,
+                  0.6379502676427364,
+                  0.8331155870109797
+                ],
+                "peak_torch_allocated_mib": 1233.13427734375,
+                "previous_recall": 0.34529999999999955,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 240,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1147.226313341649,
+                "recall": 0.34549999999999953,
+                "visited_vectors_per_query": 312288.41,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.872418001294136,
+                  0.6810830011963844,
+                  0.8716675937175751
+                ],
+                "peak_torch_allocated_mib": 1233.3798828125,
+                "previous_recall": 0.34549999999999953,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 260,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1089.0785041209715,
+                "recall": 0.3461999999999998,
+                "visited_vectors_per_query": 338048.108,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.9193984791636467,
+                  0.7233695331960917,
+                  0.9182074535638094
+                ],
+                "peak_torch_allocated_mib": 1234.57861328125,
+                "previous_recall": 0.3461999999999998,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 280,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1300.8143747558267,
+                "recall": 0.34619999999999984,
+                "visited_vectors_per_query": 363710.926,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.7684691715985537,
+                  0.9621510244905949,
+                  0.7687491923570633
+                ],
+                "peak_torch_allocated_mib": 1234.6298828125,
+                "previous_recall": 0.34619999999999984,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 300,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1223.8730928441266,
+                "recall": 0.3467999999999998,
+                "visited_vectors_per_query": 389254.429,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.8170781806111336,
+                  1.0092664621770382,
+                  0.8165150657296181
+                ],
+                "peak_torch_allocated_mib": 1234.6806640625,
+                "previous_recall": 0.3467999999999998,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 320,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 959.5256823126261,
+                "recall": 0.34679999999999983,
+                "visited_vectors_per_query": 414731.336,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  1.0497953910380602,
+                  1.0421815887093544,
+                  0.8636174499988556
+                ],
+                "peak_torch_allocated_mib": 1234.73388671875,
+                "previous_recall": 0.34679999999999983,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 340,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 1100.6847530129587,
+                "recall": 0.3464999999999998,
+                "visited_vectors_per_query": 440112.591,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  0.908172644674778,
+                  1.0880739018321037,
+                  0.9085253495723009
+                ],
+                "peak_torch_allocated_mib": 1235.5400390625,
+                "previous_recall": 0.3464999999999998,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 360,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 934.7302987138032,
+                "recall": 0.3468999999999998,
+                "visited_vectors_per_query": 465405.906,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  1.0766214691102505,
+                  0.9571592528373003,
+                  1.0698273088783026
+                ],
+                "peak_torch_allocated_mib": 1235.6923828125,
+                "previous_recall": 0.3468999999999998,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 380,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 996.15315425255,
+                "recall": 0.3468999999999998,
+                "visited_vectors_per_query": 490714.973,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  1.0026956237852573,
+                  1.1209349110722542,
+                  1.0038617011159658
+                ],
+                "peak_torch_allocated_mib": 1235.84619140625,
+                "previous_recall": 0.3468999999999998,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 400,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 854.6264248265144,
+                "recall": 0.34679999999999983,
+                "visited_vectors_per_query": 515829.752,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  1.1649339459836483,
+                  1.1733468677848577,
+                  1.1701018959283829
+                ],
+                "peak_torch_allocated_mib": 1235.99560546875,
+                "previous_recall": 0.34679999999999983,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 500,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 709.2325111023129,
+                "recall": 0.3473999999999998,
+                "visited_vectors_per_query": 639169.402,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  1.4113935772329569,
+                  1.4099748451262712,
+                  1.40956274792552
+                ],
+                "peak_torch_allocated_mib": 1237.50634765625,
+                "previous_recall": 0.3473999999999998,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 700,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 543.9303776783437,
+                "recall": 0.3472999999999997,
+                "visited_vectors_per_query": 872994.946,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  1.9565383028239012,
+                  1.8384705856442451,
+                  1.8376824874430895
+                ],
+                "peak_torch_allocated_mib": 1242.05419921875,
+                "previous_recall": 0.3472999999999997,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 900,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 401.23728522890974,
+                "recall": 0.3472999999999997,
+                "visited_vectors_per_query": 1081311.714,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  2.3007122576236725,
+                  2.4943599831312895,
+                  2.4922908134758472
+                ],
+                "peak_torch_allocated_mib": 1230.7587890625,
+                "previous_recall": 0.3472999999999997,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 1024,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 381.21700896699883,
+                "recall": 0.3472999999999997,
+                "visited_vectors_per_query": 1183514,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  2.4447895102202892,
+                  2.631696270778775,
+                  2.6231778133660555
+                ],
+                "peak_torch_allocated_mib": 1232.6552734375,
+                "previous_recall": 0.3472999999999997,
+                "recall_difference": 0,
+                "method": "After tuning"
+              }
+            ]
+          },
+          "mark": {
+            "type": "line",
+            "clip": true,
+            "strokeWidth": 1.7,
+            "point": {
+              "shape": "square",
+              "filled": true,
+              "size": 24
+            }
+          },
+          "encoding": {
+            "x": {
+              "field": "recall",
+              "type": "quantitative",
+              "title": "Recall",
+              "scale": {
+                "domain": [
+                  0.3109999999999996,
+                  0.3523999999999998
+                ],
+                "nice": false
+              },
+              "axis": {
+                "format": ".2f",
+                "tickCount": 5,
+                "grid": false,
+                "titleFontSize": 16,
+                "titlePadding": 4,
+                "labelFontSize": 13.5
+              }
+            },
+            "y": {
+              "field": "qps",
+              "type": "quantitative",
+              "title": "QPS",
+              "scale": {
+                "type": "log",
+                "domain": [
+                  224.47590177618176,
+                  5608.88608153553
+                ],
+                "nice": false
+              },
+              "axis": {
+                "values": [
+                  100,
+                  200,
+                  500,
+                  1000,
+                  2000,
+                  5000,
+                  10000,
+                  20000,
+                  50000
+                ],
+                "labelExpr": "{\"100\":\"10²\",\"200\":\"2×10²\",\"500\":\"5×10²\",\"1000\":\"10³\",\"2000\":\"2×10³\",\"5000\":\"5×10³\",\"10000\":\"10⁴\",\"20000\":\"2×10⁴\",\"50000\":\"5×10⁴\"}[datum.value]",
+                "grid": false,
+                "titleFontSize": 16,
+                "titlePadding": 5,
+                "labelFontSize": 13.5
+              }
+            },
+            "order": {
+              "field": "nprobes",
+              "type": "quantitative"
+            },
+            "strokeDash": {
+              "field": "method",
+              "type": "nominal",
+              "scale": {
+                "domain": [
+                  "Previous run",
+                  "After tuning"
+                ],
+                "range": [
+                  [
+                    4,
+                    3
+                  ],
+                  [
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "legend": null
+            },
+            "color": {
+              "field": "method",
+              "type": "nominal",
+              "scale": {
+                "domain": [
+                  "Previous run",
+                  "After tuning"
+                ],
+                "range": [
+                  "#888888",
+                  "#00609d"
+                ]
+              },
+              "legend": {
+                "title": null,
+                "orient": "top",
+                "direction": "horizontal",
+                "labelFontSize": 14,
+                "labelLimit": 500,
+                "symbolType": "square",
+                "symbolSize": 60,
+                "symbolStrokeWidth": 1.7,
+                "fillColor": "white",
+                "strokeColor": "#ccc",
+                "cornerRadius": 2,
+                "padding": 5,
+                "offset": 10
+              }
+            },
+            "tooltip": [
+              {
+                "field": "nprobes"
+              },
+              {
+                "field": "recall",
+                "format": ".4f"
+              },
+              {
+                "field": "qps",
+                "format": ".2f"
+              }
+            ]
+          }
+        },
+        {
+          "data": {
+            "values": [
+              {
+                "label": "GloVe"
+              }
+            ]
+          },
+          "mark": {
+            "type": "text",
+            "align": "left",
+            "baseline": "bottom",
+            "fontWeight": "bold",
+            "fontSize": 14
+          },
+          "encoding": {
+            "x": {
+              "value": 7
+            },
+            "y": {
+              "value": 149
+            },
+            "text": {
+              "field": "label"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "width": 270,
+      "height": 155,
+      "layer": [
+        {
+          "data": {
+            "values": [
+              {
+                "qps": 50
+              },
+              {
+                "qps": 60
+              },
+              {
+                "qps": 70
+              },
+              {
+                "qps": 80
+              },
+              {
+                "qps": 90
+              },
+              {
+                "qps": 100
+              }
+            ]
+          },
+          "mark": {
+            "type": "rule",
+            "color": "#888",
+            "opacity": 0.35,
+            "strokeWidth": 0.6,
+            "strokeDash": [
+              3,
+              3
+            ]
+          },
+          "encoding": {
+            "y": {
+              "field": "qps",
+              "type": "quantitative",
+              "title": null,
+              "scale": {
+                "type": "log",
+                "domain": [
+                  47.248708023182076,
+                  167.42134110201366
+                ],
+                "nice": false
+              },
+              "axis": {
+                "values": [
+                  10,
+                  20,
+                  50,
+                  100,
+                  200,
+                  500,
+                  1000,
+                  2000,
+                  5000
+                ],
+                "labelExpr": "{\"10\":\"10¹\",\"20\":\"2×10¹\",\"50\":\"5×10¹\",\"100\":\"10²\",\"200\":\"2×10²\",\"500\":\"5×10²\",\"1000\":\"10³\",\"2000\":\"2×10³\",\"5000\":\"5×10³\"}[datum.value]",
+                "grid": false,
+                "titleFontSize": 16,
+                "titlePadding": 5,
+                "labelFontSize": 13.5
+              }
+            }
+          }
+        },
+        {
+          "data": {
+            "values": [
+              {
+                "recall": 0.5
+              },
+              {
+                "recall": 0.52
+              },
+              {
+                "recall": 0.54
+              },
+              {
+                "recall": 0.56
+              },
+              {
+                "recall": 0.58
+              },
+              {
+                "recall": 0.6
+              },
+              {
+                "recall": 0.62
+              },
+              {
+                "recall": 0.64
+              },
+              {
+                "recall": 0.66
+              },
+              {
+                "recall": 0.68
+              },
+              {
+                "recall": 0.7
+              },
+              {
+                "recall": 0.72
+              },
+              {
+                "recall": 0.74
+              },
+              {
+                "recall": 0.76
+              }
+            ]
+          },
+          "mark": {
+            "type": "rule",
+            "color": "#888",
+            "opacity": 0.22,
+            "strokeWidth": 0.6,
+            "strokeDash": [
+              3,
+              3
+            ]
+          },
+          "encoding": {
+            "x": {
+              "field": "recall",
+              "type": "quantitative",
+              "title": "Recall",
+              "scale": {
+                "domain": [
+                  0.4856999999999998,
+                  0.7661999999999973
+                ],
+                "nice": false
+              },
+              "axis": {
+                "format": ".2f",
+                "tickCount": 5,
+                "grid": false,
+                "titleFontSize": 16,
+                "titlePadding": 4,
+                "labelFontSize": 13.5
+              }
+            }
+          }
+        },
+        {
+          "data": {
+            "values": [
+              {
+                "nprobes": 350,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 125.65141886499909,
+                "recall": 0.4956999999999998,
+                "visited_vectors_per_query": 342011.137,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  7.958410888910294,
+                  7.9585253316909075,
+                  7.958690358325839
+                ],
+                "peak_torch_allocated_mib": 781.28125,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 380,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 123.79463423121818,
+                "recall": 0.5210000000000001,
+                "visited_vectors_per_query": 371311.049,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  8.077894540503621,
+                  8.077598100528121,
+                  8.078662546351552
+                ],
+                "peak_torch_allocated_mib": 781.80908203125,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 400,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 123.35771075344508,
+                "recall": 0.5378000000000006,
+                "visited_vectors_per_query": 390842.992,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  8.10559256374836,
+                  8.112567711621523,
+                  8.106505818665028
+                ],
+                "peak_torch_allocated_mib": 782.18017578125,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 450,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 120.03064832645117,
+                "recall": 0.5726000000000021,
+                "visited_vectors_per_query": 439680.015,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  8.331205520778894,
+                  8.331628179177642,
+                  8.330079341307282
+                ],
+                "peak_torch_allocated_mib": 783.55322265625,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 500,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 115.36258042884107,
+                "recall": 0.6001000000000021,
+                "visited_vectors_per_query": 488513.994,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  8.66563018783927,
+                  8.66839218325913,
+                  8.668322052806616
+                ],
+                "peak_torch_allocated_mib": 783.60205078125,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 550,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 115.4447874317366,
+                "recall": 0.6271000000000017,
+                "visited_vectors_per_query": 537351.652,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  8.662484988570213,
+                  8.66214943304658,
+                  8.660572621971369
+                ],
+                "peak_torch_allocated_mib": 784.40576171875,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 600,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 104.14212983833532,
+                "recall": 0.6474000000000022,
+                "visited_vectors_per_query": 586191.553,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  9.602261846885085,
+                  9.602242413908243,
+                  9.603209195658565
+                ],
+                "peak_torch_allocated_mib": 785.24560546875,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 650,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 94.64248542784836,
+                "recall": 0.6704000000000021,
+                "visited_vectors_per_query": 635019.621,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  10.563645986840129,
+                  10.754179120063782,
+                  10.566079234704375
+                ],
+                "peak_torch_allocated_mib": 786.0712890625,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 700,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 87.84410248482004,
+                "recall": 0.6854000000000013,
+                "visited_vectors_per_query": 683843.929,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  11.549764743074775,
+                  11.38358499482274,
+                  11.38380348496139
+                ],
+                "peak_torch_allocated_mib": 787.56494140625,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 750,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 74.68618298742787,
+                "recall": 0.6998000000000015,
+                "visited_vectors_per_query": 732663.31,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  13.388069599866867,
+                  13.587471421808004,
+                  13.389357442036271
+                ],
+                "peak_torch_allocated_mib": 787.7548828125,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 800,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 64.91822496098308,
+                "recall": 0.7143000000000008,
+                "visited_vectors_per_query": 781478.861,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  15.404790539294481,
+                  15.399768123403192,
+                  15.403994804248214
+                ],
+                "peak_torch_allocated_mib": 790.52978515625,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 850,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 61.4233204301367,
+                "recall": 0.7276000000000007,
+                "visited_vectors_per_query": 830278.717,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  16.277557473629713,
+                  16.280461443588138,
+                  16.463658006861806
+                ],
+                "peak_torch_allocated_mib": 790.591796875,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 900,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 66.96466115190566,
+                "recall": 0.7391999999999999,
+                "visited_vectors_per_query": 879081.373,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  15.13933434523642,
+                  14.933249609544873,
+                  14.932962698861957
+                ],
+                "peak_torch_allocated_mib": 728.1962890625,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 950,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 66.80436784588778,
+                "recall": 0.7497999999999986,
+                "visited_vectors_per_query": 927864.328,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  15.172473607584834,
+                  14.969081098213792,
+                  14.966627275571227
+                ],
+                "peak_torch_allocated_mib": 729.55126953125,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 1000,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 65.85590623075782,
+                "recall": 0.7578999999999981,
+                "visited_vectors_per_query": 976624.869,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  15.184666907414794,
+                  14.992096481844783,
+                  15.188788508996367
+                ],
+                "peak_torch_allocated_mib": 720.009765625,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 1024,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 64.83890386124932,
+                "recall": 0.7611999999999973,
+                "visited_vectors_per_query": 1000000,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  15.228031134232879,
+                  15.42283938266337,
+                  15.425928100943565
+                ],
+                "peak_torch_allocated_mib": 720.2109375,
+                "method": "Previous run"
+              },
+              {
+                "nprobes": 350,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 137.23060746066693,
+                "recall": 0.4956999999999998,
+                "visited_vectors_per_query": 342011.137,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  7.287004105746746,
+                  7.287758518010378,
+                  7.286953009665012
+                ],
+                "peak_torch_allocated_mib": 2100.396484375,
+                "previous_recall": 0.4956999999999998,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 380,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 135.3557659828655,
+                "recall": 0.5210000000000001,
+                "visited_vectors_per_query": 371311.049,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  7.387937948107719,
+                  7.387589696794748,
+                  7.388629516586661
+                ],
+                "peak_torch_allocated_mib": 2100.75048828125,
+                "previous_recall": 0.5210000000000001,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 400,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 134.56167966284815,
+                "recall": 0.5378000000000006,
+                "visited_vectors_per_query": 390842.992,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  7.429288767278194,
+                  7.43158708140254,
+                  7.4315362479537725
+                ],
+                "peak_torch_allocated_mib": 2101.12158203125,
+                "previous_recall": 0.5378000000000006,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 450,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 132.8835731713982,
+                "recall": 0.5726000000000021,
+                "visited_vectors_per_query": 439680.015,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  7.643099283799529,
+                  7.522747527807951,
+                  7.525384636595845
+                ],
+                "peak_torch_allocated_mib": 2101.93212890625,
+                "previous_recall": 0.5726000000000021,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 500,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 128.27394282249233,
+                "recall": 0.6001000000000021,
+                "visited_vectors_per_query": 488513.994,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  7.79581556469202,
+                  7.795047160238028,
+                  7.795958606526256
+                ],
+                "peak_torch_allocated_mib": 2102.78662109375,
+                "previous_recall": 0.6001000000000021,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 550,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 118.62282415365671,
+                "recall": 0.6271000000000017,
+                "visited_vectors_per_query": 537351.652,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  8.429062590003014,
+                  8.430080864578485,
+                  8.611656296998262
+                ],
+                "peak_torch_allocated_mib": 2103.59716796875,
+                "previous_recall": 0.6271000000000017,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 600,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 107.09472840899912,
+                "recall": 0.6474000000000022,
+                "visited_vectors_per_query": 586191.553,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  9.337527764961123,
+                  9.531562181189656,
+                  9.335198111832142
+                ],
+                "peak_torch_allocated_mib": 2104.43701171875,
+                "previous_recall": 0.6474000000000022,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 650,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 97.03713408866678,
+                "recall": 0.6704000000000021,
+                "visited_vectors_per_query": 635019.621,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  10.305333204567432,
+                  10.303634829819202,
+                  10.308246448636055
+                ],
+                "peak_torch_allocated_mib": 2105.2626953125,
+                "previous_recall": 0.6704000000000021,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 700,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 89.34149924842646,
+                "recall": 0.6854000000000013,
+                "visited_vectors_per_query": 683843.929,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  11.19300670363009,
+                  11.379646945744753,
+                  11.18938484042883
+                ],
+                "peak_torch_allocated_mib": 2106.11962890625,
+                "previous_recall": 0.6854000000000013,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 750,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 80.84741912821005,
+                "recall": 0.6998000000000015,
+                "visited_vectors_per_query": 732663.31,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  12.368978636339307,
+                  12.368862252682447,
+                  12.372625211253762
+                ],
+                "peak_torch_allocated_mib": 2107.3251953125,
+                "previous_recall": 0.6998000000000015,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 800,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 71.6356255196743,
+                "recall": 0.7143000000000008,
+                "visited_vectors_per_query": 781478.861,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  13.95953469723463,
+                  14.078995058313012,
+                  13.955607179552317
+                ],
+                "peak_torch_allocated_mib": 2108.84619140625,
+                "previous_recall": 0.7143000000000008,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 850,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 68.0997332157939,
+                "recall": 0.7276000000000007,
+                "visited_vectors_per_query": 830278.717,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  14.876086691394448,
+                  14.676054643467069,
+                  14.684345338493586
+                ],
+                "peak_torch_allocated_mib": 2108.908203125,
+                "previous_recall": 0.7276000000000007,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 900,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 67.7367641430099,
+                "recall": 0.7391999999999999,
+                "visited_vectors_per_query": 879081.373,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  14.943892842158675,
+                  14.76122960075736,
+                  14.763031754642725
+                ],
+                "peak_torch_allocated_mib": 2109.72412109375,
+                "previous_recall": 0.7391999999999999,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 950,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 67.61654207323467,
+                "recall": 0.7497999999999986,
+                "visited_vectors_per_query": 927864.328,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  14.790740042924881,
+                  14.789280394092202,
+                  14.786590179428458
+                ],
+                "peak_torch_allocated_mib": 2111.06884765625,
+                "previous_recall": 0.7497999999999986,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 1000,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 67.5458989944091,
+                "recall": 0.7578999999999981,
+                "visited_vectors_per_query": 976624.869,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  14.804747806861997,
+                  14.804626202210784,
+                  14.804755726829171
+                ],
+                "peak_torch_allocated_mib": 2111.30126953125,
+                "previous_recall": 0.7578999999999981,
+                "recall_difference": 0,
+                "method": "After tuning"
+              },
+              {
+                "nprobes": 1024,
+                "q_batch": 128,
+                "K": 10,
+                "qps": 67.53914947129283,
+                "recall": 0.7611999999999973,
+                "visited_vectors_per_query": 1000000,
+                "peak_gpu_memory": null,
+                "samples_seconds": [
+                  14.806227318942547,
+                  14.806748231872916,
+                  14.80594384856522
+                ],
+                "peak_torch_allocated_mib": 2111.67626953125,
+                "previous_recall": 0.7611999999999973,
+                "recall_difference": 0,
+                "method": "After tuning"
+              }
+            ]
+          },
+          "mark": {
+            "type": "line",
+            "clip": true,
+            "strokeWidth": 1.7,
+            "point": {
+              "shape": "square",
+              "filled": true,
+              "size": 24
+            }
+          },
+          "encoding": {
+            "x": {
+              "field": "recall",
+              "type": "quantitative",
+              "title": "Recall",
+              "scale": {
+                "domain": [
+                  0.4856999999999998,
+                  0.7661999999999973
+                ],
+                "nice": false
+              },
+              "axis": {
+                "format": ".2f",
+                "tickCount": 5,
+                "grid": false,
+                "titleFontSize": 16,
+                "titlePadding": 4,
+                "labelFontSize": 13.5
+              }
+            },
+            "y": {
+              "field": "qps",
+              "type": "quantitative",
+              "title": null,
+              "scale": {
+                "type": "log",
+                "domain": [
+                  47.248708023182076,
+                  167.42134110201366
+                ],
+                "nice": false
+              },
+              "axis": {
+                "values": [
+                  10,
+                  20,
+                  50,
+                  100,
+                  200,
+                  500,
+                  1000,
+                  2000,
+                  5000
+                ],
+                "labelExpr": "{\"10\":\"10¹\",\"20\":\"2×10¹\",\"50\":\"5×10¹\",\"100\":\"10²\",\"200\":\"2×10²\",\"500\":\"5×10²\",\"1000\":\"10³\",\"2000\":\"2×10³\",\"5000\":\"5×10³\"}[datum.value]",
+                "grid": false,
+                "titleFontSize": 16,
+                "titlePadding": 5,
+                "labelFontSize": 13.5
+              }
+            },
+            "order": {
+              "field": "nprobes",
+              "type": "quantitative"
+            },
+            "strokeDash": {
+              "field": "method",
+              "type": "nominal",
+              "scale": {
+                "domain": [
+                  "Previous run",
+                  "After tuning"
+                ],
+                "range": [
+                  [
+                    4,
+                    3
+                  ],
+                  [
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "legend": null
+            },
+            "color": {
+              "field": "method",
+              "type": "nominal",
+              "scale": {
+                "domain": [
+                  "Previous run",
+                  "After tuning"
+                ],
+                "range": [
+                  "#888888",
+                  "#00609d"
+                ]
+              },
+              "legend": {
+                "title": null,
+                "orient": "top",
+                "direction": "horizontal",
+                "labelFontSize": 14,
+                "labelLimit": 500,
+                "symbolType": "square",
+                "symbolSize": 60,
+                "symbolStrokeWidth": 1.7,
+                "fillColor": "white",
+                "strokeColor": "#ccc",
+                "cornerRadius": 2,
+                "padding": 5,
+                "offset": 10
+              }
+            },
+            "tooltip": [
+              {
+                "field": "nprobes"
+              },
+              {
+                "field": "recall",
+                "format": ".4f"
+              },
+              {
+                "field": "qps",
+                "format": ".2f"
+              }
+            ]
+          }
+        },
+        {
+          "data": {
+            "values": [
+              {
+                "label": "Gauss768 (synthetic)"
+              }
+            ]
+          },
+          "mark": {
+            "type": "text",
+            "align": "left",
+            "baseline": "bottom",
+            "fontWeight": "bold",
+            "fontSize": 14
+          },
+          "encoding": {
+            "x": {
+              "value": 7
+            },
+            "y": {
+              "value": 149
+            },
+            "text": {
+              "field": "label"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "resolve": {
+    "scale": {
+      "x": "independent",
+      "y": "independent",
+      "color": "shared",
+      "strokeDash": "shared"
+    }
+  },
+  "config": {
+    "font": "DejaVu Sans",
+    "axis": {
+      "domainColor": "black",
+      "domainWidth": 0.6,
+      "tickColor": "black",
+      "tickWidth": 0.6,
+      "tickSize": 4,
+      "labelColor": "black",
+      "titleColor": "black",
+      "titleFontWeight": "normal"
+    },
+    "view": {
+      "stroke": "black",
+      "strokeWidth": 0.6
+    },
+    "legend": {
+      "orient": "top"
+    }
+  }
+}

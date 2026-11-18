@@ -1,0 +1,367 @@
+{
+  "status": "complete",
+  "dataset": "glove1.2m",
+  "candidates": [
+    {
+      "query_tile_size": 16,
+      "candidate_chunk_size": 1024,
+      "max_tasks_per_batch": 256,
+      "memory_budget_mb": 512,
+      "lut_chunk_size": 16,
+      "pq_lookup": "gather",
+      "min_query_tile_size": 1
+    },
+    {
+      "query_tile_size": 16,
+      "candidate_chunk_size": 2048,
+      "max_tasks_per_batch": 256,
+      "memory_budget_mb": 512.0,
+      "lut_chunk_size": 16,
+      "pq_lookup": "gather",
+      "min_query_tile_size": 1
+    },
+    {
+      "query_tile_size": 16,
+      "candidate_chunk_size": 2048,
+      "max_tasks_per_batch": 256,
+      "memory_budget_mb": 1024.0,
+      "lut_chunk_size": 32,
+      "pq_lookup": "gather",
+      "min_query_tile_size": 1
+    }
+  ],
+  "reference": {
+    "query_tile_size": 16,
+    "candidate_chunk_size": 1024,
+    "max_tasks_per_batch": 256,
+    "memory_budget_mb": 512,
+    "lut_chunk_size": 16,
+    "pq_lookup": "gather",
+    "min_query_tile_size": 1
+  },
+  "heldout_offsets": [
+    512,
+    768
+  ],
+  "heldout_query_count": 256,
+  "probes": [
+    80,
+    240,
+    700
+  ],
+  "selection": "maximize geometric mean batch QPS over six held-out cases; no case slower than 90% of previous settings",
+  "timing": "one warmup then median of three synchronized resident 128-query batch timings",
+  "diagnostic_only": true,
+  "results": [
+    {
+      "candidate": 0,
+      "offset": 512,
+      "nprobe": 80,
+      "qps": 3029.004781253456,
+      "samples_seconds": [
+        0.042208604514598846,
+        0.04225810430943966,
+        0.04242420755326748
+      ],
+      "recall": 0.3492187500000001,
+      "reference_recall": 0.3492187500000001,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 1,
+      "offset": 512,
+      "nprobe": 80,
+      "qps": 3147.394290165582,
+      "samples_seconds": [
+        0.04097355343401432,
+        0.040611373260617256,
+        0.040668562054634094
+      ],
+      "recall": 0.3492187500000001,
+      "reference_recall": 0.3492187500000001,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 2,
+      "offset": 512,
+      "nprobe": 80,
+      "qps": 3507.9030377997806,
+      "samples_seconds": [
+        0.036489035934209824,
+        0.03665223903954029,
+        0.03646509349346161
+      ],
+      "recall": 0.3492187500000001,
+      "reference_recall": 0.3492187500000001,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 0,
+      "offset": 512,
+      "nprobe": 240,
+      "qps": 1212.8181441234965,
+      "samples_seconds": [
+        0.10552524961531162,
+        0.10579488426446915,
+        0.10553931817412376
+      ],
+      "recall": 0.36171875000000014,
+      "reference_recall": 0.36171875000000014,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 2,
+      "offset": 512,
+      "nprobe": 240,
+      "qps": 1533.7525950289387,
+      "samples_seconds": [
+        0.08330878615379333,
+        0.0834949929267168,
+        0.08345544151961803
+      ],
+      "recall": 0.36171875000000014,
+      "reference_recall": 0.36171875000000014,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 1,
+      "offset": 512,
+      "nprobe": 240,
+      "qps": 1388.5756961475804,
+      "samples_seconds": [
+        0.09218078665435314,
+        0.09219693578779697,
+        0.09211014769971371
+      ],
+      "recall": 0.36171875000000014,
+      "reference_recall": 0.36171875000000014,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 2,
+      "offset": 512,
+      "nprobe": 700,
+      "qps": 605.0251412751505,
+      "samples_seconds": [
+        0.2120948452502489,
+        0.21146322786808014,
+        0.21156145632266998
+      ],
+      "recall": 0.3617187500000002,
+      "reference_recall": 0.3617187500000002,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 1,
+      "offset": 512,
+      "nprobe": 700,
+      "qps": 545.5545766530539,
+      "samples_seconds": [
+        0.23445961624383926,
+        0.23464193753898144,
+        0.2346236389130354
+      ],
+      "recall": 0.3617187500000002,
+      "reference_recall": 0.3617187500000002,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 0,
+      "offset": 512,
+      "nprobe": 700,
+      "qps": 477.898369005707,
+      "samples_seconds": [
+        0.45805949345231056,
+        0.26736111752688885,
+        0.2678393740206957
+      ],
+      "recall": 0.3617187500000002,
+      "reference_recall": 0.3617187500000002,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 1,
+      "offset": 768,
+      "nprobe": 80,
+      "qps": 3181.152984904314,
+      "samples_seconds": [
+        0.04023698344826698,
+        0.040333518758416176,
+        0.04017592407763004
+      ],
+      "recall": 0.29609375,
+      "reference_recall": 0.29609375,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 2,
+      "offset": 768,
+      "nprobe": 80,
+      "qps": 3489.130389368998,
+      "samples_seconds": [
+        0.036685358732938766,
+        0.03656842187047005,
+        0.03669460862874985
+      ],
+      "recall": 0.29609375,
+      "reference_recall": 0.29609375,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 0,
+      "offset": 768,
+      "nprobe": 80,
+      "qps": 3036.7716757194557,
+      "samples_seconds": [
+        0.04215002432465553,
+        0.042249513790011406,
+        0.04202233627438545
+      ],
+      "recall": 0.29609375,
+      "reference_recall": 0.29609375,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 1,
+      "offset": 768,
+      "nprobe": 240,
+      "qps": 1355.0268781447505,
+      "samples_seconds": [
+        0.09433731436729431,
+        0.09448311105370522,
+        0.09446307085454464
+      ],
+      "recall": 0.31874999999999987,
+      "reference_recall": 0.31874999999999987,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 0,
+      "offset": 768,
+      "nprobe": 240,
+      "qps": 1199.5843097297204,
+      "samples_seconds": [
+        0.2972819712013006,
+        0.10620548203587532,
+        0.1067036297172308
+      ],
+      "recall": 0.31874999999999987,
+      "reference_recall": 0.31874999999999987,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 2,
+      "offset": 768,
+      "nprobe": 240,
+      "qps": 1491.193013316941,
+      "samples_seconds": [
+        0.08583742380142212,
+        0.08583731204271317,
+        0.08581755310297012
+      ],
+      "recall": 0.31874999999999987,
+      "reference_recall": 0.31874999999999987,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 1,
+      "offset": 768,
+      "nprobe": 700,
+      "qps": 542.081462543136,
+      "samples_seconds": [
+        0.423922311514616,
+        0.23612687177956104,
+        0.23553392849862576
+      ],
+      "recall": 0.3210937499999999,
+      "reference_recall": 0.3210937499999999,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 0,
+      "offset": 768,
+      "nprobe": 700,
+      "qps": 475.8758353763707,
+      "samples_seconds": [
+        0.26876160129904747,
+        0.45706467889249325,
+        0.2689777258783579
+      ],
+      "recall": 0.3210937499999999,
+      "reference_recall": 0.3210937499999999,
+      "id_overlap": 1.0
+    },
+    {
+      "candidate": 2,
+      "offset": 768,
+      "nprobe": 700,
+      "qps": 599.5559111388906,
+      "samples_seconds": [
+        0.21349134854972363,
+        0.21290656365454197,
+        0.37940410524606705
+      ],
+      "recall": 0.3210937499999999,
+      "reference_recall": 0.3210937499999999,
+      "id_overlap": 1.0
+    }
+  ],
+  "source_commit": "a010611aba6d1f889172fc4fe250ab2f56ec1302",
+  "scores": [
+    {
+      "candidate": 0,
+      "geomean_speedup": 1.0,
+      "min_speedup": 1.0,
+      "eligible": true,
+      "config": {
+        "query_tile_size": 16,
+        "candidate_chunk_size": 1024,
+        "max_tasks_per_batch": 256,
+        "memory_budget_mb": 512,
+        "lut_chunk_size": 16,
+        "pq_lookup": "gather",
+        "min_query_tile_size": 1
+      }
+    },
+    {
+      "candidate": 1,
+      "geomean_speedup": 1.106024369021119,
+      "min_speedup": 1.0390852829433748,
+      "eligible": true,
+      "config": {
+        "query_tile_size": 16,
+        "candidate_chunk_size": 2048,
+        "max_tasks_per_batch": 256,
+        "memory_budget_mb": 512.0,
+        "lut_chunk_size": 16,
+        "pq_lookup": "gather",
+        "min_query_tile_size": 1
+      }
+    },
+    {
+      "candidate": 2,
+      "geomean_speedup": 1.2224043404801355,
+      "min_speedup": 1.1489603967484225,
+      "eligible": true,
+      "config": {
+        "query_tile_size": 16,
+        "candidate_chunk_size": 2048,
+        "max_tasks_per_batch": 256,
+        "memory_budget_mb": 1024.0,
+        "lut_chunk_size": 32,
+        "pq_lookup": "gather",
+        "min_query_tile_size": 1
+      }
+    }
+  ],
+  "selected": {
+    "query_tile_size": 16,
+    "candidate_chunk_size": 2048,
+    "max_tasks_per_batch": 256,
+    "memory_budget_mb": 1024.0,
+    "lut_chunk_size": 32,
+    "pq_lookup": "gather",
+    "min_query_tile_size": 1
+  },
+  "selected_candidate": 2
+}

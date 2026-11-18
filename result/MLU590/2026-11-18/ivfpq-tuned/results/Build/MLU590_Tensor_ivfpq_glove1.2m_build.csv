@@ -1,0 +1,2 @@
+dataset,method,nlist,n_vectors,dim,build_seconds,save_seconds,index_size_bytes,index_size_mib,peak_build_gpu_memory_mib
+glove1.2m,Tensor,1024,1183514,200,6.615087727084756,2.438828943297267,111780209,106.60191440582275,

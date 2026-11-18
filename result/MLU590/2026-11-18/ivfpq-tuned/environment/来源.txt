@@ -1,0 +1,1 @@
+硬件、系统、镜像标识沿用同日原始基准环境快照（captured-at.txt）。运行中卡0状态以本轮各结果JSON的hardware_before/after为准。软件运行时以本轮logs/runtime.log和config.python_executable/torch_module为准；未沿用旧software.json的解释器假设。

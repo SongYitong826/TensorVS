@@ -1,0 +1,61 @@
+{
+  "style_source": "TensorVS plot/plot_ascend_ivf_compare.py; Figure10 and Figure15",
+  "source_commit": "a010611aba6d1f889172fc4fe250ab2f56ec1302",
+  "previous_source_commit": "fe15d623",
+  "font": "DejaVu Sans (Matplotlib v3.10.7 font files)",
+  "method": "After tuning",
+  "provenance": [
+    {
+      "dataset": "glove1.2m",
+      "kind": "ivfpq",
+      "points_per_run": 22,
+      "total_measured_points": 44,
+      "visible_points": 44,
+      "xrange": [
+        0.3109999999999996,
+        0.3523999999999998
+      ],
+      "yrange": [
+        224.47590177618176,
+        5608.88608153553
+      ],
+      "source": "result/MLU590/2026-11-18/ivfpq-tuned/results/MLU590_Tensor_ivfpq_glove1.2m.json",
+      "previous_source": "result/MLU590/2026-11-18/ivfpq-tuned/comparison/previous-run/MLU590_Tensor_ivfpq_glove1.2m.json",
+      "selected": {
+        "query_tile_size": 16,
+        "candidate_chunk_size": 2048,
+        "max_tasks_per_batch": 256,
+        "memory_budget_mb": 1024,
+        "lut_chunk_size": 32,
+        "pq_lookup": "gather",
+        "min_query_tile_size": 1
+      }
+    },
+    {
+      "dataset": "gauss768",
+      "kind": "ivfpq",
+      "points_per_run": 16,
+      "total_measured_points": 32,
+      "visible_points": 32,
+      "xrange": [
+        0.4856999999999998,
+        0.7661999999999973
+      ],
+      "yrange": [
+        47.248708023182076,
+        167.42134110201366
+      ],
+      "source": "result/MLU590/2026-11-18/ivfpq-tuned/results/MLU590_Tensor_ivfpq_gauss768.json",
+      "previous_source": "result/MLU590/2026-11-18/ivfpq-tuned/comparison/previous-run/MLU590_Tensor_ivfpq_gauss768.json",
+      "selected": {
+        "query_tile_size": 64,
+        "candidate_chunk_size": 1024,
+        "max_tasks_per_batch": 256,
+        "memory_budget_mb": 1024,
+        "lut_chunk_size": 64,
+        "pq_lookup": "gather",
+        "min_query_tile_size": 1
+      }
+    }
+  ]
+}

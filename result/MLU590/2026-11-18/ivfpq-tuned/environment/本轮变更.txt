@@ -1,0 +1,1 @@
+本轮沿用同一硬件、容器与Conda tensorvs运行时。额外安装测试依赖pytest8.4.2、pluggy1.6.0、iniconfig2.1.0、Pygments2.19.2、exceptiongroup1.3.0、tomli2.2.1；未升级Torch/torch_mlu/驱动。依赖来源与SHA256见test-wheels/provenance.json，安装日志见logs/test-install.log。源代码固定main a010611。每份官方调优JSON保留实际运行设备、Torch/vendor版本、精度、源码hash与完整索引元数据；正式结果config保留实际解释器和模块路径。

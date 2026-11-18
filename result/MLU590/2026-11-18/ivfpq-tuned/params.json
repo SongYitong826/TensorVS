@@ -1,0 +1,131 @@
+{
+  "source_commit": "a010611aba6d1f889172fc4fe250ab2f56ec1302",
+  "common_search": {
+    "device": "mlu:0",
+    "backend": "torch",
+    "topk": 10,
+    "torch_query_batch_size": 128,
+    "torch_pq_scan": "grouped",
+    "lut_dtype": "fp16",
+    "persist_layout": false,
+    "use_compile": false,
+    "cpu_threads": 1,
+    "mlu_allow_tf32": false
+  },
+  "measurement": {
+    "queries": 1000,
+    "warmup_sweeps": 2,
+    "timed_sweeps": 3,
+    "aggregation": "median",
+    "resident_queries": true,
+    "pad_final_batch": true
+  },
+  "datasets": {
+    "glove1.2m": {
+      "build_reused": true,
+      "build": {
+        "n_base": 1183514,
+        "dimension": 200,
+        "nlist": 1024,
+        "m": 32,
+        "nbits": 8,
+        "seed": 1234,
+        "coarse_niter": 25,
+        "pq_niter": 50,
+        "coarse_n_init": 1,
+        "pq_n_init": 2,
+        "coarse_trainset_fraction": 0.5,
+        "pq_max_points_per_centroid": 512
+      },
+      "transform": {
+        "pq_mode": "residual",
+        "pq_working_dim": 224,
+        "subdim": 7,
+        "pq_rotation": "random_orthogonal"
+      },
+      "search": {
+        "torch_query_tile_size": 16,
+        "torch_candidate_chunk_size": 2048,
+        "torch_max_tasks_per_batch": 256,
+        "torch_memory_budget_mb": 1024,
+        "torch_lut_chunk_size": 32,
+        "torch_pq_lookup": "gather",
+        "torch_min_query_tile_size": 1
+      },
+      "nprobe": [
+        50,
+        80,
+        100,
+        120,
+        140,
+        160,
+        180,
+        200,
+        220,
+        240,
+        260,
+        280,
+        300,
+        320,
+        340,
+        360,
+        380,
+        400,
+        500,
+        700,
+        900,
+        1024
+      ]
+    },
+    "gauss768": {
+      "build_reused": true,
+      "build": {
+        "n_base": 1000000,
+        "dimension": 768,
+        "nlist": 1024,
+        "m": 384,
+        "nbits": 8,
+        "seed": 1234,
+        "coarse_niter": 25,
+        "pq_niter": 50,
+        "coarse_n_init": 1,
+        "pq_n_init": 2,
+        "coarse_trainset_fraction": 0.5,
+        "pq_max_points_per_centroid": 512
+      },
+      "transform": {
+        "pq_mode": "residual",
+        "pq_working_dim": 768,
+        "subdim": 2,
+        "pq_rotation": "identity"
+      },
+      "search": {
+        "torch_query_tile_size": 64,
+        "torch_candidate_chunk_size": 1024,
+        "torch_max_tasks_per_batch": 256,
+        "torch_memory_budget_mb": 1024,
+        "torch_lut_chunk_size": 64,
+        "torch_pq_lookup": "gather",
+        "torch_min_query_tile_size": 1
+      },
+      "nprobe": [
+        350,
+        380,
+        400,
+        450,
+        500,
+        550,
+        600,
+        650,
+        700,
+        750,
+        800,
+        850,
+        900,
+        950,
+        1000,
+        1024
+      ]
+    }
+  }
+}

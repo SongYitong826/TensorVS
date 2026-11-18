@@ -1,5 +1,7 @@
 # TensorVS 寒武纪基准 · 2026-11-18
 
+后续 **GloVe M32 / Gauss768 M384** 的密集 IVF-PQ 调优重测见 [ivfpq-tuned/](ivfpq-tuned/README.md)，包含最终执行参数、38 点结果和调优前后曲线。本页保留最初 GloVe-1M/M25 基准记录。
+
 当前 TensorVS 在单张 MLU590-M9DG 80 GiB 上的未优化基准。主实验固定 batch=128、nlist=1024、top-k=10，两个百万条数据集、两种索引，共22个完整的 QPS–Recall 参数点。
 
 ## 结果

@@ -1,0 +1,17 @@
+{
+  "repository": "git@github.com:SongYitong826/TensorVS.git",
+  "commit": "a010611aba6d1f889172fc4fe250ab2f56ec1302",
+  "tuner_git_blob": "908c486b8485c1360d9d1f1d0c7671ea24708af5",
+  "source_archive_sha256": "23b7fa815fe7023cafce0537b884ead280251d2d6cc10e13d9313770b0875d10",
+  "tuner_modified": false,
+  "kernel_changes_from_upstream_fe15d623": false,
+  "local_source": "/Users/petrizhang/develop/TensorVS-mlu-tuning",
+  "transfer_scope": [
+    "src",
+    "bench",
+    "tests",
+    "pyproject.toml",
+    "AGENTS.md"
+  ],
+  "flash_kmeans": "reuse unchanged submodule 2c3c68481761caea2c6100f9bd5c951dc04271f8"
+}

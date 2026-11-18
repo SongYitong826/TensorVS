@@ -1,0 +1,26 @@
+TensorVS MLU590 IVFPQ 调优与重测（2026-11-18）
+
+版本：GitHub main a010611aba6d1f889172fc4fe250ab2f56ec1302。官方 bench/tune_tensor_tiles.py 保持原样。独立源码目录，保留此前工作区改动。
+硬件：28.223.112.168，MLU590-M9DG 80 GiB 卡0，tensorvs-petrizhang-mlu 容器，k8s.io namespace。启动前卡0空闲。
+运行：Conda tensorvs，固定 /root/petrizhang/envs/tensorvs/bin/python。
+
+固定输入与索引：复用 aligned-20261118 的 GloVe M32 和 Gauss768 M384 索引。nlist1024 / 8bit / K10 / batch128 / FP16 LUT / CPU线程1 / TF32关闭，不改变训练、码本或向量变换。调优前后SHA256必须相同。
+GloVe来自官方ANN-Benchmarks原始完整train=1183514条/200维，query独立test前1000条。M32索引内部随机正交200→224。与昇腾记录1193514条仍有10000条差异。
+768维继续用用户先前要求生成的1M标准正态Gauss768，不是论文真实工业Hunyuan。数据身份未完全对齐，不给出严格硬件性能比。
+本轮不重新建索引，Build Time注明复用上轮实测记录，不能误称本次重新建库。
+
+选参协议：
+1. 调优只用query[0:128]。固定nprobe：GloVe240、Gauss650。官方模块每配置先校验输出，再计3次同步驻留batch延迟取中位数，诊断输出独立保存。
+2. A轮：tile=[8,16,32,64]，chunk=[512,1024,2048]，lookup=[flat,gather]；任务256，workspace GloVe512MiB/Gauss256MiB，LUT分块16/32。
+3. B轮：固定A轮最快的显式tile/chunk/lookup；任务批量=[64,256,512]，workspace=[128,256,512,1024]MiB，LUT分块=[8,16,32,64,128]。
+4. C轮：固定B轮任务/workspace/LUT，tile与chunk在B轮值的0.5/1/2倍邻域继续搜索（tile4..128，chunk256..4096），并比较两种查表方式。
+5. 各轮最快的显式配置与之前固定配置一起，在query[512:640]和query[768:896]做独立复核；GloVe nprobe=[80,240,700]，Gauss=[400,650,1000]。每案例先预热、校验结果，再3次同步延迟。选择六案例几何平均QPS最高且每案例均不低于旧配置90%的候选。保留旧配置作为保底。每个数据集固定一套参数，不逐点挑最快。
+以上为分阶段搜索，不宣称穷举全局最优。
+
+正式重测：两数据集都完成调优选参后，冻结参数，分别扫描22/16个nprobe点，使用全部1000条query。每点预热2轮、计时3轮，同步驻留完整查询批次，取中位数。另做Recall及访问向量统计，不计入QPS。与上轮同索引Recall差异超过0.002则失败停止。
+诊断batch QPS与正式全查询QPS分开保存，不混入论文曲线。显存如只有Torch allocator指标会明确标注；驱动进程显存留空，不填旧值。
+
+远端目录：/data/home/petrizhang/tensorvs-mlu/tuned-20261118-a010611。
+索引、旧结果与旧源码均保留。GitHub归档仅包含结果、参数、调优报告、环境记录和图，不上传复现包。
+
+元数据解释：正式结果config从同索引的上轮记录继承训练/输入/环境说明，再记录本轮source_commit、source_files_sha256与selected_execution。继承的alignment_status文字属于上轮对齐说明；本轮执行参数是MLU独立调优结果，以selected_execution、tuning/frozen-settings.json和selection报告为准，不应解释为仍与昇腾搜索参数相同。

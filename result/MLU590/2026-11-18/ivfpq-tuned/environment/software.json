@@ -1,0 +1,21 @@
+{
+  "python": "3.10.20 (main, Jul 18 2026, 17:02:35) [Clang 22.1.3 ]",
+  "python_executable": "/root/petrizhang/envs/tensorvs/bin/python",
+  "torch": "2.7.1+cpu",
+  "torch_mlu": "1.29.2+torch2.7.1",
+  "numpy": "1.26.4",
+  "h5py": "3.14.0",
+  "faiss": "1.8.0 (wheel 1.8.0.post1)",
+  "driver": "6.5.48",
+  "firmware": "1.1.2",
+  "cntoolkit": "4.4.3",
+  "cpu_threads": 1,
+  "mlu_allow_tf32": false,
+  "pq_int8_select_enabled": false,
+  "module_tests": {
+    "passed": 10,
+    "warnings": 2,
+    "seconds": 2.39
+  },
+  "note": "Same runtime as the preceding dense run; only offline pytest dependencies installed for module tests. No driver or Torch upgrade."
+}

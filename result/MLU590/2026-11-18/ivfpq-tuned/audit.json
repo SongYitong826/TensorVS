@@ -1,0 +1,67 @@
+{
+  "status": "passed",
+  "points": 38,
+  "checks": [
+    "Unchanged index SHA256 before/after",
+    "Frozen dataset-level settings match selection",
+    "38 complete CSV/JSON matching points",
+    "Median QPS independently recomputed",
+    "Heldout overlap/recall and regression guard",
+    "Same-index full-curve recall guard",
+    "Build statistics explicitly reused"
+  ],
+  "summaries": [
+    {
+      "dataset": "glove1.2m",
+      "m": 32,
+      "points": 22,
+      "selected": {
+        "query_tile_size": 16,
+        "candidate_chunk_size": 2048,
+        "max_tasks_per_batch": 256,
+        "memory_budget_mb": 1024,
+        "lut_chunk_size": 32,
+        "pq_lookup": "gather",
+        "min_query_tile_size": 1
+      },
+      "holdout_geomean_speedup": 1.2224043404801355,
+      "holdout_min_speedup": 1.1489603967484225,
+      "full_curve_geomean_ratio_previous_run": 1.24720169169225,
+      "full_curve_min_ratio_previous_run": 1.084937897040348,
+      "full_curve_max_ratio_previous_run": 1.4043688984473424,
+      "qps_nprobe1024": 381.21700896699883,
+      "recall_nprobe1024": 0.3472999999999997,
+      "build_reused": true,
+      "reused_build_seconds": 6.615087727084756,
+      "reused_save_seconds": 2.438828943297267,
+      "index_sha256": "1b57d07b151acdc660500107d3e54ccf1b495740a3358e2ad2d45740353e801e",
+      "source": "results/MLU590_Tensor_ivfpq_glove1.2m.json"
+    },
+    {
+      "dataset": "gauss768",
+      "m": 384,
+      "points": 16,
+      "selected": {
+        "query_tile_size": 64,
+        "candidate_chunk_size": 1024,
+        "max_tasks_per_batch": 256,
+        "memory_budget_mb": 1024,
+        "lut_chunk_size": 64,
+        "pq_lookup": "gather",
+        "min_query_tile_size": 1
+      },
+      "holdout_geomean_speedup": 1.0380939183601718,
+      "holdout_min_speedup": 1.0114405762708307,
+      "full_curve_geomean_ratio_previous_run": 1.0604961838155649,
+      "full_curve_min_ratio_previous_run": 1.011530006690436,
+      "full_curve_max_ratio_previous_run": 1.1119198473686653,
+      "qps_nprobe1024": 67.53914947129283,
+      "recall_nprobe1024": 0.7611999999999973,
+      "build_reused": true,
+      "reused_build_seconds": 147.91631086915731,
+      "reused_save_seconds": 12.42680923268199,
+      "index_sha256": "c1fc4222e114072afc6e4e3f0baca8e6e056dad55a9447746d687dbc936bc8fb",
+      "source": "results/MLU590_Tensor_ivfpq_gauss768.json"
+    }
+  ]
+}
