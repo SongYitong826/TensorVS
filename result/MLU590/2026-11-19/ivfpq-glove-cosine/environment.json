@@ -1,0 +1,28 @@
+{
+  "device": "MLU590-M9DG 80 GiB, card 0",
+  "driver": "6.5.48",
+  "firmware": "1.1.2",
+  "cntoolkit": "4.4.3",
+  "cpu": "2x AMD EPYC 9K84; 192 physical cores / 384 logical threads",
+  "memory": "1.5 TiB",
+  "host_os": "TencentOS 4",
+  "container_os": "Ubuntu 24.04",
+  "software": {
+    "python": "3.10.20",
+    "torch": "2.7.1+cpu",
+    "torch_mlu": "1.29.2+torch2.7.1",
+    "numpy": "1.26.4",
+    "faiss": "1.8.0",
+    "h5py": "3.14.0"
+  },
+  "conda_environment": "tensorvs",
+  "python_executable": "/root/petrizhang/envs/tensorvs/bin/python",
+  "cpu_build_threads": 16,
+  "mlu_build_cpu_threads": 1,
+  "query_cpu_threads": 1,
+  "query_device": "mlu:0",
+  "tf32": false,
+  "compile": false,
+  "host_snapshot_reference": "../../2026-11-18/ivfpq-tuned/environment/",
+  "capture_note": "Existing same-host inventory; runtime Torch/torch_mlu/interpreter recorded per run. No driver/runtime update in this experiment."
+}

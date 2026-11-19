@@ -1,0 +1,1159 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "background": "white",
+  "padding": 10,
+  "width": 520,
+  "height": 245,
+  "layer": [
+    {
+      "data": {
+        "values": [
+          {
+            "nprobes": 50,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 4786.823864172447,
+            "recall": 0.43560000000000015,
+            "samples_seconds": [
+              0.20886108092963696,
+              0.20890678837895393,
+              0.20898021571338177
+            ],
+            "visited_vectors_per_query": 61674.849,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 80,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 3427.953719491714,
+            "recall": 0.4396000000000004,
+            "samples_seconds": [
+              0.29154198057949543,
+              0.2918229028582573,
+              0.2917192243039608
+            ],
+            "visited_vectors_per_query": 98676.976,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 100,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 2976.888082805378,
+            "recall": 0.44210000000000055,
+            "samples_seconds": [
+              0.4470483250916004,
+              0.3358933385461569,
+              0.335921261459589
+            ],
+            "visited_vectors_per_query": 123517.325,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 120,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 2607.6727484332046,
+            "recall": 0.4434000000000006,
+            "samples_seconds": [
+              0.38285340182483196,
+              0.3834837023168802,
+              0.4938027709722519
+            ],
+            "visited_vectors_per_query": 148336.172,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 140,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 2312.23376269363,
+            "recall": 0.44430000000000053,
+            "samples_seconds": [
+              0.4323536567389965,
+              0.432482223957777,
+              0.5430462453514338
+            ],
+            "visited_vectors_per_query": 173289.541,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 160,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 2095.3201418114886,
+            "recall": 0.44520000000000043,
+            "samples_seconds": [
+              0.47725403867661953,
+              0.5888251587748528,
+              0.4765839036554098
+            ],
+            "visited_vectors_per_query": 198315.332,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 180,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1898.1165580037707,
+            "recall": 0.44490000000000046,
+            "samples_seconds": [
+              0.6395552214235067,
+              0.5267969015985727,
+              0.5268380362540483
+            ],
+            "visited_vectors_per_query": 223456.216,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 200,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1745.0192432355168,
+            "recall": 0.44560000000000055,
+            "samples_seconds": [
+              0.5730595830827951,
+              0.5731379240751266,
+              0.5726384054869413
+            ],
+            "visited_vectors_per_query": 248548.18,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 220,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1610.026607423594,
+            "recall": 0.4467000000000005,
+            "samples_seconds": [
+              0.6211077477782965,
+              0.7322744727134705,
+              0.6206917781382799
+            ],
+            "visited_vectors_per_query": 273692.814,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 240,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1489.2222098007314,
+            "recall": 0.4473000000000005,
+            "samples_seconds": [
+              0.7810097001492977,
+              0.6714914627373219,
+              0.6710913870483637
+            ],
+            "visited_vectors_per_query": 298928.273,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 260,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1408.1995395659333,
+            "recall": 0.44760000000000044,
+            "samples_seconds": [
+              0.7101266346871853,
+              0.710073683410883,
+              0.8167043756693602
+            ],
+            "visited_vectors_per_query": 324175.782,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 280,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1308.061511878546,
+            "recall": 0.4477000000000005,
+            "samples_seconds": [
+              0.7644900418817997,
+              0.9471206832677126,
+              0.7600811813026667
+            ],
+            "visited_vectors_per_query": 349393.807,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 300,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1001.1544090538144,
+            "recall": 0.44780000000000053,
+            "samples_seconds": [
+              0.998846922069788,
+              0.8099561873823404,
+              1.0117557235062122
+            ],
+            "visited_vectors_per_query": 374565.777,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 320,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 953.6283169794534,
+            "recall": 0.4479000000000005,
+            "samples_seconds": [
+              1.0486265793442726,
+              0.8616972453892231,
+              1.0486934054642916
+            ],
+            "visited_vectors_per_query": 399664.339,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 340,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 915.8191385090772,
+            "recall": 0.4479000000000005,
+            "samples_seconds": [
+              1.1003854591399431,
+              0.9077898766845465,
+              1.0919186528772116
+            ],
+            "visited_vectors_per_query": 424690.823,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 360,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 881.8339243301315,
+            "recall": 0.44820000000000054,
+            "samples_seconds": [
+              1.1340003740042448,
+              1.1419171653687954,
+              0.9515604302287102
+            ],
+            "visited_vectors_per_query": 449722.048,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 380,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 841.9749522388963,
+            "recall": 0.44820000000000054,
+            "samples_seconds": [
+              1.191815983504057,
+              1.0007599648088217,
+              1.1876837871968746
+            ],
+            "visited_vectors_per_query": 474744.085,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 400,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 809.6418381147367,
+            "recall": 0.44830000000000053,
+            "samples_seconds": [
+              1.23511403799057,
+              1.045451182872057,
+              1.2351388856768608
+            ],
+            "visited_vectors_per_query": 499594.207,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 500,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 684.0671449516234,
+            "recall": 0.44860000000000044,
+            "samples_seconds": [
+              1.2717396151274443,
+              1.461844801902771,
+              1.4634548835456371
+            ],
+            "visited_vectors_per_query": 622007.172,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 700,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 523.9003976116904,
+            "recall": 0.44910000000000044,
+            "samples_seconds": [
+              1.9073490221053362,
+              1.9087597653269768,
+              2.10016586817801
+            ],
+            "visited_vectors_per_query": 855486.982,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 900,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 429.95941615103834,
+            "recall": 0.44910000000000044,
+            "samples_seconds": [
+              2.330021185800433,
+              2.214328620582819,
+              2.325800906866789
+            ],
+            "visited_vectors_per_query": 1066261.676,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 1024,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 404.32935590792465,
+            "recall": 0.44920000000000043,
+            "samples_seconds": [
+              2.473231254145503,
+              2.4926976151764393,
+              2.473226085305214
+            ],
+            "visited_vectors_per_query": 1183514,
+            "peak_gpu_memory": null,
+            "method": "MLU balanced"
+          },
+          {
+            "nprobes": 50,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 4644.343135740934,
+            "recall": 0.44240000000000007,
+            "samples_seconds": [
+              0.21523152850568295,
+              0.2153157014399767,
+              0.2153602708131075
+            ],
+            "visited_vectors_per_query": 59111.575,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 80,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 3452.880776365421,
+            "recall": 0.4480999999999997,
+            "samples_seconds": [
+              0.2896132431924343,
+              0.2896004654467106,
+              0.2898940574377775
+            ],
+            "visited_vectors_per_query": 93258.627,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 100,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 2917.9475700275384,
+            "recall": 0.4511999999999998,
+            "samples_seconds": [
+              0.34270663745701313,
+              0.3428281508386135,
+              0.3426625430583954
+            ],
+            "visited_vectors_per_query": 116076.317,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 120,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 2589.0604614685844,
+            "recall": 0.45320000000000005,
+            "samples_seconds": [
+              0.38624049723148346,
+              0.38579737208783627,
+              0.3863492887467146
+            ],
+            "visited_vectors_per_query": 139120.987,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 140,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 2308.579422857759,
+            "recall": 0.45359999999999995,
+            "samples_seconds": [
+              0.43316681683063507,
+              0.4327515624463558,
+              0.6165747568011284
+            ],
+            "visited_vectors_per_query": 162254.097,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 160,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 2085.832674940133,
+            "recall": 0.45499999999999985,
+            "samples_seconds": [
+              0.47931913286447525,
+              0.4795074611902237,
+              0.4794248417019844
+            ],
+            "visited_vectors_per_query": 185588.231,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 180,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1892.8411646754912,
+            "recall": 0.4559999999999999,
+            "samples_seconds": [
+              0.5283063463866711,
+              0.5274646878242493,
+              0.7117780186235905
+            ],
+            "visited_vectors_per_query": 209097.248,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 200,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1742.3257766105305,
+            "recall": 0.45659999999999984,
+            "samples_seconds": [
+              0.7576693184673786,
+              0.573483157902956,
+              0.573945477604866
+            ],
+            "visited_vectors_per_query": 232715.232,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 220,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1616.1270438962533,
+            "recall": 0.45659999999999984,
+            "samples_seconds": [
+              0.6187632363289595,
+              0.7967458833009005,
+              0.6185924503952265
+            ],
+            "visited_vectors_per_query": 256616.58,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 240,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1179.7503905824826,
+            "recall": 0.45709999999999984,
+            "samples_seconds": [
+              0.8559114765375853,
+              0.6703610401600599,
+              0.8476369306445122
+            ],
+            "visited_vectors_per_query": 280608.809,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 260,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1385.804737834477,
+            "recall": 0.45709999999999973,
+            "samples_seconds": [
+              0.7063083220273256,
+              0.8946859631687403,
+              0.7216023821383715
+            ],
+            "visited_vectors_per_query": 304693.322,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 280,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1063.1256511155823,
+            "recall": 0.4571999999999997,
+            "samples_seconds": [
+              0.9406225867569447,
+              0.7547489032149315,
+              0.9418790023773909
+            ],
+            "visited_vectors_per_query": 329055.403,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 300,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1253.3052715942017,
+            "recall": 0.4572999999999997,
+            "samples_seconds": [
+              0.7968079838901758,
+              0.9848082754760981,
+              0.797890204936266
+            ],
+            "visited_vectors_per_query": 353367.527,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 320,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1181.9784641718877,
+            "recall": 0.4574999999999997,
+            "samples_seconds": [
+              0.8447092138230801,
+              1.0324637684971094,
+              0.8460391033440828
+            ],
+            "visited_vectors_per_query": 377806.571,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 340,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1116.3940540380177,
+            "recall": 0.45779999999999965,
+            "samples_seconds": [
+              0.8955125119537115,
+              1.0865847561508417,
+              0.8957410659641027
+            ],
+            "visited_vectors_per_query": 402308.528,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 360,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 883.1965913061856,
+            "recall": 0.4580999999999996,
+            "samples_seconds": [
+              1.1322507467120886,
+              0.9395646341145039,
+              1.1344225350767374
+            ],
+            "visited_vectors_per_query": 426899.105,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 380,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 849.6892114300372,
+            "recall": 0.45819999999999966,
+            "samples_seconds": [
+              0.9847431238740683,
+              1.176900902763009,
+              1.1773832961916924
+            ],
+            "visited_vectors_per_query": 451442.649,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 400,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 819.311957798872,
+            "recall": 0.4581999999999997,
+            "samples_seconds": [
+              1.2205363176763058,
+              1.221196873113513,
+              1.0304558016359806
+            ],
+            "visited_vectors_per_query": 475994.247,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 500,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 689.2040010273791,
+            "recall": 0.4590999999999997,
+            "samples_seconds": [
+              1.4509492088109255,
+              1.4519678577780724,
+              1.2609647922217846
+            ],
+            "visited_vectors_per_query": 598296.29,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 700,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 526.1056817723714,
+            "recall": 0.4592999999999997,
+            "samples_seconds": [
+              1.8968804869800806,
+              2.089583072811365,
+              1.9007587917149067
+            ],
+            "visited_vectors_per_query": 836702.534,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 900,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 400.47491632975635,
+            "recall": 0.45959999999999973,
+            "samples_seconds": [
+              2.4970352929085493,
+              2.500002669170499,
+              2.280022157356143
+            ],
+            "visited_vectors_per_query": 1055520.515,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 1024,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 395.5414599931299,
+            "recall": 0.4596999999999997,
+            "samples_seconds": [
+              2.378673428669572,
+              2.528179978951812,
+              2.52870936691761
+            ],
+            "visited_vectors_per_query": 1183514,
+            "peak_gpu_memory": null,
+            "method": "MLU Lloyd"
+          },
+          {
+            "nprobes": 50,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 4702.266607421962,
+            "recall": 0.43560000000000043,
+            "samples_seconds": [
+              0.21266339905560017,
+              0.21270513720810413,
+              0.21256711706519127
+            ],
+            "visited_vectors_per_query": 58916.317,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 80,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 3524.6440921059557,
+            "recall": 0.4405000000000005,
+            "samples_seconds": [
+              0.28347340412437916,
+              0.2837165892124176,
+              0.28393702395260334
+            ],
+            "visited_vectors_per_query": 92813.23,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 100,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 3027.1030731440783,
+            "recall": 0.44210000000000044,
+            "samples_seconds": [
+              0.3303394950926304,
+              0.3303488437086344,
+              0.44218845665454865
+            ],
+            "visited_vectors_per_query": 115552.29,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 120,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 2632.1040311722327,
+            "recall": 0.4439000000000004,
+            "samples_seconds": [
+              0.3799241930246353,
+              0.37977223843336105,
+              0.3801495395600796
+            ],
+            "visited_vectors_per_query": 138505.535,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 140,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 2367.40310488709,
+            "recall": 0.44420000000000043,
+            "samples_seconds": [
+              0.422370295971632,
+              0.422403771430254,
+              0.42262630723416805
+            ],
+            "visited_vectors_per_query": 161536.482,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 160,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 2137.421394796572,
+            "recall": 0.44490000000000024,
+            "samples_seconds": [
+              0.46782309003174305,
+              0.4678534623235464,
+              0.46809691190719604
+            ],
+            "visited_vectors_per_query": 184795.706,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 180,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1957.5573682438821,
+            "recall": 0.4458000000000003,
+            "samples_seconds": [
+              0.622641883790493,
+              0.5106257107108831,
+              0.5108407121151686
+            ],
+            "visited_vectors_per_query": 208184.002,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 200,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1789.1694873440426,
+            "recall": 0.44620000000000004,
+            "samples_seconds": [
+              0.5590904746204615,
+              0.5583530943840742,
+              0.5589185412973166
+            ],
+            "visited_vectors_per_query": 231769.088,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 220,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1654.2420839642148,
+            "recall": 0.4467000000000001,
+            "samples_seconds": [
+              0.6045064441859722,
+              0.7152871284633875,
+              0.6037715375423431
+            ],
+            "visited_vectors_per_query": 255586.898,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 240,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1534.0331316933875,
+            "recall": 0.4472000000000001,
+            "samples_seconds": [
+              0.6518764030188322,
+              0.7653157226741314,
+              0.6517381370067596
+            ],
+            "visited_vectors_per_query": 279644.194,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 260,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1447.7730310386294,
+            "recall": 0.4480000000000001,
+            "samples_seconds": [
+              0.8047054633498192,
+              0.6907160021364689,
+              0.6902741938829422
+            ],
+            "visited_vectors_per_query": 303722.746,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 280,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1364.1066413144379,
+            "recall": 0.4482000000000001,
+            "samples_seconds": [
+              0.7330429442226887,
+              0.7330805156379938,
+              0.8454077411442995
+            ],
+            "visited_vectors_per_query": 327920.359,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 300,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1118.1617243372032,
+            "recall": 0.4484000000000001,
+            "samples_seconds": [
+              0.8943250142037868,
+              0.7827189993113279,
+              0.8963643331080675
+            ],
+            "visited_vectors_per_query": 352204.535,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 320,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1201.4214196378841,
+            "recall": 0.4488000000000001,
+            "samples_seconds": [
+              0.8313524853438139,
+              0.94675805978477,
+              0.8323474042117596
+            ],
+            "visited_vectors_per_query": 376663.5,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 340,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1014.9682695580392,
+            "recall": 0.4489,
+            "samples_seconds": [
+              0.9852524753659964,
+              0.8731204960495234,
+              0.9891943708062172
+            ],
+            "visited_vectors_per_query": 401305.523,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 360,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 1078.3086682452831,
+            "recall": 0.4496,
+            "samples_seconds": [
+              0.9263866636902094,
+              1.1164490189403296,
+              0.9273782446980476
+            ],
+            "visited_vectors_per_query": 425860.323,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 380,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 857.1686130533589,
+            "recall": 0.45039999999999997,
+            "samples_seconds": [
+              1.1688699554651976,
+              0.9774353057146072,
+              1.1666316110640764
+            ],
+            "visited_vectors_per_query": 450380.445,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 400,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 825.7377384771626,
+            "recall": 0.45039999999999997,
+            "samples_seconds": [
+              1.021910261362791,
+              1.2121358085423708,
+              1.2110382672399282
+            ],
+            "visited_vectors_per_query": 474997.666,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 500,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 702.4240471778626,
+            "recall": 0.45080000000000003,
+            "samples_seconds": [
+              1.4236414656043053,
+              1.445636672899127,
+              1.2536174673587084
+            ],
+            "visited_vectors_per_query": 597095.598,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 700,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 524.6082133736777,
+            "recall": 0.45099999999999996,
+            "samples_seconds": [
+              2.0963335130363703,
+              1.9061844144016504,
+              1.9043749012053013
+            ],
+            "visited_vectors_per_query": 835170.805,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 900,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 430.01617262390863,
+            "recall": 0.4513999999999999,
+            "samples_seconds": [
+              2.3227698486298323,
+              2.518391616642475,
+              2.3254939317703247
+            ],
+            "visited_vectors_per_query": 1056148.34,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          },
+          {
+            "nprobes": 1024,
+            "q_batch": 128,
+            "K": 10,
+            "qps": 401.76886030447866,
+            "recall": 0.4513999999999999,
+            "samples_seconds": [
+              2.390939285978675,
+              2.4889932963997126,
+              2.517014244571328
+            ],
+            "visited_vectors_per_query": 1183514,
+            "peak_gpu_memory": null,
+            "method": "CPU Lloyd"
+          }
+        ]
+      },
+      "mark": {
+        "type": "line",
+        "clip": true,
+        "strokeWidth": 1.7,
+        "point": {
+          "shape": "square",
+          "filled": true,
+          "size": 35
+        }
+      },
+      "encoding": {
+        "x": {
+          "field": "recall",
+          "type": "quantitative",
+          "title": "Recall@10",
+          "scale": {
+            "zero": false,
+            "domain": [
+              0.43360000000000015,
+              0.4616999999999997
+            ]
+          },
+          "axis": {
+            "format": ".1%",
+            "tickCount": 6
+          }
+        },
+        "y": {
+          "field": "qps",
+          "type": "quantitative",
+          "title": "QPS",
+          "scale": {
+            "type": "log",
+            "domain": [
+              316.43316799450395,
+              5744.188637006937
+            ]
+          },
+          "axis": {
+            "format": "~s",
+            "tickCount": 5
+          }
+        },
+        "order": {
+          "field": "nprobes",
+          "type": "quantitative"
+        },
+        "color": {
+          "field": "method",
+          "type": "nominal",
+          "scale": {
+            "domain": [
+              "MLU balanced",
+              "MLU Lloyd",
+              "CPU Lloyd"
+            ],
+            "range": [
+              "#00609d",
+              "#d88724",
+              "#888888"
+            ]
+          },
+          "legend": {
+            "title": "Index build",
+            "orient": "top",
+            "direction": "horizontal",
+            "fillColor": "white",
+            "strokeColor": "#ccc",
+            "cornerRadius": 2,
+            "padding": 5,
+            "labelFontSize": 11,
+            "labelLimit": 0,
+            "columnPadding": 14,
+            "symbolSize": 50,
+            "symbolType": "square"
+          }
+        },
+        "strokeDash": {
+          "field": "method",
+          "type": "nominal",
+          "scale": {
+            "domain": [
+              "MLU balanced",
+              "MLU Lloyd",
+              "CPU Lloyd"
+            ],
+            "range": [
+              [
+                1,
+                0
+              ],
+              [
+                2,
+                2
+              ],
+              [
+                4,
+                3
+              ]
+            ]
+          },
+          "legend": null
+        }
+      }
+    },
+    {
+      "data": {
+        "values": [
+          {
+            "label": "GloVe M32 · cosine · MLU590 query"
+          }
+        ]
+      },
+      "mark": {
+        "type": "text",
+        "align": "left",
+        "baseline": "bottom",
+        "fontWeight": "bold",
+        "fontSize": 14
+      },
+      "encoding": {
+        "x": {
+          "value": 10
+        },
+        "y": {
+          "value": 235
+        },
+        "text": {
+          "field": "label"
+        }
+      }
+    }
+  ],
+  "config": {
+    "font": "DejaVu Sans",
+    "axis": {
+      "labelFontSize": 13.5,
+      "titleFontSize": 16,
+      "titleFontWeight": "normal",
+      "grid": true,
+      "gridDash": [
+        3,
+        3
+      ],
+      "gridOpacity": 0.3,
+      "gridColor": "#888",
+      "domainColor": "black",
+      "tickColor": "black",
+      "domainWidth": 0.6,
+      "tickWidth": 0.6
+    },
+    "view": {
+      "stroke": "black",
+      "strokeWidth": 0.6
+    }
+  }
+}

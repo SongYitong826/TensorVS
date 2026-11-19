@@ -1,0 +1,11 @@
+{
+  "sources": [
+    "../results/mlu-balanced/MLU590_Tensor_ivfpq_glove1.2m_cosine-mlu-balanced.json",
+    "../results/mlu-lloyd/MLU590_Tensor_ivfpq_glove1.2m_cosine-mlu-lloyd.json",
+    "../results/cpu-lloyd/MLU590_Tensor_ivfpq_glove1.2m_cosine-cpu-lloyd.json"
+  ],
+  "points_per_curve": 22,
+  "ordering": "nprobe",
+  "style": "paper-style log-QPS, square markers, dashed grid",
+  "controlled_change": "Unit-normalized base/query, exact cosine groundtruth, fixed rotation, same M32/nlist1024/search; full MLU balanced, MLU Lloyd, CPU Lloyd builds"
+}

@@ -1,0 +1,28 @@
+GloVe200 / IVFPQ M32 余弦口径更正与 CPU 构建对照（2026-11-19）
+
+此前 GloVe 实验未归一化，并用原始平方L2重算真值，不能用于论文angular/cosine对比。这是实验口径错误，旧记录仅保留追溯，不纳入本图。
+本次对 base 和 query 都逐行做L2归一化；float64求范数/除法，转float32存储；归一化后以平方L2搜索，等价于原向量余弦排序。对全量归一化base用Faiss IndexFlatIP精确计算1000查询top100，保存余弦距离1-inner_product。没有复用原始L2真值。
+旧原始L2真值与余弦top10平均重合率 27.44%。
+归一化检查：{"base":{"original_norm_min":0.02797557868924043,"original_norm_max":16.64705142870255,"original_norm_mean":6.169553249974156,"normalized_max_norm_error":2.658529607568738e-8,"shape":[1183514,200]},"query":{"original_norm_min":1.8888050861222447,"original_norm_max":11.085691459406124,"original_norm_mean":6.171453279234753,"normalized_max_norm_error":1.7790017903251965e-8,"shape":[1000,200]}}。
+
+输入：官方ANN-Benchmarks GloVe-200 HDF5 train 1,183,514×200；query为官方test前1000行。三个新实验读取同一份归一化文件并逐一验证SHA256。原始与归一化文件分目录保存，未覆盖旧数据/索引。
+索引：nlist1024，M32，8bit，200→224，seed1234；IVF25轮/1次初始化/训练比例0.5，PQ50轮/2次初始化/每中心最多512点；kmeans++初始化。三个实验精确复用同一224×200旋转矩阵，构建计时不包含重新生成QR矩阵。CPU/MLU随机数实现不同，同seed不保证kmeans++初始中心相同，CPU对照不是逐位等价性证明。
+旋转已核验：列正交最大误差3.21113e-7，1024对抽样原始向量L2距离最大相对误差1.80099e-7，CPU/MLU执行相同旋转最大元素差9.53674e-7。以上仅排查数值实现，不证明旋转对PQ精度无影响。
+此前“去旋转只补零”对照使用原始L2，其结果不能外推到余弦，本图不包含它。
+
+所有查询都在同一张MLU590上执行。仅索引构建设备/训练算法不同：
+构建 | 完整Build(s) | 保存(s) | nprobe400 Recall/QPS | nprobe1024 Recall/QPS
+mlu-balanced | 6.435 | 2.397 | 44.83% / 809.64 | 44.92% / 404.33
+mlu-lloyd | 23.687 | 2.417 | 45.82% / 819.31 | 45.97% / 395.54
+cpu-lloyd | 582.461 | 0.946 | 45.04% / 825.74 | 45.14% / 401.77
+完整Build包括完整IVF聚类、PQ训练及全量编码；不含输入/旧索引加载、文件SHA验证、序列化保存及预处理/真值计算。Build过程峰值RSS为进程CPU内存，不能当作MLU峰值显存。本轮未单独测量完整Build的设备峰值显存，不用查询内存代替。
+
+查询设置：torch后端，grouped，batch128，K10，FP16 LUT，query tile16，candidate chunk2048，tasks cap256，workspace1024MiB，LUT chunk32，gather；compile关闭，TF32关闭。沿用先前选定参数以控制变量，本轮没有对归一化数据重新调优搜索参数。
+每个实验22个点：50,80,100,120,140,160,180,200,220,240,260,280,300,320,340,360,380,400,500,700,900,1024。
+每点2次预热、3次同步完整1000查询取耗时中位数，QPS=1000/中位数；尾批填充128，Recall和访问数另测。原始三次耗时保留JSON，未平滑或删点。
+
+环境：MLU590-M9DG 80GiB卡0；驱动6.5.48、固件1.1.2、CNToolkit4.4.3；2×AMD EPYC9K84（384逻辑核）主机；Ubuntu24.04容器；Conda tensorvs，Python3.10.20，torch2.7.1+cpu，torch_mlu1.29.2+torch2.7.1，NumPy1.26.4，h5py3.14.0，Faiss1.8.0。CPU构建16线程，MLU构建/所有查询CPU线程1。
+代码a010611aba6d1f889172fc4fe250ab2f56ec1302，flash-kmeans 2c3c68481761caea2c6100f9bd5c951dc04271f8。无搜索内核改动。
+核对：66点完成；33个训练阶段逐一核实实际构建设备；脚本SHA、归一化数据/真值manifest、索引metadata、CSV/JSON、QPS复算、全扫描访问数及旋转复用均已检查，详见audit.json。
+
+跨卡限制：其他卡原报告N=1,193,514，本次官方train N=1,183,514；其他卡数据、查询与索引尚未逐字节对齐，本次修正余弦口径后也不能声称完全复现其结果。

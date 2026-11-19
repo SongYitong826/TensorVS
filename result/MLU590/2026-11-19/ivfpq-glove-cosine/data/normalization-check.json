@@ -1,0 +1,26 @@
+{
+  "statistics": {
+    "base": {
+      "original_norm_min": 0.02797557868924043,
+      "original_norm_max": 16.64705142870255,
+      "original_norm_mean": 6.169553249974156,
+      "normalized_max_norm_error": 2.658529607568738e-08,
+      "shape": [
+        1183514,
+        200
+      ]
+    },
+    "query": {
+      "original_norm_min": 1.8888050861222447,
+      "original_norm_max": 11.085691459406124,
+      "original_norm_mean": 6.171453279234753,
+      "normalized_max_norm_error": 1.7790017903251965e-08,
+      "shape": [
+        1000,
+        200
+      ]
+    }
+  },
+  "old_raw_l2_groundtruth_overlap_at10": 0.2744,
+  "groundtruth_seconds": 13.206226754933596
+}

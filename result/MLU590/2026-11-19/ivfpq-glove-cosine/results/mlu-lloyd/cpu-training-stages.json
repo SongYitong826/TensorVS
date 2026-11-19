@@ -1,0 +1,200 @@
+[
+  {
+    "stage": 0,
+    "seconds": 1.356140036135912,
+    "inertia": 447184.5,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 1,
+    "seconds": 0.691179970279336,
+    "inertia": 849.1868896484375,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 2,
+    "seconds": 0.6864377278834581,
+    "inertia": 818.944580078125,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 3,
+    "seconds": 0.688975416123867,
+    "inertia": 842.4305419921875,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 4,
+    "seconds": 0.686042807996273,
+    "inertia": 847.4149780273438,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 5,
+    "seconds": 0.6848966386169195,
+    "inertia": 815.0962524414062,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 6,
+    "seconds": 0.6857818942517042,
+    "inertia": 819.619140625,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 7,
+    "seconds": 0.6858089920133352,
+    "inertia": 832.8746337890625,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 8,
+    "seconds": 0.7025991417467594,
+    "inertia": 832.9049072265625,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 9,
+    "seconds": 0.7107483204454184,
+    "inertia": 846.3335571289062,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 10,
+    "seconds": 0.6853941548615694,
+    "inertia": 832.5238647460938,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 11,
+    "seconds": 0.6854269318282604,
+    "inertia": 809.5562744140625,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 12,
+    "seconds": 0.6842514239251614,
+    "inertia": 822.6480712890625,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 13,
+    "seconds": 0.6850261315703392,
+    "inertia": 833.2837524414062,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 14,
+    "seconds": 0.6858843713998795,
+    "inertia": 846.12255859375,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 15,
+    "seconds": 0.685068791732192,
+    "inertia": 842.9466552734375,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 16,
+    "seconds": 0.6840392965823412,
+    "inertia": 826.7120361328125,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 17,
+    "seconds": 0.6878566741943359,
+    "inertia": 820.3486328125,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 18,
+    "seconds": 0.6846824642270803,
+    "inertia": 816.6508178710938,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 19,
+    "seconds": 0.6854905616492033,
+    "inertia": 836.948486328125,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 20,
+    "seconds": 0.6855427827686071,
+    "inertia": 838.325439453125,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 21,
+    "seconds": 0.6853318475186825,
+    "inertia": 830.08740234375,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 22,
+    "seconds": 0.6842809207737446,
+    "inertia": 829.3176879882812,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 23,
+    "seconds": 0.6868504583835602,
+    "inertia": 843.2568969726562,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 24,
+    "seconds": 0.6840924862772226,
+    "inertia": 806.3871459960938,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 25,
+    "seconds": 0.6852055173367262,
+    "inertia": 836.235595703125,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 26,
+    "seconds": 0.6861292961984873,
+    "inertia": 843.195068359375,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 27,
+    "seconds": 0.6854609809815884,
+    "inertia": 843.3154296875,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 28,
+    "seconds": 0.6873341668397188,
+    "inertia": 819.48193359375,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 29,
+    "seconds": 0.6853358242660761,
+    "inertia": 824.3749389648438,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 30,
+    "seconds": 0.6863641794770956,
+    "inertia": 831.3718872070312,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 31,
+    "seconds": 0.6855109389871359,
+    "inertia": 819.6983642578125,
+    "device": "mlu:0"
+  },
+  {
+    "stage": 32,
+    "seconds": 0.6862244438380003,
+    "inertia": 807.9262084960938,
+    "device": "mlu:0"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "build_seconds": 6.434842582792044,
+  "save_seconds": 2.39668645337224,
+  "build_reused": false,
+  "previous_raw_l2_build_seconds_not_comparable": 6.615087727084756,
+  "index_size_bytes": 111789121,
+  "build_process_peak_rss_mib": 2037.77734375,
+  "build_threads": 1,
+  "build_device": "mlu:0",
+  "build_scope": "Full IVF clustering, PQ training and full encoding; excludes input/index loading and serialization",
+  "coarse_kmeans_method": "balanced",
+  "pq_kmeans_method": "balanced",
+  "previous_raw_l2_coarse_inertia_not_comparable": 17979234.0,
+  "lloyd_coarse_inertia": 447733.59375,
+  "previous_raw_l2_pq_inertia_not_comparable": 1136516.99609375,
+  "lloyd_pq_training_inertia": 26607.37713623047
+}

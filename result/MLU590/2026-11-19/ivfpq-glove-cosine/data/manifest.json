@@ -1,0 +1,74 @@
+{
+  "dataset": "GloVe200 entire official ANN-Benchmarks train split",
+  "source": "https://ann-benchmarks.com/glove-200-angular.hdf5",
+  "source_sha256": "4839085e5a8bb293434a1a66e1aa0193afc3f07c6797a85f1dbd91656172da20",
+  "base_shape": [
+    1183514,
+    200
+  ],
+  "query_shape": [
+    1000,
+    200
+  ],
+  "query_selection": "first 1000 official test rows, preserved from previous baseline",
+  "metric": "cosine",
+  "normalization": "independent row L2 normalization of both base and query; float64 norm/division cast to float32",
+  "groundtruth": "exact faiss.IndexFlatIP top100 on normalized full train; stored distances are 1-inner_product",
+  "groundtruth_seconds": 13.206226754933596,
+  "ascend_comparison": "N differs: recorded Ascend N1193514 vs official train N1183514; exact input/index identity unverified",
+  "sha256": {
+    "glove1.2m_base.npy": "37fa809304c82a600b881dd5aeb47d877a405e3805e5a3770df9b4d620d7b2ab",
+    "glove1.2m_query.npy": "28243d447e3d7160ddbce5f952fb4b40b888022881fd468637b47c8e173a68b8",
+    "glove1.2m_groundtruth.npy": "3ffa2b5d60dc848aa610fa5adfc430ba86506ccd5dd257f2647d5d1e21962df6",
+    "glove1.2m_distances.npy": "5dddbb48688e0bb843aa4b15e80fc0a156e82e69254b4a30d1be1f7f9ea77af4"
+  },
+  "search_metric": "squared_l2 on unit normalized base and query",
+  "normalization_statistics": {
+    "base": {
+      "original_norm_min": 0.02797557868924043,
+      "original_norm_max": 16.64705142870255,
+      "original_norm_mean": 6.169553249974156,
+      "normalized_max_norm_error": 2.658529607568738e-08,
+      "shape": [
+        1183514,
+        200
+      ]
+    },
+    "query": {
+      "original_norm_min": 1.8888050861222447,
+      "original_norm_max": 11.085691459406124,
+      "original_norm_mean": 6.171453279234753,
+      "normalized_max_norm_error": 1.7790017903251965e-08,
+      "shape": [
+        1000,
+        200
+      ]
+    }
+  },
+  "old_raw_l2_groundtruth_overlap_at10": 0.2744,
+  "parent_raw_manifest": {
+    "dataset": "GloVe200 entire official ANN-Benchmarks train split",
+    "source": "https://ann-benchmarks.com/glove-200-angular.hdf5",
+    "source_sha256": "4839085e5a8bb293434a1a66e1aa0193afc3f07c6797a85f1dbd91656172da20",
+    "base_shape": [
+      1183514,
+      200
+    ],
+    "query_shape": [
+      1000,
+      200
+    ],
+    "query_selection": "first 1000 official test rows, preserved from previous baseline",
+    "metric": "squared_l2",
+    "normalization": "none; official values cast to float32",
+    "groundtruth": "exact faiss.IndexFlatL2 top100 against all 1183514 train rows; official angular neighbors not used",
+    "groundtruth_seconds": 11.130820520222187,
+    "ascend_comparison": "N differs: recorded Ascend N1193514 vs official train N1183514; exact input/index identity unverified",
+    "sha256": {
+      "glove1.2m_base.npy": "e7de6fb9c854d66c77f9a5a64ff9df8f7340927e84885f62cd0e344188bd694a",
+      "glove1.2m_query.npy": "7ac2cba7d0d9548859da093bcf5c2291e3723d75893a08a6769676fea8e419c6",
+      "glove1.2m_groundtruth.npy": "81dfa249de83a388507e7b04cca85d4c4a2101baeffbd8e86710f4d14206c975",
+      "glove1.2m_distances.npy": "c4d580e6ff668668e51e259232bd8c676146cf14c8defc249148579cb6b80bf4"
+    }
+  }
+}

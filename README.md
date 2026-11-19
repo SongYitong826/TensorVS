@@ -30,7 +30,7 @@
 | AMD GPU | PyTorch or Triton on ROCm (`cuda`) | MI300X VF · IVF-Flat and IVF-PQ benchmarked with both backends |
 | Apple Silicon GPU | PyTorch MPS (`mps`) | Apple M5 · IVF-Flat and IVF-PQ benchmarked |
 | Huawei Ascend NPU | PyTorch with `torch_npu` and CANN (`npu:0`) | Ascend 910B4 · IVF-Flat and IVF-PQ benchmarked |
-| Cambricon MLU | PyTorch with `torch_mlu` (`mlu:0`) | MLU590-M9DG · IVF-Flat benchmarked; [tuned IVF-PQ M32/M384 results](result/MLU590/2026-11-18/ivfpq-tuned/README.md) |
+| Cambricon MLU | PyTorch with `torch_mlu` (`mlu:0`) | MLU590-M9DG · IVF-Flat benchmarked; [GloVe cosine M32 CPU/MLU results](result/MLU590/2026-11-19/ivfpq-glove-cosine/README.md); [Gauss768 M384 tuning](result/MLU590/2026-11-18/ivfpq-tuned/README.md) |
 
 Validation is pending for Kunlunxin XPU.
 

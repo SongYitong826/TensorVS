@@ -87,3 +87,8 @@ dist/
 !/result/MLU590/2026-11-18/results/Build/*
 !/result/MLU590/2026-11-18/ivfpq-tuned/results/Build/
 !/result/MLU590/2026-11-18/ivfpq-tuned/results/Build/*
+
+# Curated cosine-corrected GloVe measurements.
+!/result/MLU590/2026-11-19/
+/result/MLU590/2026-11-19/*
+!/result/MLU590/2026-11-19/ivfpq-glove-cosine/

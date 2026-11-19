@@ -1,0 +1,413 @@
+{
+  "status": "passed",
+  "metric": "cosine",
+  "points_per_curve": 22,
+  "source_hashes": {
+    "_pq_math.py": "856e1dca8704b473d4e5ea35e2063a266a4b80825dd52a48d109dfd48de95c9c",
+    "index_ivfpq.py": "3ffd64c6dd39618f2898e2674dc3de20187623014d50c8cec151d129cde110ad",
+    "_torch_search.py": "af71b7c7ded79fc982c7c82b61baa3be2051f6eac2f58631ba0a54ed0fc680c0",
+    "training.py": "87396aa61319666be105d9b0c35649646387869dc542bbe4d9987781b13181a8"
+  },
+  "normalization": {
+    "statistics": {
+      "base": {
+        "original_norm_min": 0.02797557868924043,
+        "original_norm_max": 16.64705142870255,
+        "original_norm_mean": 6.169553249974156,
+        "normalized_max_norm_error": 2.658529607568738e-8,
+        "shape": [
+          1183514,
+          200
+        ]
+      },
+      "query": {
+        "original_norm_min": 1.8888050861222447,
+        "original_norm_max": 11.085691459406124,
+        "original_norm_mean": 6.171453279234753,
+        "normalized_max_norm_error": 1.7790017903251965e-8,
+        "shape": [
+          1000,
+          200
+        ]
+      }
+    },
+    "old_raw_l2_groundtruth_overlap_at10": 0.2744,
+    "groundtruth_seconds": 13.206226754933596
+  },
+  "records": [
+    {
+      "variant": "mlu-balanced",
+      "build": {
+        "build_seconds": 6.434842582792044,
+        "save_seconds": 2.39668645337224,
+        "build_reused": false,
+        "previous_raw_l2_build_seconds_not_comparable": 6.615087727084756,
+        "index_size_bytes": 111789121,
+        "build_process_peak_rss_mib": 2037.77734375,
+        "build_threads": 1,
+        "build_device": "mlu:0",
+        "build_scope": "Full IVF clustering, PQ training and full encoding; excludes input/index loading and serialization",
+        "coarse_kmeans_method": "balanced",
+        "pq_kmeans_method": "balanced",
+        "previous_raw_l2_coarse_inertia_not_comparable": 17979234,
+        "lloyd_coarse_inertia": 447733.59375,
+        "previous_raw_l2_pq_inertia_not_comparable": 1136516.99609375,
+        "lloyd_pq_training_inertia": 26607.37713623047
+      },
+      "search": {
+        "device": "mlu:0",
+        "backend": "torch",
+        "topk": 10,
+        "persist_layout": false,
+        "use_compile": false,
+        "torch_query_batch_size": 128,
+        "torch_pq_scan": "grouped",
+        "lut_dtype": "fp16",
+        "torch_query_tile_size": 16,
+        "torch_candidate_chunk_size": 2048,
+        "torch_max_tasks_per_batch": 256,
+        "torch_memory_budget_mb": 1024,
+        "torch_lut_chunk_size": 32,
+        "torch_pq_lookup": "gather",
+        "torch_min_query_tile_size": 1
+      },
+      "checks": {
+        "coarse_retrained": true,
+        "assignments_recomputed": true,
+        "rotation_equal": true,
+        "original_index_sha256_unchanged": true
+      },
+      "diagnostic": [
+        {
+          "nprobe": 400,
+          "lut_dtype": "fp32",
+          "recall": 0.44830000000000053
+        },
+        {
+          "nprobe": 400,
+          "lut_dtype": "fp16",
+          "recall": 0.44830000000000053
+        },
+        {
+          "nprobe": 1024,
+          "lut_dtype": "fp32",
+          "recall": 0.44920000000000043
+        },
+        {
+          "nprobe": 1024,
+          "lut_dtype": "fp16",
+          "recall": 0.44920000000000043
+        }
+      ],
+      "summary": [
+        {
+          "nprobes": 100,
+          "q_batch": 128,
+          "K": 10,
+          "qps": 2976.888082805378,
+          "recall": 0.44210000000000055,
+          "samples_seconds": [
+            0.4470483250916004,
+            0.3358933385461569,
+            0.335921261459589
+          ],
+          "visited_vectors_per_query": 123517.325,
+          "peak_gpu_memory": null
+        },
+        {
+          "nprobes": 200,
+          "q_batch": 128,
+          "K": 10,
+          "qps": 1745.0192432355168,
+          "recall": 0.44560000000000055,
+          "samples_seconds": [
+            0.5730595830827951,
+            0.5731379240751266,
+            0.5726384054869413
+          ],
+          "visited_vectors_per_query": 248548.18,
+          "peak_gpu_memory": null
+        },
+        {
+          "nprobes": 400,
+          "q_batch": 128,
+          "K": 10,
+          "qps": 809.6418381147367,
+          "recall": 0.44830000000000053,
+          "samples_seconds": [
+            1.23511403799057,
+            1.045451182872057,
+            1.2351388856768608
+          ],
+          "visited_vectors_per_query": 499594.207,
+          "peak_gpu_memory": null
+        },
+        {
+          "nprobes": 1024,
+          "q_batch": 128,
+          "K": 10,
+          "qps": 404.32935590792465,
+          "recall": 0.44920000000000043,
+          "samples_seconds": [
+            2.473231254145503,
+            2.4926976151764393,
+            2.473226085305214
+          ],
+          "visited_vectors_per_query": 1183514,
+          "peak_gpu_memory": null
+        }
+      ]
+    },
+    {
+      "variant": "mlu-lloyd",
+      "build": {
+        "build_seconds": 23.686529422178864,
+        "save_seconds": 2.416733307763934,
+        "build_reused": false,
+        "previous_raw_l2_build_seconds_not_comparable": 6.615087727084756,
+        "index_size_bytes": 111810181,
+        "build_process_peak_rss_mib": 2007.84765625,
+        "build_threads": 1,
+        "build_device": "mlu:0",
+        "build_scope": "Full IVF clustering, PQ training and full encoding; excludes input/index loading and serialization",
+        "coarse_kmeans_method": "lloyd",
+        "pq_kmeans_method": "lloyd",
+        "previous_raw_l2_coarse_inertia_not_comparable": 17979234,
+        "lloyd_coarse_inertia": 447184.5,
+        "previous_raw_l2_pq_inertia_not_comparable": 1136516.99609375,
+        "lloyd_pq_training_inertia": 26565.520629882812
+      },
+      "search": {
+        "device": "mlu:0",
+        "backend": "torch",
+        "topk": 10,
+        "persist_layout": false,
+        "use_compile": false,
+        "torch_query_batch_size": 128,
+        "torch_pq_scan": "grouped",
+        "lut_dtype": "fp16",
+        "torch_query_tile_size": 16,
+        "torch_candidate_chunk_size": 2048,
+        "torch_max_tasks_per_batch": 256,
+        "torch_memory_budget_mb": 1024,
+        "torch_lut_chunk_size": 32,
+        "torch_pq_lookup": "gather",
+        "torch_min_query_tile_size": 1
+      },
+      "checks": {
+        "coarse_retrained": true,
+        "assignments_recomputed": true,
+        "rotation_equal": true,
+        "original_index_sha256_unchanged": true
+      },
+      "diagnostic": [
+        {
+          "nprobe": 400,
+          "lut_dtype": "fp32",
+          "recall": 0.4582999999999997
+        },
+        {
+          "nprobe": 400,
+          "lut_dtype": "fp16",
+          "recall": 0.4581999999999997
+        },
+        {
+          "nprobe": 1024,
+          "lut_dtype": "fp32",
+          "recall": 0.4597999999999997
+        },
+        {
+          "nprobe": 1024,
+          "lut_dtype": "fp16",
+          "recall": 0.4596999999999997
+        }
+      ],
+      "summary": [
+        {
+          "nprobes": 100,
+          "q_batch": 128,
+          "K": 10,
+          "qps": 2917.9475700275384,
+          "recall": 0.4511999999999998,
+          "samples_seconds": [
+            0.34270663745701313,
+            0.3428281508386135,
+            0.3426625430583954
+          ],
+          "visited_vectors_per_query": 116076.317,
+          "peak_gpu_memory": null
+        },
+        {
+          "nprobes": 200,
+          "q_batch": 128,
+          "K": 10,
+          "qps": 1742.3257766105305,
+          "recall": 0.45659999999999984,
+          "samples_seconds": [
+            0.7576693184673786,
+            0.573483157902956,
+            0.573945477604866
+          ],
+          "visited_vectors_per_query": 232715.232,
+          "peak_gpu_memory": null
+        },
+        {
+          "nprobes": 400,
+          "q_batch": 128,
+          "K": 10,
+          "qps": 819.311957798872,
+          "recall": 0.4581999999999997,
+          "samples_seconds": [
+            1.2205363176763058,
+            1.221196873113513,
+            1.0304558016359806
+          ],
+          "visited_vectors_per_query": 475994.247,
+          "peak_gpu_memory": null
+        },
+        {
+          "nprobes": 1024,
+          "q_batch": 128,
+          "K": 10,
+          "qps": 395.5414599931299,
+          "recall": 0.4596999999999997,
+          "samples_seconds": [
+            2.378673428669572,
+            2.528179978951812,
+            2.52870936691761
+          ],
+          "visited_vectors_per_query": 1183514,
+          "peak_gpu_memory": null
+        }
+      ]
+    },
+    {
+      "variant": "cpu-lloyd",
+      "build": {
+        "build_seconds": 582.4606857076287,
+        "save_seconds": 0.945560660213232,
+        "build_reused": false,
+        "previous_raw_l2_build_seconds_not_comparable": 6.615087727084756,
+        "index_size_bytes": 111818629,
+        "build_process_peak_rss_mib": 5796.3046875,
+        "build_threads": 16,
+        "build_device": "cpu",
+        "build_scope": "Full IVF clustering, PQ training and full encoding; excludes input/index loading and serialization",
+        "coarse_kmeans_method": "lloyd",
+        "pq_kmeans_method": "lloyd",
+        "previous_raw_l2_coarse_inertia_not_comparable": 17979234,
+        "lloyd_coarse_inertia": 447208.79114529054,
+        "previous_raw_l2_pq_inertia_not_comparable": 1136516.99609375,
+        "lloyd_pq_training_inertia": 26567.086690678923
+      },
+      "search": {
+        "device": "mlu:0",
+        "backend": "torch",
+        "topk": 10,
+        "persist_layout": false,
+        "use_compile": false,
+        "torch_query_batch_size": 128,
+        "torch_pq_scan": "grouped",
+        "lut_dtype": "fp16",
+        "torch_query_tile_size": 16,
+        "torch_candidate_chunk_size": 2048,
+        "torch_max_tasks_per_batch": 256,
+        "torch_memory_budget_mb": 1024,
+        "torch_lut_chunk_size": 32,
+        "torch_pq_lookup": "gather",
+        "torch_min_query_tile_size": 1
+      },
+      "checks": {
+        "coarse_retrained": true,
+        "assignments_recomputed": true,
+        "rotation_equal": true,
+        "original_index_sha256_unchanged": true
+      },
+      "diagnostic": [
+        {
+          "nprobe": 400,
+          "lut_dtype": "fp32",
+          "recall": 0.45039999999999997
+        },
+        {
+          "nprobe": 400,
+          "lut_dtype": "fp16",
+          "recall": 0.45039999999999997
+        },
+        {
+          "nprobe": 1024,
+          "lut_dtype": "fp32",
+          "recall": 0.4513999999999999
+        },
+        {
+          "nprobe": 1024,
+          "lut_dtype": "fp16",
+          "recall": 0.4513999999999999
+        }
+      ],
+      "summary": [
+        {
+          "nprobes": 100,
+          "q_batch": 128,
+          "K": 10,
+          "qps": 3027.1030731440783,
+          "recall": 0.44210000000000044,
+          "samples_seconds": [
+            0.3303394950926304,
+            0.3303488437086344,
+            0.44218845665454865
+          ],
+          "visited_vectors_per_query": 115552.29,
+          "peak_gpu_memory": null
+        },
+        {
+          "nprobes": 200,
+          "q_batch": 128,
+          "K": 10,
+          "qps": 1789.1694873440426,
+          "recall": 0.44620000000000004,
+          "samples_seconds": [
+            0.5590904746204615,
+            0.5583530943840742,
+            0.5589185412973166
+          ],
+          "visited_vectors_per_query": 231769.088,
+          "peak_gpu_memory": null
+        },
+        {
+          "nprobes": 400,
+          "q_batch": 128,
+          "K": 10,
+          "qps": 825.7377384771626,
+          "recall": 0.45039999999999997,
+          "samples_seconds": [
+            1.021910261362791,
+            1.2121358085423708,
+            1.2110382672399282
+          ],
+          "visited_vectors_per_query": 474997.666,
+          "peak_gpu_memory": null
+        },
+        {
+          "nprobes": 1024,
+          "q_batch": 128,
+          "K": 10,
+          "qps": 401.76886030447866,
+          "recall": 0.4513999999999999,
+          "samples_seconds": [
+            2.390939285978675,
+            2.4889932963997126,
+            2.517014244571328
+          ],
+          "visited_vectors_per_query": 1183514,
+          "peak_gpu_memory": null
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "CPU/MLU seed equality does not imply identical KMeans initial centers; fixed rotation is exact across all runs.",
+    "Old raw-L2 measurements have a different target and are excluded from cosine comparison.",
+    "Other-card dataset/index identity remains unverified."
+  ]
+}

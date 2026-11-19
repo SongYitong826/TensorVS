@@ -1,0 +1,17 @@
+{
+  "source": "Observed WeTERM output from /root/petrizhang/tensorvs-mlu/glove-cpu-20261119/scripts/check_rotation.py",
+  "shape": [
+    224,
+    200
+  ],
+  "gram_max_abs": 3.211130386844613e-7,
+  "distance_max_relative": 1.8009870834242999e-7,
+  "distance_max_abs": 0.00002514806575959483,
+  "cpu_vs_mlu_transform_max_abs": 9.5367431640625e-7,
+  "same_seed_cpu_generated_matrix_equal": false,
+  "same_seed_matrix_max_abs": 0.3893309235572815,
+  "pq_only_rotation_equal": true,
+  "full_lloyd_rotation_equal": true,
+  "sampled_pair_count": 1024,
+  "scope": "Numerical matrix check; raw-L2 PQ ablation is not a cosine ablation."
+}

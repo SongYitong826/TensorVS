@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "files": 48,
+  "json_files": 35,
+  "markdown_links": 39,
+  "query_points": 66,
+  "raw_results_byte_identical": true,
+  "figure_points": 66,
+  "excludes_vectors_indexes_scripts_logs_archives": true,
+  "staged_raw_results_byte_identical": true
+}

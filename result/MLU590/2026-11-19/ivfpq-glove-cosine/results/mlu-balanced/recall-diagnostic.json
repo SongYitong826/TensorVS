@@ -1,0 +1,22 @@
+[
+  {
+    "nprobe": 400,
+    "lut_dtype": "fp32",
+    "recall": 0.44830000000000053
+  },
+  {
+    "nprobe": 400,
+    "lut_dtype": "fp16",
+    "recall": 0.44830000000000053
+  },
+  {
+    "nprobe": 1024,
+    "lut_dtype": "fp32",
+    "recall": 0.44920000000000043
+  },
+  {
+    "nprobe": 1024,
+    "lut_dtype": "fp16",
+    "recall": 0.44920000000000043
+  }
+]

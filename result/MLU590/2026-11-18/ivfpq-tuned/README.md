@@ -1,5 +1,7 @@
 # MLU590 IVF-PQ：调优后的 M32 / M384 结果
 
+> **2026-11-19 GloVe 口径更正：** 本页 GloVe 使用未归一化原始向量和平方 L2 真值，不能用于 angular/cosine 论文对比。归一化后的三组 CPU/MLU 构建、66点查询与新曲线见 [GloVe 余弦重跑](../../2026-11-19/ivfpq-glove-cosine/README.md)。本页旧记录保留追溯，不能把两种距离口径的召回差解释为同一任务提升。
+
 基于 GitHub main `a010611aba6d1f889172fc4fe250ab2f56ec1302`，先用上游 `bench/tune_tensor_tiles.py` 调优并独立复核，再冻结每个数据集的一套执行参数，完成 GloVe 22 点、Gauss768 16 点正式重测。官方调优模块未修改。
 
 本目录与父目录的早期 GloVe-1M/M25 基准分开保存。图中 Previous run 来自 [comparison/previous-run/](comparison/previous-run/)，是同数据、同 M32/M384 索引的上一轮密集测量。
